@@ -4,6 +4,7 @@
 
 #include <dlib/data_io.h>
 #include <dlib/dir_nav.h>
+#include <dlib/opencv.h>
 
 #include "dlibopencvconverter.h"
 #include "opencvimgaugment.h"
@@ -14,7 +15,7 @@ using namespace std;
 int main(int argc, char *argv[])
 {
     if(argc != 2) {
-        cout << "This application shoud be runned with path to images directory as cmd arg" << endl;
+        cout << "This application should be ran with path to images directory as cmd arg" << endl;
         return 0;
     }
 

@@ -27,9 +27,9 @@ void randomly_jitter_image(const matrix<image_type>& img, dlib::array<matrix<ima
     cropper.set_randomly_flip(false);
     cropper.set_background_crops_fraction(0);
     cropper.set_max_object_size(1.07);
-    cropper.set_min_object_size(1.01);
-    cropper.set_translate_amount(0.0085);
-    cropper.set_max_rotation_degrees(0.85);
+    cropper.set_min_object_size(_trows,_tcols);
+    cropper.set_translate_amount(0.01);
+    cropper.set_max_rotation_degrees(0.5);
 
     dlib::rectangle _imgrect = get_rect(img);
 
@@ -46,10 +46,9 @@ template<typename image_type>
 rectangle make_random_cropping_rect(const matrix<image_type> &img, dlib::rand &rnd)
 {
     // figure out what rectangle we want to crop from the image
-    double mins = 0.91, maxs = 0.99; // do not make greater than 1.0 or app will silently crash
+    double mins = 0.90, maxs = 0.99; // do not make greater than 1.0 or app will silently crash
     auto scale = mins + rnd.get_random_double()*(maxs-mins);
-    auto size = scale*std::min(img.nr(), img.nc());
-    rectangle rect(size, size);
+    rectangle rect(scale*img.nc(), scale*img.nr());
     // randomly shift the box around
     point offset(rnd.get_random_32bit_number()%(img.nc()-rect.width()),
                  rnd.get_random_32bit_number()%(img.nr()-rect.height()));
