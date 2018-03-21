@@ -22,14 +22,14 @@ void randomly_jitter_image(const matrix<image_type>& img, dlib::array<matrix<ima
         _trows = num_rows(img);
 
     thread_local random_cropper cropper; // so the jitter_images could be used in the threads with the minimum cost (one random_cropper per thread will be created)
-    cropper.set_seed(time(0)+seed);
+    cropper.set_seed(seed);
     cropper.set_chip_dims(_trows,_tcols);
     cropper.set_randomly_flip(false);
     cropper.set_background_crops_fraction(0);
-    cropper.set_max_object_size(1.07);
-    cropper.set_min_object_size(_trows,_tcols);
-    cropper.set_translate_amount(0.01);
-    cropper.set_max_rotation_degrees(0.5);
+    cropper.set_max_object_size(1.1);
+    cropper.set_min_object_size(std::max(_trows,_tcols),std::min(_trows,_tcols));
+    cropper.set_translate_amount(0.02);
+    cropper.set_max_rotation_degrees(5.0);
 
     dlib::rectangle _imgrect = get_rect(img);
 

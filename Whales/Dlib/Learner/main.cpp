@@ -62,7 +62,8 @@ void load_mini_batch (
     dlib::rand& rnd,
     const std::vector<std::vector<string>>& objs,
     std::vector<matrix<rgb_pixel>>& images,
-    std::vector<unsigned long>& labels
+    std::vector<unsigned long>& labels,
+    time_t seed
 )
 {
     images.clear();
@@ -85,7 +86,7 @@ void load_mini_batch (
             const auto& obj = objs[id][rnd.get_random_32bit_number()%objs[id].size()];
             //load_image(image, obj);
             _mat = cv::imread(obj);
-            cv::resize(_mat,_mat,cv::Size(150,150),0,0,CV_INTER_AREA);
+            cv::resize(_mat,_mat,cv::Size(300,150),0,0,CV_INTER_AREA);
             image = cvmat2dlibmatrix<dlib::rgb_pixel>(_mat);
             images.push_back(std::move(image));
             labels.push_back(id);
@@ -94,12 +95,15 @@ void load_mini_batch (
 
     // You might want to do some data augmentation at this point.  Here we do some simple
     // color augmentation.
+    dlib::array<dlib::matrix<dlib::rgb_pixel>> _vcrops;
     for (auto&& crop : images)
     {
         disturb_colors(crop,rnd);
         // Jitter most crops
-        if (rnd.get_random_double() > 0.1)
-            crop = jitter_image(crop,rnd);
+        if (rnd.get_random_double() > 0.1) {
+            randomly_jitter_image(crop,_vcrops,seed,1);
+            crop = _vcrops[0];
+        }
     }
 
     // All the images going into a mini-batch have to be the same size.  And really, all
@@ -196,11 +200,11 @@ int main(int argc, char** argv)
     dnn_trainer<net_type> trainer(net, sgd(0.0001, 0.9));
     trainer.set_learning_rate(0.1);
     trainer.be_verbose();
-    trainer.set_synchronization_file("face_metric_sync", std::chrono::minutes(5));
+    trainer.set_synchronization_file("whales_metric_sync", std::chrono::minutes(5));
     // I've set this to something really small to make the example terminate
     // sooner.  But when you really want to train a good model you should set
     // this to something like 10000 so training doesn't terminate too early.
-    trainer.set_iterations_without_progress_threshold(300);
+    trainer.set_iterations_without_progress_threshold(5000);
 
     // If you have a lot of data then it might not be reasonable to load it all
     // into RAM.  So you will need to be sure you are decompressing your images
@@ -218,7 +222,7 @@ int main(int argc, char** argv)
         {
             try
             {
-                load_mini_batch(5, 5, rnd, objs, images, labels);
+                load_mini_batch(5, 5, rnd, objs, images, labels, seed);
                 qimages.enqueue(images);
                 qlabels.enqueue(labels);
             }
@@ -253,7 +257,7 @@ int main(int argc, char** argv)
 
     // Save the network to disk
     net.clean();
-    serialize("metric_network_renset.dat") << net;
+    serialize("whales_metric_network_renset.dat") << net;
 
     // stop all the data loading threads and wait for them to terminate.
     qimages.disable();
@@ -267,7 +271,7 @@ int main(int argc, char** argv)
     // Now, just to show an example of how you would use the network, let's check how well
     // it performs on the training data.
     dlib::rand rnd(time(0));
-    load_mini_batch(5, 5, rnd, objs, images, labels);
+    load_mini_batch(5, 5, rnd, objs, images, labels, time(0));
 
     // Normally you would use the non-batch-normalized version of the network to do
     // testing, which is what we do here.
@@ -306,7 +310,6 @@ int main(int argc, char** argv)
 
     cout << "num_right: "<< num_right << endl;
     cout << "num_wrong: "<< num_wrong << endl;
-
 }
 
 
