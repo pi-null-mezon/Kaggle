@@ -86,7 +86,7 @@ void load_mini_batch (
             const auto& obj = objs[id][rnd.get_random_32bit_number()%objs[id].size()];
             //load_image(image, obj);
             _mat = cv::imread(obj);
-            cv::resize(_mat,_mat,cv::Size(300,150),0,0,CV_INTER_AREA);
+            cv::resize(_mat,_mat,cv::Size(150,150),0,0,CV_INTER_AREA);
             image = cvmat2dlibmatrix<dlib::rgb_pixel>(_mat);
             images.push_back(std::move(image));
             labels.push_back(id);

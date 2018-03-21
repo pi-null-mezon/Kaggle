@@ -5,7 +5,7 @@
 
 int main(int argc, char *argv[])
 {
-    if(argc < 4) {
+    if(argc != 4) {
         qWarning() << "This app should be called with three arguments:"
                       "./app filename dirwithimages outputdir"
                       "For the instance: ./app train.csv traindir outputdir";
