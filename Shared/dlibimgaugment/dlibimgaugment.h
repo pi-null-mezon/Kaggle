@@ -28,8 +28,8 @@ void randomly_jitter_image(const matrix<image_type>& img, dlib::array<matrix<ima
     cropper.set_background_crops_fraction(0);
     cropper.set_max_object_size(1.1);
     cropper.set_min_object_size(std::max(_trows,_tcols),std::min(_trows,_tcols));
-    cropper.set_translate_amount(0.02);
-    cropper.set_max_rotation_degrees(5.0);
+    cropper.set_translate_amount(0.05);
+    cropper.set_max_rotation_degrees(15.0);
 
     dlib::rectangle _imgrect = get_rect(img);
 

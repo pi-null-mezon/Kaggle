@@ -86,7 +86,7 @@ void load_mini_batch (
             const auto& obj = objs[id][rnd.get_random_32bit_number()%objs[id].size()];
             //load_image(image, obj);
             _mat = cv::imread(obj);
-            cv::resize(_mat,_mat,cv::Size(150,150),0,0,CV_INTER_AREA);
+            cv::resize(_mat,_mat,cv::Size(300,150),0,0,CV_INTER_AREA);
             image = cvmat2dlibmatrix<dlib::rgb_pixel>(_mat);
             images.push_back(std::move(image));
             labels.push_back(id);
@@ -159,7 +159,7 @@ using net_type = loss_metric<fc_no_bias<128,avg_pool_everything<
                             level2<
                             level3<
                             level4<
-                            max_pool<3,3,2,2,relu<bn_con<con<32,7,7,2,2,
+                            max_pool<3,3,2,2,relu<bn_con<con<32,5,5,2,2,
                             input_rgb_image
                             >>>>>>>>>>>>;
 
@@ -170,7 +170,7 @@ using anet_type = loss_metric<fc_no_bias<128,avg_pool_everything<
                             alevel2<
                             alevel3<
                             alevel4<
-                            max_pool<3,3,2,2,relu<affine<con<32,7,7,2,2,
+                            max_pool<3,3,2,2,relu<affine<con<32,5,5,2,2,
                             input_rgb_image
                             >>>>>>>>>>>>;
 
@@ -222,7 +222,7 @@ int main(int argc, char** argv)
         {
             try
             {
-                load_mini_batch(5, 5, rnd, objs, images, labels, seed);
+                load_mini_batch(15, 5, rnd, objs, images, labels, seed);
                 qimages.enqueue(images);
                 qlabels.enqueue(labels);
             }
