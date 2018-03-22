@@ -18,7 +18,7 @@ dlib::matrix<image_type> cvmat2dlibmatrix(const cv::Mat &_cvmat);
 template <>
 dlib::matrix<dlib::rgb_pixel> cvmat2dlibmatrix(const cv::Mat &_cvmat)
 {
-    // TO DO checks of the channels number and color depth
+    assert(_cvmat.channels() == 3);
     cv::Mat _mat = _cvmat;
     if(_cvmat.isContinuous() == false)
         _mat = _cvmat.clone();
