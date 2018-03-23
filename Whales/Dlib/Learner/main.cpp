@@ -104,6 +104,10 @@ void load_mini_batch (
             randomly_jitter_image(crop,_vcrops,seed,1);
             crop = _vcrops[0];
         }
+        if(rnd.get_random_double() > 0.5) {
+            randomly_cutout_rect(crop,_vcrops,rnd,1,0.3,0.3);
+            crop = _vcrops[0];
+        }
     }
 
     // All the images going into a mini-batch have to be the same size.  And really, all
@@ -204,7 +208,7 @@ int main(int argc, char** argv)
     // I've set this to something really small to make the example terminate
     // sooner.  But when you really want to train a good model you should set
     // this to something like 10000 so training doesn't terminate too early.
-    trainer.set_iterations_without_progress_threshold(5000);
+    trainer.set_iterations_without_progress_threshold(4000);
 
     // If you have a lot of data then it might not be reasonable to load it all
     // into RAM.  So you will need to be sure you are decompressing your images
@@ -257,7 +261,7 @@ int main(int argc, char** argv)
 
     // Save the network to disk
     net.clean();
-    serialize("whales_metric_network_renset.dat") << net;
+    serialize("whales_metric_network_resnet.dat") << net;
 
     // stop all the data loading threads and wait for them to terminate.
     qimages.disable();
