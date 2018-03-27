@@ -14,7 +14,7 @@ namespace dlib {
 // Do not forget about existance of dlib::apply_random_color_offset(crop, rnd)
 
 template<typename image_type>
-void randomly_jitter_image(const matrix<image_type>& img, dlib::array<matrix<image_type>>& crops, time_t seed, size_t num_crops, unsigned long _trows=0, unsigned long _tcols=0)
+void randomly_jitter_image(const matrix<image_type>& img, dlib::array<matrix<image_type>>& crops, time_t seed, size_t num_crops, unsigned long _trows=0, unsigned long _tcols=0, double _maxsizepercents=1.1, double _maxtranslationpercents=0.05, double _maxrotationdeg=15.0)
 {
     if(_tcols == 0)
         _tcols = num_columns(img);
@@ -26,10 +26,10 @@ void randomly_jitter_image(const matrix<image_type>& img, dlib::array<matrix<ima
     cropper.set_chip_dims(_trows,_tcols);
     cropper.set_randomly_flip(false);
     cropper.set_background_crops_fraction(0);
-    cropper.set_max_object_size(1.1);
+    cropper.set_max_object_size(_maxsizepercents);
     cropper.set_min_object_size(std::max(_trows,_tcols),std::min(_trows,_tcols));
-    cropper.set_translate_amount(0.05);
-    cropper.set_max_rotation_degrees(15.0);
+    cropper.set_translate_amount(_maxtranslationpercents);
+    cropper.set_max_rotation_degrees(_maxrotationdeg);
 
     dlib::rectangle _imgrect = get_rect(img);
 
