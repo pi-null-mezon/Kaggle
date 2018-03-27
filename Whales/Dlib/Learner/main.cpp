@@ -86,7 +86,7 @@ void load_mini_batch (
             const auto& obj = objs[id][rnd.get_random_32bit_number()%objs[id].size()];
             //load_image(image, obj);
             _mat = cv::imread(obj);
-            cv::resize(_mat,_mat,cv::Size(350,150),0,0,CV_INTER_AREA);
+            cv::resize(_mat,_mat,cv::Size(500,200),0,0,CV_INTER_AREA);
             image = cvmat2dlibmatrix<dlib::rgb_pixel>(_mat);
             images.push_back(std::move(image));
             labels.push_back(id);
@@ -104,8 +104,8 @@ void load_mini_batch (
             randomly_jitter_image(crop,_vcrops,seed,1);
             crop = _vcrops[0];
         }
-        if(rnd.get_random_double() > 0.3) {
-            randomly_cutout_rect(crop,_vcrops,rnd,1,0.5,0.5);
+        if(rnd.get_random_double() > 0.2) {
+            randomly_cutout_rect(crop,_vcrops,rnd,1,0.5,0.5,45.0*rnd.get_random_double());
             crop = _vcrops[0];
         }
     }
@@ -144,16 +144,16 @@ template <int N, typename SUBNET> using ares_down = relu<residual_down<block,N,a
 // ----------------------------------------------------------------------------------------
 
 template <typename SUBNET> using level0 = res_down<256,SUBNET>;
-template <typename SUBNET> using level1 = res<256,res<256,res_down<256,SUBNET>>>;
-template <typename SUBNET> using level2 = res<128,res<128,res_down<128,SUBNET>>>;
-template <typename SUBNET> using level3 = res<64,res<64,res<64,res_down<64,SUBNET>>>>;
-template <typename SUBNET> using level4 = res<32,res<32,res<32,SUBNET>>>;
+template <typename SUBNET> using level1 = res_down<256,SUBNET>;
+template <typename SUBNET> using level2 = res_down<128,SUBNET>;
+template <typename SUBNET> using level3 = res<64,res_down<64,SUBNET>>;
+template <typename SUBNET> using level4 = res_down<32,SUBNET>;
 
 template <typename SUBNET> using alevel0 = ares_down<256,SUBNET>;
-template <typename SUBNET> using alevel1 = ares<256,ares<256,ares_down<256,SUBNET>>>;
-template <typename SUBNET> using alevel2 = ares<128,ares<128,ares_down<128,SUBNET>>>;
-template <typename SUBNET> using alevel3 = ares<64,ares<64,ares<64,ares_down<64,SUBNET>>>>;
-template <typename SUBNET> using alevel4 = ares<32,ares<32,ares<32,SUBNET>>>;
+template <typename SUBNET> using alevel1 = ares_down<256,SUBNET>;
+template <typename SUBNET> using alevel2 = ares_down<128,SUBNET>;
+template <typename SUBNET> using alevel3 = ares<64,ares_down<64,SUBNET>>;
+template <typename SUBNET> using alevel4 = ares_down<32,SUBNET>;
 
 
 // training network type
@@ -163,9 +163,9 @@ using net_type = loss_metric<fc_no_bias<128,avg_pool_everything<
                             level2<
                             level3<
                             level4<
-                            max_pool<3,3,2,2,relu<bn_con<con<32,5,5,2,2,
+                            relu<bn_con<con<32,5,5,2,2,
                             input_rgb_image
-                            >>>>>>>>>>>>;
+                            >>>>>>>>>>>;
 
 // testing network type (replaced batch normalization with fixed affine transforms)
 using anet_type = loss_metric<fc_no_bias<128,avg_pool_everything<
@@ -174,9 +174,9 @@ using anet_type = loss_metric<fc_no_bias<128,avg_pool_everything<
                             alevel2<
                             alevel3<
                             alevel4<
-                            max_pool<3,3,2,2,relu<affine<con<32,5,5,2,2,
+                            relu<affine<con<32,5,5,2,2,
                             input_rgb_image
-                            >>>>>>>>>>>>;
+                            >>>>>>>>>>>;
 
 // ----------------------------------------------------------------------------------------
 
@@ -226,7 +226,7 @@ int main(int argc, char** argv)
         {
             try
             {
-                load_mini_batch(19, 10, rnd, objs, images, labels, seed);
+                load_mini_batch(17, 7, rnd, objs, images, labels, seed);
                 qimages.enqueue(images);
                 qlabels.enqueue(labels);
             }

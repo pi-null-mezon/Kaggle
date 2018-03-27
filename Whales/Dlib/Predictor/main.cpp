@@ -75,10 +75,10 @@ int main(int argc, char *argv[])
         qInfo("%d) %s enrolled",i,_fileslist.at(i).toUtf8().constData());
         _ts << "\n" << _fileslist.at(i) << ',';
         cv::Mat _cvmat = cv::imread(_qdir.absoluteFilePath(_fileslist.at(i)).toUtf8().constData());
-        auto _vpredictions = _ptr->recognize(_cvmat,false);
+        auto _vpredictions = _ptr->recognize(_cvmat,true);
         if(_vpredictions.size() > 4) {
             for(size_t j = 0; j < 5; j++) {
-                if(_vpredictions[j].second < 0.48) {
+                if(_vpredictions[j].second < 0.55) {
                     _ts << ' ' << _ptr->getLabelInfo(_vpredictions[j].first).c_str();
                 } else {
                     _ts << " new_whale";
