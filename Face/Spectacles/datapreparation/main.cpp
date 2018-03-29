@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
     FaceTracker _facetracker(1,FaceTracker::FaceShape);
     _facetracker.setFaceShapePredictor(&_faceshapepredictor);
     _facetracker.setFaceClassifier(&_facedetector);
-    //_facetracker.setPrimaryFaceDetectorType(FaceTracker::HOG);
+    _facetracker.setPrimaryFaceDetectorType(FaceTracker::HOG);
     _facetracker.setFaceRectPortions(1.0,1.0);
     _facetracker.setFaceRectShifts(0.0,0.0);
 
