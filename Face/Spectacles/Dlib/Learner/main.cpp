@@ -22,10 +22,11 @@
 using namespace std;
 using namespace dlib;
 
+#define CLASSES 3
 #define FILTERS 16
 #define IMGSIZE 100
 
-using net_type = loss_multiclass_log<fc<3,avg_pool_everything<dropout<
+using net_type = loss_multiclass_log<fc<CLASSES,avg_pool_everything<dropout<
                             max_pool<2,2,2,2,relu<dropout<con<8*FILTERS,3,3,1,1,
                             max_pool<2,2,2,2,relu<dropout<con<4*FILTERS,3,3,1,1,
                             max_pool<3,3,2,2,relu<con<FILTERS,5,5,2,2,
@@ -67,15 +68,15 @@ void get_training_files_listing(const std::string& images_folder, std::vector<im
 
 // ----------------------------------------------------------------------------------------
 const cv::String keys =
-       "{help h           |        | print this message   }"
-       "{traindirpath   t |        | training directory location   }"
-       "{outputdirpath  o |        | output directory location   }"
-       "{number n         |   1    | number of classifiers to be trained   }"
-       "{split s          | 0.25   | test portion of train data   }"
+       "{help h           |        | print this message}"
+       "{traindirpath   t |        | training directory location}"
+       "{outputdirpath  o |        | output directory location}"
+       "{number n         |   1    | number of classifiers to be trained}"
+       "{split s          | 0.25   | test portion of train data}"
        "{lossthresh       | 0.20   | testset loss threshold for network saving }"
        "{swptrain         | 10000  | determines after how many steps without progress (training loss) decay should be applied to learning rate  }"
        "{swptest          | 1000   | determines after how many steps without progress (test loss) decay should be applied to learning rate  }"
-       "{minlrthresh      | 1.0e-3 | minimum learning rate, determines when trining should be stopped  }";
+       "{minlrthresh      | 1.0e-5 | minimum learning rate, determines when trining should be stopped  }";
 // -----------------------------------------------------------------------------------------
 int main(int argc, char** argv) try
 {
@@ -111,7 +112,7 @@ int main(int argc, char** argv) try
         }
 
         net_type net;
-        dnn_trainer<net_type> trainer(net,sgd());
+        dnn_trainer<net_type> trainer(net,sgd(0.0004,0.9));
         trainer.be_verbose();
         trainer.set_learning_rate(0.1);
         trainer.set_synchronization_file(cmdparser.get<std::string>("outputdirpath") + "/trainer_" + std::to_string(n) + "_state.dat", std::chrono::minutes(5));
@@ -148,8 +149,11 @@ int main(int argc, char** argv) try
                         dlib::disturb_colors(img,rnd);
 
                         size_t num_crops = 1;
+                        if(rnd.get_random_float() > 0.5f) {
+                            img = fliplr(img);
+                        }
                         if(rnd.get_random_float() > 0.1f) {
-                            randomly_jitter_image(img,crops,seed,num_crops,0,0,1.1,0.04,10.0);
+                            randomly_jitter_image(img,crops,seed,num_crops,0,0,1.1,0.05,10.0);
                             img = crops[0];
                             if(rnd.get_random_float() > 0.2f) {
                                 randomly_cutout_rect(img,crops,rnd,num_crops);
@@ -188,7 +192,7 @@ int main(int argc, char** argv) try
                         dlib::array<matrix<rgb_pixel>> crops;
                         size_t num_crops = 1;
                         if(rnd.get_random_float() > 0.1f) {// take in mind that this is validation images preprocessing
-                            randomly_jitter_image(img,crops,seed,num_crops);
+                            randomly_jitter_image(img,crops,seed,num_crops,0,0,1.1,0.05,10.0);
                             img = crops[0];
                         }
                         temp.second = std::move(img);
@@ -204,16 +208,11 @@ int main(int argc, char** argv) try
         std::thread data_loader8([vf](){ vf(4); });
 #endif
 
-        // The main training loop.  Keep making mini-batches and giving them to the trainer.
-        // We will run until the learning rate has dropped to 1e-4 or number of steps exceeds 1e5
+        // The main training loop. Keep making mini-batches and giving them to the trainer
         const double _min_learning_rate_thresh = cmdparser.get<double>("minlrthresh");
-#ifdef DLIB_USE_CUDA
-        const size_t _training_minibatch_size = 32;
-        const size_t _test_minibatch_size = 32;
-#else
-        const size_t _training_minibatch_size = 32;
-        const size_t _test_minibatch_size = 32;
-#endif
+        const size_t _training_minibatch_size = 99;
+        const size_t _test_minibatch_size     = 33;
+
         while(trainer.get_learning_rate() > _min_learning_rate_thresh)
         {
             samples.clear();
@@ -257,7 +256,7 @@ int main(int argc, char** argv) try
         data_loader8.join();
 #endif
 
-        // also wait for threaded processing to stop in the trainer.
+        // Also wait for threaded processing to stop in the trainer.
         trainer.get_net();
         net.clean();
         cout << "Network #" << n << " (trainset loss: " << trainer.get_average_loss() << "; test loss: " << trainer.get_average_test_loss() << ")" << endl;
@@ -284,10 +283,7 @@ int main(int argc, char** argv) try
                 // network and average the results.
                 const size_t num_crops = 1;
                 randomly_crop_image(img,images,rnd,num_crops,IMGSIZE,IMGSIZE);
-                matrix<float,1,2> p1 = sum_rows(mat(snet(images.begin(), images.end())))/num_crops;
-                randomly_jitter_image(img,images,0,num_crops,IMGSIZE,IMGSIZE,1.1,0.01,5.0);
-                matrix<float,1,2> p2 = sum_rows(mat(snet(images.begin(), images.end())))/num_crops;
-                matrix<float,1,2> p = (p1+p2)/2.0f;
+                matrix<float,1,CLASSES> p = sum_rows(mat(snet(images.begin(), images.end())))/num_crops;
                 // p(i) == the probability the image contains object of class i.                               
                 // update log loss
                 logloss += -std::log(p(l.numeric_label));
@@ -298,18 +294,20 @@ int main(int argc, char** argv) try
                     ++num_wrong_top1;
                     if(cmdparser.get<int>("number") == 1) {
                         cv::Mat _imgmat = dlibmatrix2cvmat(img);
-                        cv::putText(_imgmat, string("true:") + l.label, cv::Point(6,11), CV_FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0,0,0), 1, CV_AA);
-                        cv::putText(_imgmat, string("true:") + l.label, cv::Point(5,10), CV_FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(255,255,255), 1, CV_AA);
+                        cv::putText(_imgmat, string("true:") + l.label, cv::Point(6,11), CV_FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(0,0,0), 1, CV_AA);
+                        cv::putText(_imgmat, string("true:") + l.label, cv::Point(5,10), CV_FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(255,255,255), 1, CV_AA);
                         cv::namedWindow("Wrong", CV_WINDOW_NORMAL);
                         cv::imshow("Wrong", _imgmat);
-                        cv::waitKey(50);
-                        cout << "Press any key to continue..." << endl;
+                        cv::waitKey(33);
+                        cout << "True label: " << l.numeric_label << "; "
+                             << "predicted: " << index_of_max(p) << endl;
                     }
                 }
             }
             logloss /= validationtset.size();
             cout << "Average testset log loss:  " << logloss << endl;
-            cout << "Accuracy (wrong / total):  " << num_wrong_top1 << "/" << num_right_top1+num_wrong_top1 << endl;
+            cout << "Test accuracy: " << 1.0 - (double)num_wrong_top1/(num_right_top1+num_wrong_top1) << endl;
+            cout << "Wrong / Total: " << num_wrong_top1 << "/" << (num_right_top1+num_wrong_top1) << endl;
             serialize(cmdparser.get<std::string>("outputdirpath") + "/net_" + std::to_string(n) + "_(" + std::to_string(trainer.get_average_loss()) + " - " + std::to_string(trainer.get_average_test_loss()) + " - " + std::to_string(logloss) + ").dat") << net;
         } else {
             cout << "Training session is not well enough, this network will not be saved..." << endl;

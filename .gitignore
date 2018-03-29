@@ -31,7 +31,4 @@
 *.pro.user*
 **/Install
 **/build
-
-
-
-
+**/bin
