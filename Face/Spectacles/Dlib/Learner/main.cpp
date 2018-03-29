@@ -17,6 +17,7 @@
 #include <opencv2/opencv.hpp>
 
 #include "dlibimgaugment.h"
+#include "dlibopencvconverter.h"
 
 using namespace std;
 using namespace dlib;
@@ -24,7 +25,7 @@ using namespace dlib;
 #define FILTERS 16
 #define IMGSIZE 100
 
-using net_type = loss_multiclass_log<fc<2,avg_pool_everything<dropout<
+using net_type = loss_multiclass_log<fc<3,avg_pool_everything<dropout<
                             max_pool<2,2,2,2,relu<dropout<con<8*FILTERS,3,3,1,1,
                             max_pool<2,2,2,2,relu<dropout<con<4*FILTERS,3,3,1,1,
                             max_pool<3,3,2,2,relu<con<FILTERS,5,5,2,2,
@@ -104,7 +105,7 @@ int main(int argc, char** argv) try
         get_training_files_listing(cmdparser.get<std::string>("traindirpath"), trainingset, validationtset, cmdparser.get<float>("split"));        
         cout << "Training data split (train / test): " << trainingset.size() << " / " << validationtset.size() << endl;
         const auto number_of_classes = trainingset.back().numeric_label+1;
-        if(trainingset.size() == 0 || validationtset.size() == 0 || number_of_classes != 2)    {
+        if(trainingset.size() == 0 || validationtset.size() == 0 || number_of_classes != 3)    {
             cout << "Didn't find the dataset or dataset size split is wrong!" << endl;
             return 1;
         }
@@ -148,7 +149,7 @@ int main(int argc, char** argv) try
 
                         size_t num_crops = 1;
                         if(rnd.get_random_float() > 0.1f) {
-                            randomly_jitter_image(img,crops,seed,num_crops);
+                            randomly_jitter_image(img,crops,seed,num_crops,0,0,1.1,0.04,10.0);
                             img = crops[0];
                             if(rnd.get_random_float() > 0.2f) {
                                 randomly_cutout_rect(img,crops,rnd,num_crops);
@@ -281,10 +282,10 @@ int main(int argc, char** argv) try
                 load_image(img, l.filename);
                 // Grab N random crops from the image.  We will run all of them through the
                 // network and average the results.
-                const size_t num_crops = 11;
+                const size_t num_crops = 1;
                 randomly_crop_image(img,images,rnd,num_crops,IMGSIZE,IMGSIZE);
                 matrix<float,1,2> p1 = sum_rows(mat(snet(images.begin(), images.end())))/num_crops;
-                randomly_jitter_image(img,images,0,num_crops,IMGSIZE,IMGSIZE);
+                randomly_jitter_image(img,images,0,num_crops,IMGSIZE,IMGSIZE,1.1,0.01,5.0);
                 matrix<float,1,2> p2 = sum_rows(mat(snet(images.begin(), images.end())))/num_crops;
                 matrix<float,1,2> p = (p1+p2)/2.0f;
                 // p(i) == the probability the image contains object of class i.                               
@@ -296,12 +297,12 @@ int main(int argc, char** argv) try
                 } else {
                     ++num_wrong_top1;
                     if(cmdparser.get<int>("number") == 1) {
-                        cv::Mat _imgmat(num_rows(img),num_columns(img),CV_8UC3,image_data(img));
+                        cv::Mat _imgmat = dlibmatrix2cvmat(img);
                         cv::putText(_imgmat, string("true:") + l.label, cv::Point(6,11), CV_FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0,0,0), 1, CV_AA);
                         cv::putText(_imgmat, string("true:") + l.label, cv::Point(5,10), CV_FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(255,255,255), 1, CV_AA);
                         cv::namedWindow("Wrong", CV_WINDOW_NORMAL);
                         cv::imshow("Wrong", _imgmat);
-                        cv::waitKey(0);
+                        cv::waitKey(50);
                         cout << "Press any key to continue..." << endl;
                     }
                 }
