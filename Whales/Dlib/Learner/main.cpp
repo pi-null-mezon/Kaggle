@@ -104,10 +104,10 @@ void load_mini_batch (
             randomly_jitter_image(crop,_vcrops,seed,1);
             crop = _vcrops[0];
         }
-        if(rnd.get_random_double() > 0.2) {
-            randomly_cutout_rect(crop,_vcrops,rnd,1,0.5,0.5,45.0*rnd.get_random_double());
+        /*if(rnd.get_random_double() > 0.2) {
+            randomly_cutout_rect(crop,_vcrops,rnd,1,0.5,0.5);
             crop = _vcrops[0];
-        }
+        }*/
     }
 
     // All the images going into a mini-batch have to be the same size.  And really, all
@@ -143,17 +143,17 @@ template <int N, typename SUBNET> using ares_down = relu<residual_down<block,N,a
 
 // ----------------------------------------------------------------------------------------
 
-template <typename SUBNET> using level0 = res_down<256,SUBNET>;
-template <typename SUBNET> using level1 = res_down<256,SUBNET>;
-template <typename SUBNET> using level2 = res_down<128,SUBNET>;
-template <typename SUBNET> using level3 = res<64,res_down<64,SUBNET>>;
-template <typename SUBNET> using level4 = res_down<32,SUBNET>;
+template <typename SUBNET> using level0 = res<512,res<512,res_down<512,SUBNET>>>;
+template <typename SUBNET> using level1 = res<256,res<256,res_down<256,SUBNET>>>;
+template <typename SUBNET> using level2 = res<128,res<128,res_down<128,SUBNET>>>;
+template <typename SUBNET> using level3 = res<64,res<64,res_down<64,SUBNET>>>;
+template <typename SUBNET> using level4 = res<32,res<32,res_down<32,SUBNET>>>;
 
-template <typename SUBNET> using alevel0 = ares_down<256,SUBNET>;
-template <typename SUBNET> using alevel1 = ares_down<256,SUBNET>;
-template <typename SUBNET> using alevel2 = ares_down<128,SUBNET>;
-template <typename SUBNET> using alevel3 = ares<64,ares_down<64,SUBNET>>;
-template <typename SUBNET> using alevel4 = ares_down<32,SUBNET>;
+template <typename SUBNET> using alevel0 = ares<512,ares<512,ares_down<512,SUBNET>>>;
+template <typename SUBNET> using alevel1 = ares<256,ares<256,ares_down<256,SUBNET>>>;
+template <typename SUBNET> using alevel2 = ares<128,ares<128,ares_down<128,SUBNET>>>;
+template <typename SUBNET> using alevel3 = ares<64,ares<64,ares_down<64,SUBNET>>>;
+template <typename SUBNET> using alevel4 = ares<32,ares<32,ares_down<32,SUBNET>>>;
 
 
 // training network type
@@ -163,7 +163,7 @@ using net_type = loss_metric<fc_no_bias<128,avg_pool_everything<
                             level2<
                             level3<
                             level4<
-                            relu<bn_con<con<32,5,5,2,2,
+                            relu<bn_con<con<16,5,5,2,2,
                             input_rgb_image
                             >>>>>>>>>>>;
 
@@ -174,7 +174,7 @@ using anet_type = loss_metric<fc_no_bias<128,avg_pool_everything<
                             alevel2<
                             alevel3<
                             alevel4<
-                            relu<affine<con<32,5,5,2,2,
+                            relu<affine<con<16,5,5,2,2,
                             input_rgb_image
                             >>>>>>>>>>>;
 
@@ -201,10 +201,12 @@ int main(int argc, char** argv)
 
     net_type net;
 
-    dnn_trainer<net_type> trainer(net, sgd());
+    dnn_trainer<net_type> trainer(net, sgd(0.0001,0.9));
     trainer.set_learning_rate(0.1);
     trainer.be_verbose();
-    trainer.set_synchronization_file("whales_metric_sync", std::chrono::minutes(5));
+    trainer.set_synchronization_file("whales_metric_sync", std::chrono::minutes(10));
+    trainer.set_learning_rate(0.001);
+
     // I've set this to something really small to make the example terminate
     // sooner.  But when you really want to train a good model you should set
     // this to something like 10000 so training doesn't terminate too early.
@@ -226,7 +228,7 @@ int main(int argc, char** argv)
         {
             try
             {
-                load_mini_batch(17, 7, rnd, objs, images, labels, seed);
+                load_mini_batch(16, 7, rnd, objs, images, labels, seed);
                 qimages.enqueue(images);
                 qlabels.enqueue(labels);
             }
