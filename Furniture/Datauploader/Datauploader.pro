@@ -21,3 +21,7 @@ SOURCES += \
 
 HEADERS += \
     qimagedownloader.h
+
+linux {
+    LIBS += -lssl
+}
