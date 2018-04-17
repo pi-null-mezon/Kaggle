@@ -16,7 +16,7 @@ using namespace std;
 using namespace dlib;
 
 #define CLASSES 128
-#define IMGSIZE 187
+#define IMGSIZE 190
 
 // ----------------------------------------------------------------------------------------
 template <template <int,template<typename>class,int,typename> class block, int N, template<typename>class BN, typename SUBNET>
@@ -100,12 +100,12 @@ void get_training_files_listing(const std::string& images_folder, std::vector<im
 
 
 dlib::matrix<dlib::rgb_pixel> load_rgb_image_with_fixed_size(string _filename, int _trows, int _tcols)
-{
+{   
     cv::Mat _originalimgmat = cv::imread(_filename, CV_LOAD_IMAGE_COLOR);
-    if(_originalimgmat.cols > _tcols || _originalimgmat.rows > _tcols)
+    if(_originalimgmat.cols > _tcols || _originalimgmat.rows > _trows)
         cv::resize(_originalimgmat,_originalimgmat,cv::Size(_tcols,_trows),0,0,CV_INTER_AREA);
-    else if(_originalimgmat.cols < _tcols || _originalimgmat.rows < _tcols)
-        cv::resize(_originalimgmat,_originalimgmat,cv::Size(_tcols,_trows),0,0,CV_INTER_CUBIC);
+    else if(_originalimgmat.cols < _tcols || _originalimgmat.rows < _trows)
+        cv::resize(_originalimgmat,_originalimgmat,cv::Size(_tcols,_trows),0,0,CV_INTER_LINEAR);
     return cvmat2dlibmatrix<dlib::rgb_pixel>(_originalimgmat);
 }
 
@@ -149,7 +149,7 @@ int main(int argc, char** argv) try
         get_training_files_listing(cmdparser.get<std::string>("traindirpath"), trainingset, validationtset, cmdparser.get<float>("split"));        
         cout << "Training data split (train / test): " << trainingset.size() << " / " << validationtset.size() << endl;
         const auto number_of_classes = trainingset.back().numeric_label+1;
-        if(trainingset.size() == 0 || validationtset.size() == 0 || number_of_classes != 2)    {
+        if(trainingset.size() == 0 || validationtset.size() == 0 || number_of_classes != CLASSES)    {
             cout << "Didn't find the Kaggle iceberg dataset or dataset size split is wrong!" << endl;
             return 1;
         }
@@ -158,14 +158,14 @@ int main(int argc, char** argv) try
         dnn_trainer<net_type> trainer(net,sgd(0.0001, 0.9));
         trainer.be_verbose();
         trainer.set_learning_rate(0.1);
-        trainer.set_synchronization_file(cmdparser.get<std::string>("outputdirpath") + "/trainer_" + std::to_string(n) + "_state.dat", std::chrono::minutes(5));
+        trainer.set_synchronization_file(cmdparser.get<std::string>("outputdirpath") + "/trainer_" + std::to_string(n) + "_state.dat", std::chrono::minutes(15));
         // This threshold is probably excessively large.  You could likely get good results
         // with a smaller value but if you aren't in a hurry this value will surely work well.
         trainer.set_iterations_without_progress_threshold(cmdparser.get<int>("swptrain"));
         trainer.set_test_iterations_without_progress_threshold(cmdparser.get<int>("swptest"));
         // Since the progress threshold is so large might as well set the batch normalization
         // stats window to something big too.
-        set_all_bn_running_stats_window_sizes(net, cmdparser.get<int>("swptrain")/10);
+        set_all_bn_running_stats_window_sizes(net, number_of_classes);
 
         std::vector<matrix<rgb_pixel>> samples, validationsamples;
         std::vector<unsigned long> labels, validationlabels;
@@ -174,7 +174,7 @@ int main(int argc, char** argv) try
         // important to be sure to feed the GPU fast enough to keep it busy.  Using multiple
         // thread for this kind of data preparation helps us do that.  Each thread puts the
         // crops into the data queue.
-        dlib::pipe<std::pair<image_info,matrix<rgb_pixel>>> data(1024);
+        dlib::pipe<std::pair<image_info,matrix<rgb_pixel>>> data(2048);
         auto f = [&data, &trainingset, number_of_classes](time_t seed)
         {
             dlib::rand rnd(time(0)+seed);
@@ -192,7 +192,7 @@ int main(int argc, char** argv) try
                         _classes++;
                         img = std::move(load_rgb_image_with_fixed_size(temp.first.filename,IMGSIZE,IMGSIZE));
                         dlib::disturb_colors(img,rnd);
-                        size_t num_crops = 1;
+                        /*size_t num_crops = 1;
                         if(rnd.get_random_float() > 0.5f) {
                             img = fliplr(img);
                         }
@@ -203,7 +203,7 @@ int main(int argc, char** argv) try
                                 randomly_cutout_rect(img,crops,rnd,num_crops);
                                 img = std::move(crops[0]);
                             }
-                        }
+                        }*/
                         temp.second = std::move(img);
                         data.enqueue(temp);
                     }
@@ -215,9 +215,18 @@ int main(int argc, char** argv) try
         std::thread data_loader2([f](){ f(2); });
         std::thread data_loader3([f](){ f(3); });
         std::thread data_loader4([f](){ f(4); });
+        std::thread data_loader5([f](){ f(5); });
+        std::thread data_loader6([f](){ f(6); });
+        std::thread data_loader7([f](){ f(7); });
+        std::thread data_loader8([f](){ f(8); });
+        std::thread data_loader9([f](){ f(9); });
+        std::thread data_loader10([f](){ f(10); });
+        std::thread data_loader11([f](){ f(11); });
+        std::thread data_loader12([f](){ f(12); });
+        std::thread data_loader13([f](){ f(13); });
 #endif
 
-        dlib::pipe<std::pair<image_info,matrix<rgb_pixel>>> validationdata(256);
+        dlib::pipe<std::pair<image_info,matrix<rgb_pixel>>> validationdata(512);
         auto vf = [&validationdata, &validationtset, number_of_classes](time_t seed)
         {
             dlib::rand rnd(time(0)+seed);
@@ -233,29 +242,31 @@ int main(int argc, char** argv) try
                         _vsoc_selected[temp.first.numeric_label] = true;
                         _classes++;
                         img = std::move(load_rgb_image_with_fixed_size(temp.first.filename,IMGSIZE,IMGSIZE));
-                        dlib::array<matrix<rgb_pixel>> crops;
+                        /*dlib::array<matrix<rgb_pixel>> crops;
                         size_t num_crops = 1;
                         if(rnd.get_random_float() > 0.1f) {// take in mind that this is validation images preprocessing
                             randomly_jitter_image(img,crops,seed,num_crops,0,0,1.1,0.03,9.0);
                             img = std::move(crops[0]);
-                        }
+                        }*/
                         temp.second = std::move(img);
                         validationdata.enqueue(temp);
                     }
                 }
             }
         };
-        std::thread data_loader5([vf](){ vf(1); });
+        std::thread data_loader14([vf](){ vf(1); });
 #ifdef DLIB_USE_CUDA
-        std::thread data_loader6([vf](){ vf(2); });
+        std::thread data_loader15([vf](){ vf(2); });
+        std::thread data_loader16([vf](){ vf(3); });
+        std::thread data_loader17([vf](){ vf(4); });
 #endif
 
         // The main training loop.  Keep making mini-batches and giving them to the trainer.
         // We will run until the learning rate has dropped to 1e-4 or number of steps exceeds 1e5
         const double _min_learning_rate_thresh = cmdparser.get<double>("minlrthresh");
 #ifdef DLIB_USE_CUDA
-        const size_t _training_minibatch_size = 512;
-        const size_t _test_minibatch_size = 128;
+        const size_t _training_minibatch_size = 128;
+        const size_t _test_minibatch_size = 32;
 #else
         const size_t _training_minibatch_size = 128;
         const size_t _test_minibatch_size = 32;
@@ -273,7 +284,7 @@ int main(int argc, char** argv) try
             }
             trainer.train_one_step(samples, labels);
 
-            if(trainer.get_train_one_step_calls() % 10 == 0) { // Now we can perform validation test
+            if(trainer.get_train_one_step_calls() % 40 == 0) { // Now we can perform validation test
                 validationsamples.clear();
                 validationlabels.clear();
                 std::pair<image_info, matrix<rgb_pixel>> validationimg;
@@ -293,12 +304,24 @@ int main(int argc, char** argv) try
         data.disable();
         validationdata.disable();
         data_loader1.join();
-        data_loader5.join();
+        data_loader14.join();
 #ifdef DLIB_USE_CUDA
         data_loader2.join();
         data_loader3.join();
         data_loader4.join();
+        data_loader5.join();
         data_loader6.join();
+        data_loader7.join();
+        data_loader8.join();
+        data_loader9.join();
+        data_loader10.join();
+        data_loader11.join();
+        data_loader12.join();
+        data_loader13.join();
+
+        data_loader15.join();
+        data_loader16.join();
+        data_loader17.join();
 #endif
 
         // Also wait for threaded processing to stop in the trainer.
