@@ -17,11 +17,8 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 SOURCES += \
         main.cpp \
-    qimagedownloader.cpp
+        qimagedownloader.cpp
 
 HEADERS += \
-    qimagedownloader.h
+        qimagedownloader.h
 
-linux {
-    LIBS += -lssl
-}
