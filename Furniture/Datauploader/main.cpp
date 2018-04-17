@@ -89,13 +89,14 @@ int main(int argc, char *argv[])
                 while(checkAvailableThread(maxthreads,&qmutex,&threadcounter) == false) {
                     QCoreApplication::processEvents();
                 }
-                downloadimage(_urlstr,qdir.absolutePath().append("/%1").arg(_labelstr),25000,&qmutex,&threadcounter);
+                downloadimage(_urlstr,qdir.absolutePath().append("/%1").arg(_labelstr),QString(),25000,&qmutex,&threadcounter);
             }
         }
     } else if(keys.size() == 1) { // this is the case of test set
 
         QJsonArray images = qjsonobj.value("images").toArray();
         for(int j = 0; j < images.size(); ++j) {
+            int _imageid = images.at(j).toObject().value("image_id").toInt();
             QJsonArray instances = images.at(j).toObject().value("url").toArray();
             QString _urlstr;
             qInfo() << "------------------------";
@@ -105,7 +106,7 @@ int main(int argc, char *argv[])
                 while(checkAvailableThread(maxthreads,&qmutex,&threadcounter) == false) {
                     QCoreApplication::processEvents();
                 }
-                downloadimage(_urlstr,qdir.absolutePath(),25000,&qmutex,&threadcounter);
+                downloadimage(_urlstr,qdir.absolutePath(),QString::number(_imageid),25000,&qmutex,&threadcounter);
             }
         }
     }

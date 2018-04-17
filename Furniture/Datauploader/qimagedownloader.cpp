@@ -6,15 +6,16 @@
 
 #include <QEventLoop>
 #include <QDebug>
-#include <QDir>
 #include <QUuid>
+#include <QDir>
 #include <QImage>
 #include <QTimer>
 
-QImageDownloader::QImageDownloader(const QString &_url, const QString &_targetdirname, int _waitms, QMutex *_qmutex, int *_threadcounter, QObject *parent) :
+QImageDownloader::QImageDownloader(const QString &_url, const QString &_targetdirname, const QString &_imageid, int _waitms, QMutex *_qmutex, int *_threadcounter, QObject *parent) :
     QThread(parent),
     url(_url),
     targetdirname(_targetdirname),
+    imageid(_imageid),
     waitms(_waitms),
     qmutex(_qmutex),
     threadcounter(_threadcounter)
@@ -49,7 +50,11 @@ void QImageDownloader::run()
             QDir _dir;
             _dir.mkpath(targetdirname);
             _dir.cd(targetdirname);
-            qimg.save(_dir.absolutePath().append("/%1.jpg").arg(QUuid::createUuid().toString()));
+            if(imageid.isEmpty()) {
+                qimg.save(_dir.absolutePath().append("/%1.jpg").arg(QUuid::createUuid().toString()));
+            } else {
+                qimg.save(_dir.absolutePath().append("/%1.jpg").arg(imageid));
+            }
         }
     } else {
         qInfo() << "\n!!!Watch dog!!!\n";
@@ -57,9 +62,9 @@ void QImageDownloader::run()
     _reply->deleteLater();
 }
 
-void downloadimage(const QString &_url, const QString &_targetdirname, int _waitms, QMutex *_mutex, int *_threadcounter)
+void downloadimage(const QString &_url, const QString &_targetdirname, const QString &_imageid, int _waitms, QMutex *_mutex, int *_threadcounter)
 {
-    QImageDownloader *_thread = new QImageDownloader(_url,_targetdirname,_waitms,_mutex,_threadcounter);
+    QImageDownloader *_thread = new QImageDownloader(_url,_targetdirname,_imageid,_waitms,_mutex,_threadcounter);
     QObject::connect(_thread,SIGNAL(finished()),_thread,SLOT(deleteLater()));
     _thread->start();
 }
