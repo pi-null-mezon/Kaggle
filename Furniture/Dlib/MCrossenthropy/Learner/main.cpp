@@ -16,7 +16,7 @@ using namespace std;
 using namespace dlib;
 
 #define CLASSES 128
-#define IMGSIZE 190
+#define IMGSIZE 200
 
 // ----------------------------------------------------------------------------------------
 template <template <int,template<typename>class,int,typename> class block, int N, template<typename>class BN, typename SUBNET>
@@ -192,7 +192,7 @@ int main(int argc, char** argv) try
                         _classes++;
                         img = std::move(load_rgb_image_with_fixed_size(temp.first.filename,IMGSIZE,IMGSIZE));
                         dlib::disturb_colors(img,rnd);
-                        /*size_t num_crops = 1;
+                        size_t num_crops = 1;
                         if(rnd.get_random_float() > 0.5f) {
                             img = fliplr(img);
                         }
@@ -200,10 +200,10 @@ int main(int argc, char** argv) try
                             randomly_jitter_image(img,crops,seed,num_crops,0,0,1.1,0.05,11.0);
                             img = std::move(crops[0]);
                             if(rnd.get_random_float() > 0.2f) {
-                                randomly_cutout_rect(img,crops,rnd,num_crops);
+                                randomly_cutout_rect(img,crops,rnd,num_crops,0.4,0.4);
                                 img = std::move(crops[0]);
                             }
-                        }*/
+                        }
                         temp.second = std::move(img);
                         data.enqueue(temp);
                     }
@@ -219,11 +219,6 @@ int main(int argc, char** argv) try
         std::thread data_loader6([f](){ f(6); });
         std::thread data_loader7([f](){ f(7); });
         std::thread data_loader8([f](){ f(8); });
-        std::thread data_loader9([f](){ f(9); });
-        std::thread data_loader10([f](){ f(10); });
-        std::thread data_loader11([f](){ f(11); });
-        std::thread data_loader12([f](){ f(12); });
-        std::thread data_loader13([f](){ f(13); });
 #endif
 
         dlib::pipe<std::pair<image_info,matrix<rgb_pixel>>> validationdata(512);
@@ -242,23 +237,23 @@ int main(int argc, char** argv) try
                         _vsoc_selected[temp.first.numeric_label] = true;
                         _classes++;
                         img = std::move(load_rgb_image_with_fixed_size(temp.first.filename,IMGSIZE,IMGSIZE));
-                        /*dlib::array<matrix<rgb_pixel>> crops;
+                        dlib::array<matrix<rgb_pixel>> crops;
                         size_t num_crops = 1;
                         if(rnd.get_random_float() > 0.1f) {// take in mind that this is validation images preprocessing
                             randomly_jitter_image(img,crops,seed,num_crops,0,0,1.1,0.03,9.0);
                             img = std::move(crops[0]);
-                        }*/
+                        }
                         temp.second = std::move(img);
                         validationdata.enqueue(temp);
                     }
                 }
             }
         };
-        std::thread data_loader14([vf](){ vf(1); });
+        std::thread data_loader9([vf](){ vf(1); });
 #ifdef DLIB_USE_CUDA
-        std::thread data_loader15([vf](){ vf(2); });
-        std::thread data_loader16([vf](){ vf(3); });
-        std::thread data_loader17([vf](){ vf(4); });
+        std::thread data_loader10([vf](){ vf(2); });
+        std::thread data_loader11([vf](){ vf(3); });
+        std::thread data_loader12([vf](){ vf(4); });
 #endif
 
         // The main training loop.  Keep making mini-batches and giving them to the trainer.
@@ -266,7 +261,7 @@ int main(int argc, char** argv) try
         const double _min_learning_rate_thresh = cmdparser.get<double>("minlrthresh");
 #ifdef DLIB_USE_CUDA
         const size_t _training_minibatch_size = 128;
-        const size_t _test_minibatch_size = 32;
+        const size_t _test_minibatch_size = 128;
 #else
         const size_t _training_minibatch_size = 128;
         const size_t _test_minibatch_size = 32;
@@ -304,7 +299,7 @@ int main(int argc, char** argv) try
         data.disable();
         validationdata.disable();
         data_loader1.join();
-        data_loader14.join();
+        data_loader9.join();
 #ifdef DLIB_USE_CUDA
         data_loader2.join();
         data_loader3.join();
@@ -313,15 +308,10 @@ int main(int argc, char** argv) try
         data_loader6.join();
         data_loader7.join();
         data_loader8.join();
-        data_loader9.join();
+
         data_loader10.join();
         data_loader11.join();
         data_loader12.join();
-        data_loader13.join();
-
-        data_loader15.join();
-        data_loader16.join();
-        data_loader17.join();
 #endif
 
         // Also wait for threaded processing to stop in the trainer.

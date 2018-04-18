@@ -110,7 +110,7 @@ int main(int argc, char *argv[])
             }
         }
     }
-
+    QCoreApplication::processEvents();
     return 0;
 }
 
