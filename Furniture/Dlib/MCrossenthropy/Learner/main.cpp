@@ -16,7 +16,7 @@ using namespace std;
 using namespace dlib;
 
 #define CLASSES 128
-#define IMGSIZE 200
+#define IMGSIZE 313
 
 // ----------------------------------------------------------------------------------------
 template <template <int,template<typename>class,int,typename> class block, int N, template<typename>class BN, typename SUBNET>
@@ -37,15 +37,15 @@ template <int N, typename SUBNET> using ares_down = relu<residual_down<block,N,a
 
 // ----------------------------------------------------------------------------------------
 
-template <typename SUBNET> using level1 = res<512,res<512,res_down<512,SUBNET>>>;
-template <typename SUBNET> using level2 = res<256,res<256,res<256,res<256,res<256,res_down<256,SUBNET>>>>>>;
-template <typename SUBNET> using level3 = res<128,res<128,res<128,res_down<128,SUBNET>>>>;
-template <typename SUBNET> using level4 = res<64,res<64,res<64,SUBNET>>>;
+template <typename SUBNET> using level1 = res<256,res<256,res_down<256,SUBNET>>>;
+template <typename SUBNET> using level2 = res<128,res<128,res_down<128,SUBNET>>>;
+template <typename SUBNET> using level3 = res<64,res<64,res<64,res_down<64,SUBNET>>>>;
+template <typename SUBNET> using level4 = res<32,res<32,res_down<32,SUBNET>>>;
 
-template <typename SUBNET> using alevel1 = ares<512,ares<512,ares_down<512,SUBNET>>>;
-template <typename SUBNET> using alevel2 = ares<256,ares<256,ares<256,ares<256,ares<256,ares_down<256,SUBNET>>>>>>;
-template <typename SUBNET> using alevel3 = ares<128,ares<128,ares<128,ares_down<128,SUBNET>>>>;
-template <typename SUBNET> using alevel4 = ares<64,ares<64,ares<64,SUBNET>>>;
+template <typename SUBNET> using alevel1 = ares<256,ares<256,ares_down<256,SUBNET>>>;
+template <typename SUBNET> using alevel2 = ares<128,ares<128,ares_down<128,SUBNET>>>;
+template <typename SUBNET> using alevel3 = ares<64,ares<64,ares<64,ares_down<64,SUBNET>>>>;
+template <typename SUBNET> using alevel4 = ares<32,ares<32,ares_down<32,SUBNET>>>;
 
 // training network type
 using net_type = loss_multiclass_log<fc<CLASSES,avg_pool_everything<
@@ -53,9 +53,9 @@ using net_type = loss_multiclass_log<fc<CLASSES,avg_pool_everything<
                             level2<
                             level3<
                             level4<
-                            max_pool<3,3,2,2,relu<bn_con<con<32,5,5,2,2,
+                            relu<bn_con<con<16,5,5,2,2,
                             input_rgb_image_sized<IMGSIZE>
-                            >>>>>>>>>>>;
+                            >>>>>>>>>>;
 
 // testing network type (replaced batch normalization with fixed affine transforms)
 using anet_type = loss_multiclass_log<fc<CLASSES,avg_pool_everything<
@@ -63,9 +63,9 @@ using anet_type = loss_multiclass_log<fc<CLASSES,avg_pool_everything<
                             alevel2<
                             alevel3<
                             alevel4<
-                            max_pool<3,3,2,2,relu<affine<con<32,5,5,2,2,
+                            relu<affine<con<16,5,5,2,2,
                             input_rgb_image_sized<IMGSIZE>
-                            >>>>>>>>>>>;
+                            >>>>>>>>>>;
 //-----------------------------------------------------------------------------------------
 
 struct image_info
@@ -83,7 +83,11 @@ void get_training_files_listing(const std::string& images_folder, std::vector<im
     auto subdirs = directory(images_folder).get_dirs();
     // But first, sort the sub directories so the numeric labels will be assigned in sorted order.
     std::sort(subdirs.begin(), subdirs.end());
+    /*cout << "Note that labels will be presented in following order: " << endl;
+    for(size_t i = 0; i < subdirs.size(); ++i)
+        cout << "label " << i << " - class name " <<   subdirs[i].name() << endl;*/
     dlib::rand rnd(time(0));
+    cout << "Subdirs found: " << subdirs.size() << endl;
     for (auto subdir : subdirs)  {
         // Now get all the images in this label type
         temp.label = subdir.name();
@@ -98,17 +102,6 @@ void get_training_files_listing(const std::string& images_folder, std::vector<im
     }
 }
 
-
-dlib::matrix<dlib::rgb_pixel> load_rgb_image_with_fixed_size(string _filename, int _trows, int _tcols)
-{   
-    cv::Mat _originalimgmat = cv::imread(_filename, CV_LOAD_IMAGE_COLOR);
-    if(_originalimgmat.cols > _tcols || _originalimgmat.rows > _trows)
-        cv::resize(_originalimgmat,_originalimgmat,cv::Size(_tcols,_trows),0,0,CV_INTER_AREA);
-    else if(_originalimgmat.cols < _tcols || _originalimgmat.rows < _trows)
-        cv::resize(_originalimgmat,_originalimgmat,cv::Size(_tcols,_trows),0,0,CV_INTER_LINEAR);
-    return cvmat2dlibmatrix<dlib::rgb_pixel>(_originalimgmat);
-}
-
 // ----------------------------------------------------------------------------------------
 const cv::String keys =
        "{help h           |        | print this message   }"
@@ -118,7 +111,7 @@ const cv::String keys =
        "{split s          | 0.05   | test portion of train data   }"
        "{lossthresh       | 0.20   | testset loss threshold for network saving }"
        "{swptrain         | 10000  | determines after how many steps without progress (training loss) decay should be applied to learning rate  }"
-       "{swptest          | 2000   | determines after how many steps without progress (test loss) decay should be applied to learning rate  }"
+       "{swptest          | 1000   | determines after how many steps without progress (test loss) decay should be applied to learning rate  }"
        "{minlrthresh      | 1.0e-3 | minimum learning rate, determines when trining should be stopped  }";
 // -----------------------------------------------------------------------------------------
 int main(int argc, char** argv) try
@@ -148,14 +141,15 @@ int main(int argc, char** argv) try
         std::vector<image_info> trainingset, validationtset;
         get_training_files_listing(cmdparser.get<std::string>("traindirpath"), trainingset, validationtset, cmdparser.get<float>("split"));        
         cout << "Training data split (train / test): " << trainingset.size() << " / " << validationtset.size() << endl;
-        const auto number_of_classes = trainingset.back().numeric_label+1;
+        const auto number_of_classes = trainingset.back().numeric_label + 1;
+        cout << "Number of classes in training set: " << number_of_classes << endl;
         if(trainingset.size() == 0 || validationtset.size() == 0 || number_of_classes != CLASSES)    {
-            cout << "Didn't find the Kaggle iceberg dataset or dataset size split is wrong!" << endl;
+            cout << "Didn't find dataset or dataset size split is wrong!" << endl;           
             return 1;
         }
 
         net_type net;
-        dnn_trainer<net_type> trainer(net,sgd(0.0001, 0.9));
+        dnn_trainer<net_type> trainer(net,sgd(0.0002, 0.9));
         trainer.be_verbose();
         trainer.set_learning_rate(0.1);
         trainer.set_synchronization_file(cmdparser.get<std::string>("outputdirpath") + "/trainer_" + std::to_string(n) + "_state.dat", std::chrono::minutes(15));
@@ -178,8 +172,7 @@ int main(int argc, char** argv) try
         auto f = [&data, &trainingset, number_of_classes](time_t seed)
         {
             dlib::rand rnd(time(0)+seed);
-            matrix<rgb_pixel> img;
-            dlib::array<matrix<rgb_pixel>> crops;
+            matrix<rgb_pixel> img;            
             std::pair<image_info, matrix<rgb_pixel>> temp;
             while(data.is_enabled())
             {
@@ -191,15 +184,16 @@ int main(int argc, char** argv) try
                         _vsoc_selected[temp.first.numeric_label] = true;
                         _classes++;
                         img = std::move(load_rgb_image_with_fixed_size(temp.first.filename,IMGSIZE,IMGSIZE));
-                        dlib::disturb_colors(img,rnd);
-                        size_t num_crops = 1;
-                        if(rnd.get_random_float() > 0.5f) {
+                        if(rnd.get_random_float() > 0.1f)
+                            dlib::disturb_colors(img,rnd);
+                        if(rnd.get_random_float() > 0.5f)
                             img = fliplr(img);
-                        }
-                        if(rnd.get_random_float() > 0.1f) {
-                            randomly_jitter_image(img,crops,seed,num_crops,0,0,1.1,0.05,11.0);
+                        if(rnd.get_random_float() > 0.2f) {
+                            dlib::array<matrix<rgb_pixel>> crops;
+                            size_t num_crops = 1;
+                            randomly_jitter_image(img,crops,seed,num_crops,0,0,1.1,0.04,11.0);
                             img = std::move(crops[0]);
-                            if(rnd.get_random_float() > 0.2f) {
+                            if(rnd.get_random_float() > 0.3f) {
                                 randomly_cutout_rect(img,crops,rnd,num_crops,0.4,0.4);
                                 img = std::move(crops[0]);
                             }
@@ -237,12 +231,13 @@ int main(int argc, char** argv) try
                         _vsoc_selected[temp.first.numeric_label] = true;
                         _classes++;
                         img = std::move(load_rgb_image_with_fixed_size(temp.first.filename,IMGSIZE,IMGSIZE));
-                        dlib::array<matrix<rgb_pixel>> crops;
-                        size_t num_crops = 1;
+                        /*
                         if(rnd.get_random_float() > 0.1f) {// take in mind that this is validation images preprocessing
+                            dlib::array<matrix<rgb_pixel>> crops;
+                            size_t num_crops = 1;
                             randomly_jitter_image(img,crops,seed,num_crops,0,0,1.1,0.03,9.0);
                             img = std::move(crops[0]);
-                        }
+                        }*/
                         temp.second = std::move(img);
                         validationdata.enqueue(temp);
                     }
@@ -260,8 +255,8 @@ int main(int argc, char** argv) try
         // We will run until the learning rate has dropped to 1e-4 or number of steps exceeds 1e5
         const double _min_learning_rate_thresh = cmdparser.get<double>("minlrthresh");
 #ifdef DLIB_USE_CUDA
-        const size_t _training_minibatch_size = 128;
-        const size_t _test_minibatch_size = 128;
+        const size_t _training_minibatch_size = 111;
+        const size_t _test_minibatch_size = 111;
 #else
         const size_t _training_minibatch_size = 128;
         const size_t _test_minibatch_size = 32;
@@ -338,8 +333,8 @@ int main(int argc, char** argv) try
                 matrix<rgb_pixel> img = std::move(load_rgb_image_with_fixed_size(l.filename,IMGSIZE,IMGSIZE));;
                 // Grab N random crops from the image.  We will run all of them through the
                 // network and average the results.
-                const size_t num_crops = 5;
-                randomly_crop_image(img,images,rnd,num_crops,IMGSIZE*0.9f,IMGSIZE*0.9f);
+                const size_t num_crops = 1;
+                randomly_jitter_image(img,images,time(0),num_crops,0,0,1,0,0);
                 matrix<float,1,CLASSES> p = sum_rows(mat(snet(images.begin(), images.end())))/num_crops;
                 // p(i) == the probability the image contains object of class i.
                 // update log loss
@@ -355,7 +350,7 @@ int main(int argc, char** argv) try
                         cv::putText(_imgmat, string("true:") + l.label, cv::Point(5,10), CV_FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(255,255,255), 1, CV_AA);
                         cv::namedWindow("Wrong", CV_WINDOW_NORMAL);
                         cv::imshow("Wrong", _imgmat);
-                        cv::waitKey(33);
+                        cv::waitKey(1);
                         cout << "True label: " << l.numeric_label << "; "
                              << "predicted: " << index_of_max(p) << endl;
                     }

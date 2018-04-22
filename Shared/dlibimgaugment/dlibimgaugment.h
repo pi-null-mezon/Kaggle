@@ -6,6 +6,9 @@ Commonly used image randomization facilities are stored here
 
 #include <dlib/image_transforms.h>
 
+#include <opencv2/imgcodecs.hpp>
+#include <opencv2/highgui.hpp>
+
 #include "dlibopencvconverter.h"
 #include "opencvimgaugment.h"
 
@@ -90,6 +93,20 @@ void randomly_cutout_rect(const matrix<image_type>& img, dlib::array<matrix<imag
     }
 }
 
+
+dlib::matrix<dlib::rgb_pixel> load_rgb_image_with_fixed_size(std::string _filename, int _trows, int _tcols, bool *_isloadded=0)
+{
+    cv::Mat _originalimgmat = cv::imread(_filename, CV_LOAD_IMAGE_COLOR);
+    if(_isloadded)
+        *_isloadded = !_originalimgmat.empty();
+    if(_originalimgmat.empty())
+        return dlib::matrix<dlib::rgb_pixel>();
+    if(_originalimgmat.cols > _tcols || _originalimgmat.rows > _trows)
+        cv::resize(_originalimgmat,_originalimgmat,cv::Size(_tcols,_trows),0,0,CV_INTER_AREA);
+    else if(_originalimgmat.cols < _tcols || _originalimgmat.rows < _trows)
+        cv::resize(_originalimgmat,_originalimgmat,cv::Size(_tcols,_trows),0,0,CV_INTER_LINEAR);
+    return cvmat2dlibmatrix<dlib::rgb_pixel>(_originalimgmat);
+}
 
 } // end of dlib namespace
 
