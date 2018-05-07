@@ -46,5 +46,30 @@ void getImageFSCrops(const cv::Mat &_inmat, const size_t _cropsnum, std::vector<
     }
 }
 
+cv::Mat cropFromCenterAndResize(const cv::Mat &input, cv::Size size)
+{
+    cv::Rect2f roiRect(0,0,0,0);
+    if( (float)input.cols/input.rows > (float)size.width/size.height) {
+        roiRect.height = (float)input.rows;
+        roiRect.width = input.rows * (float)size.width/size.height;
+        roiRect.x = (input.cols - roiRect.width)/2.0f;
+    } else {
+        roiRect.width = (float)input.cols;
+        roiRect.height = input.cols * (float)size.height/size.width;
+        roiRect.y = (input.rows - roiRect.height)/2.0f;
+    }
+    roiRect &= cv::Rect2f(0, 0, (float)input.cols, (float)input.rows);
+    cv::Mat output;
+    if(roiRect.area() > 0)  {
+        cv::Mat croppedImg(input, roiRect);
+        int interpolationMethod = 0;
+        if(size.area() > roiRect.area())
+            interpolationMethod = CV_INTER_CUBIC;
+        else
+            interpolationMethod = CV_INTER_AREA;
+        cv::resize(croppedImg, output, size, 0, 0, interpolationMethod);
+    }
+    return output;
+}
 
 #endif // OPENCVIMGAUGMENT_H

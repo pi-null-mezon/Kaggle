@@ -86,7 +86,7 @@ void get_training_files_listing(const std::string& images_folder, std::vector<im
     /*cout << "Note that labels will be presented in following order: " << endl;
     for(size_t i = 0; i < subdirs.size(); ++i)
         cout << "label " << i << " - class name " <<   subdirs[i].name() << endl;*/
-    dlib::rand rnd(time(0));
+    dlib::rand rnd(1);
     cout << "Subdirs found: " << subdirs.size() << endl;
     for (auto subdir : subdirs)  {
         // Now get all the images in this label type
@@ -149,7 +149,7 @@ int main(int argc, char** argv) try
         }
 
         net_type net;
-        dnn_trainer<net_type> trainer(net,sgd(0.0002, 0.9));
+        dnn_trainer<net_type> trainer(net,sgd(0.0001, 0.9));
         trainer.be_verbose();
         trainer.set_learning_rate(0.1);
         trainer.set_synchronization_file(cmdparser.get<std::string>("outputdirpath") + "/trainer_" + std::to_string(n) + "_state.dat", std::chrono::minutes(15));
@@ -159,7 +159,7 @@ int main(int argc, char** argv) try
         trainer.set_test_iterations_without_progress_threshold(cmdparser.get<int>("swptest"));
         // Since the progress threshold is so large might as well set the batch normalization
         // stats window to something big too.
-        set_all_bn_running_stats_window_sizes(net, number_of_classes);
+        //set_all_bn_running_stats_window_sizes(net, number_of_classes);
 
         std::vector<matrix<rgb_pixel>> samples, validationsamples;
         std::vector<unsigned long> labels, validationlabels;
@@ -168,7 +168,7 @@ int main(int argc, char** argv) try
         // important to be sure to feed the GPU fast enough to keep it busy.  Using multiple
         // thread for this kind of data preparation helps us do that.  Each thread puts the
         // crops into the data queue.
-        dlib::pipe<std::pair<image_info,matrix<rgb_pixel>>> data(2048);
+        dlib::pipe<std::pair<image_info,matrix<rgb_pixel>>> data(1024);
         auto f = [&data, &trainingset, number_of_classes](time_t seed)
         {
             dlib::rand rnd(time(0)+seed);
@@ -183,20 +183,22 @@ int main(int argc, char** argv) try
                     if(_vsoc_selected[temp.first.numeric_label] == false) {
                         _vsoc_selected[temp.first.numeric_label] = true;
                         _classes++;
-                        img = std::move(load_rgb_image_with_fixed_size(temp.first.filename,IMGSIZE,IMGSIZE));
-                        if(rnd.get_random_float() > 0.1f)
+                        dlib::load_image(img,temp.first.filename);
+                        //img = std::move(load_rgb_image_with_fixed_size(temp.first.filename,IMGSIZE,IMGSIZE,false));
+                        if(rnd.get_random_float() > 0.5f)
                             dlib::disturb_colors(img,rnd);
                         if(rnd.get_random_float() > 0.5f)
                             img = fliplr(img);
-                        if(rnd.get_random_float() > 0.2f) {
+                        if(rnd.get_random_float() > -0.1f) {
                             dlib::array<matrix<rgb_pixel>> crops;
                             size_t num_crops = 1;
-                            randomly_jitter_image(img,crops,seed,num_crops,0,0,1.1,0.04,11.0);
+                            //randomly_jitter_image(img,crops,seed,num_crops,0,0,1.1,0.04,11.0);
+                            randomly_crop_image(img,crops,rnd,num_crops,0.8f,0.99f,IMGSIZE,IMGSIZE);
                             img = std::move(crops[0]);
-                            if(rnd.get_random_float() > 0.3f) {
+                            /*if(rnd.get_random_float() > 0.3f) {
                                 randomly_cutout_rect(img,crops,rnd,num_crops,0.4,0.4);
                                 img = std::move(crops[0]);
-                            }
+                            }*/
                         }
                         temp.second = std::move(img);
                         data.enqueue(temp);
@@ -212,10 +214,9 @@ int main(int argc, char** argv) try
         std::thread data_loader5([f](){ f(5); });
         std::thread data_loader6([f](){ f(6); });
         std::thread data_loader7([f](){ f(7); });
-        std::thread data_loader8([f](){ f(8); });
 #endif
 
-        dlib::pipe<std::pair<image_info,matrix<rgb_pixel>>> validationdata(512);
+        dlib::pipe<std::pair<image_info,matrix<rgb_pixel>>> validationdata(256);
         auto vf = [&validationdata, &validationtset, number_of_classes](time_t seed)
         {
             dlib::rand rnd(time(0)+seed);
@@ -230,7 +231,7 @@ int main(int argc, char** argv) try
                     if(_vsoc_selected[temp.first.numeric_label] == false) {
                         _vsoc_selected[temp.first.numeric_label] = true;
                         _classes++;
-                        img = std::move(load_rgb_image_with_fixed_size(temp.first.filename,IMGSIZE,IMGSIZE));
+                        img = std::move(load_rgb_image_with_fixed_size(temp.first.filename,IMGSIZE,IMGSIZE,false));
                         /*
                         if(rnd.get_random_float() > 0.1f) {// take in mind that this is validation images preprocessing
                             dlib::array<matrix<rgb_pixel>> crops;
@@ -244,19 +245,18 @@ int main(int argc, char** argv) try
                 }
             }
         };
-        std::thread data_loader9([vf](){ vf(1); });
+        std::thread data_loader8([vf](){ vf(1); });
 #ifdef DLIB_USE_CUDA
-        std::thread data_loader10([vf](){ vf(2); });
-        std::thread data_loader11([vf](){ vf(3); });
-        std::thread data_loader12([vf](){ vf(4); });
+        std::thread data_loader9([vf](){ vf(2); });
+        std::thread data_loader10([vf](){ vf(3); });
 #endif
 
         // The main training loop.  Keep making mini-batches and giving them to the trainer.
         // We will run until the learning rate has dropped to 1e-4 or number of steps exceeds 1e5
         const double _min_learning_rate_thresh = cmdparser.get<double>("minlrthresh");
 #ifdef DLIB_USE_CUDA
-        const size_t _training_minibatch_size = 111;
-        const size_t _test_minibatch_size = 111;
+        const size_t _training_minibatch_size = 101;
+        const size_t _test_minibatch_size = 101;
 #else
         const size_t _training_minibatch_size = 128;
         const size_t _test_minibatch_size = 32;
@@ -294,7 +294,7 @@ int main(int argc, char** argv) try
         data.disable();
         validationdata.disable();
         data_loader1.join();
-        data_loader9.join();
+        data_loader8.join();
 #ifdef DLIB_USE_CUDA
         data_loader2.join();
         data_loader3.join();
@@ -302,11 +302,8 @@ int main(int argc, char** argv) try
         data_loader5.join();
         data_loader6.join();
         data_loader7.join();
-        data_loader8.join();
-
+        data_loader9.join();
         data_loader10.join();
-        data_loader11.join();
-        data_loader12.join();
 #endif
 
         // Also wait for threaded processing to stop in the trainer.
@@ -330,7 +327,7 @@ int main(int argc, char** argv) try
             for (auto l : validationtset)
             {
                 dlib::array<matrix<rgb_pixel>> images;
-                matrix<rgb_pixel> img = std::move(load_rgb_image_with_fixed_size(l.filename,IMGSIZE,IMGSIZE));;
+                matrix<rgb_pixel> img = std::move(load_rgb_image_with_fixed_size(l.filename,IMGSIZE,IMGSIZE,false));
                 // Grab N random crops from the image.  We will run all of them through the
                 // network and average the results.
                 const size_t num_crops = 1;

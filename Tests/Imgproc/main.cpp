@@ -33,9 +33,9 @@ int main(int argc, char *argv[])
             dlib::matrix<dlib::rgb_pixel> _drgbm = cvmat2dlibmatrix<dlib::rgb_pixel>(_mat);
             dlib::array<dlib::matrix<dlib::rgb_pixel>> _vimgs;
 
-            //dlib::randomly_crop_image(_drgbm,_vimgs,rnd,4);
-            dlib::randomly_cutout_rect(_drgbm,_vimgs,rnd,4,0.3,0.3,45.0*rnd.get_random_double());
-            dlib::randomly_jitter_image(_drgbm,_vimgs,time(0),4);
+            dlib::randomly_crop_image(_drgbm,_vimgs,rnd,4,0.7,0.99);
+            //dlib::randomly_cutout_rect(_drgbm,_vimgs,rnd,4,0.3,0.3,45.0*rnd.get_random_double());
+            //dlib::randomly_jitter_image(_drgbm,_vimgs,time(0),4);
 
             for(unsigned long i = 0; i <_vimgs.size(); ++i) {
                 _mat = dlibmatrix2cvmat<dlib::rgb_pixel>(_vimgs[i]);

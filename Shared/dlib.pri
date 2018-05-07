@@ -21,18 +21,21 @@ win32 {
     LIBS += -L$${DLIB_INSTALL_PATH}/lib
 }
 
-linux {
-    PATH_TO_DLIB_RESOURCES = /home/alex/Programming/3rdParties/dlib_build/etc/data/
-    LIBS += -L/usr/local/lib
-
-    PATH_TO_CUDNN_BINARIES = /home/alex/Programming/3rdParties/cudnn-7.1/lib64
-    LIBS += -L$${PATH_TO_CUDNN_BINARIES}
-    LIBS += -lcudnn
-
-    LIBS += -lpthread
-}
-
 LIBS += -ldlib
+
+linux {
+    LIBS += -L/usr/local/cuda-9.1/lib64
+
+    LIBS += -lcudnn \
+            -lpthread \
+            -lcuda \
+            -lcudart \
+            -lcublas \
+            -lcurand \
+            -lcusolver \
+            -ljpeg \
+            -lpng
+}
 
 DEFINES += PATH_TO_DLIB_RES=\\\"$${PATH_TO_DLIB_RESOURCES}\\\"
 

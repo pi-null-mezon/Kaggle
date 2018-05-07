@@ -47,15 +47,13 @@ win32 {
 
 linux {
 
-    LIBS += -L/usr/local/lib
     LIBS += -lopencv_core \
             -lopencv_objdetect \
             -lopencv_highgui \
             -lopencv_imgproc \
             -lopencv_videoio \
             -lopencv_imgcodecs \
-            -lopencv_dnn \
-            -lprotobuf
+            -lopencv_dnn
 }
 
 DEFINES += OPENCV_DIR=\\\"$${OPENCV_DIR}\\\"

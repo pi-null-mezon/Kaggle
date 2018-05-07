@@ -46,10 +46,8 @@ void randomly_jitter_image(const matrix<image_type>& img, dlib::array<matrix<ima
 }
 
 template<typename image_type>
-rectangle make_random_cropping_rect(const matrix<image_type> &img, dlib::rand &rnd)
-{
-    // figure out what rectangle we want to crop from the image
-    double mins = 0.90, maxs = 0.99; // do not make greater than 1.0 or app will silently crash
+rectangle make_random_cropping_rect(const matrix<image_type> &img, dlib::rand &rnd, float mins=0.900f, float maxs=0.999f)
+{   
     auto scale = mins + rnd.get_random_double()*(maxs-mins);
     rectangle rect(scale*img.nc(), scale*img.nr());
     // randomly shift the box around
@@ -59,7 +57,7 @@ rectangle make_random_cropping_rect(const matrix<image_type> &img, dlib::rand &r
 }
 
 template<typename image_type>
-void randomly_crop_image(const matrix<image_type>& img,dlib::array<matrix<image_type>>& crops, dlib::rand& rnd, long num_crops, unsigned long _trows=0, unsigned long _tcols=0)
+void randomly_crop_image(const matrix<image_type>& img,dlib::array<matrix<image_type>>& crops, dlib::rand& rnd, long num_crops, float _mins, float _maxs, unsigned long _trows=0, unsigned long _tcols=0)
 {
     if(_tcols == 0)
         _tcols = num_columns(img);
@@ -68,18 +66,10 @@ void randomly_crop_image(const matrix<image_type>& img,dlib::array<matrix<image_
 
     std::vector<chip_details> dets;
     for (long i = 0; i < num_crops; ++i) {
-        auto rect = make_random_cropping_rect(img, rnd);
+        auto rect = make_random_cropping_rect(img, rnd, _mins, _maxs);
         dets.push_back(chip_details(rect, chip_dims(_trows,_tcols)));
     }
     extract_image_chips(img, dets, crops);
-
-    /*for (auto&& img : crops) {
-        // Also randomly flip the image
-        if(rnd.get_random_double() < 0.5)
-            img = fliplr(img);
-        if(rnd.get_random_double() > 0.5)
-            img = flipud(img);
-    }*/
 }
 
 template<typename image_type>
@@ -94,13 +84,18 @@ void randomly_cutout_rect(const matrix<image_type>& img, dlib::array<matrix<imag
 }
 
 
-dlib::matrix<dlib::rgb_pixel> load_rgb_image_with_fixed_size(std::string _filename, int _trows, int _tcols, bool *_isloadded=0)
+dlib::matrix<dlib::rgb_pixel> load_rgb_image_with_fixed_size(std::string _filename, int _trows, int _tcols, bool _crop, bool *_isloadded=0)
 {
     cv::Mat _originalimgmat = cv::imread(_filename, CV_LOAD_IMAGE_COLOR);
     if(_isloadded)
         *_isloadded = !_originalimgmat.empty();
+
     if(_originalimgmat.empty())
         return dlib::matrix<dlib::rgb_pixel>();
+
+    if(_crop == true)
+        return cvmat2dlibmatrix<dlib::rgb_pixel>(cropFromCenterAndResize(_originalimgmat,cv::Size(_tcols,_trows)));
+
     if(_originalimgmat.cols > _tcols || _originalimgmat.rows > _trows)
         cv::resize(_originalimgmat,_originalimgmat,cv::Size(_tcols,_trows),0,0,CV_INTER_AREA);
     else if(_originalimgmat.cols < _tcols || _originalimgmat.rows < _trows)
