@@ -70,6 +70,17 @@ void randomly_crop_image(const matrix<image_type>& img,dlib::array<matrix<image_
         dets.push_back(chip_details(rect, chip_dims(_trows,_tcols)));
     }
     extract_image_chips(img, dets, crops);
+    for(auto&& _tmpimg : crops)
+    {
+        // Also randomly flip the image
+        if (rnd.get_random_double() > 0.5)
+            _tmpimg = fliplr(_tmpimg);
+
+        // And then randomly adjust the colors.
+        disturb_colors(_tmpimg, rnd);
+        //apply_random_color_offset(_tmpimg, rnd);
+    }
+
 }
 
 template<typename image_type>

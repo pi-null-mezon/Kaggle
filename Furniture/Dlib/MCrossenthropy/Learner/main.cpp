@@ -16,9 +16,10 @@ using namespace std;
 using namespace dlib;
 
 #define CLASSES 128
-#define IMGSIZE 313
+#define IMGSIZE 227
 
 // ----------------------------------------------------------------------------------------
+
 template <template <int,template<typename>class,int,typename> class block, int N, template<typename>class BN, typename SUBNET>
 using residual = add_prev1<block<N,BN,1,tag1<SUBNET>>>;
 
@@ -37,15 +38,15 @@ template <int N, typename SUBNET> using ares_down = relu<residual_down<block,N,a
 
 // ----------------------------------------------------------------------------------------
 
-template <typename SUBNET> using level1 = res<256,res<256,res_down<256,SUBNET>>>;
-template <typename SUBNET> using level2 = res<128,res<128,res_down<128,SUBNET>>>;
-template <typename SUBNET> using level3 = res<64,res<64,res<64,res_down<64,SUBNET>>>>;
-template <typename SUBNET> using level4 = res<32,res<32,res_down<32,SUBNET>>>;
+template <typename SUBNET> using level1 = res<512,res<512,res_down<512,SUBNET>>>;
+template <typename SUBNET> using level2 = res<256,res<256,res<256,res<256,res<256,res_down<256,SUBNET>>>>>>;
+template <typename SUBNET> using level3 = res<128,res<128,res<128,res_down<128,SUBNET>>>>;
+template <typename SUBNET> using level4 = res<64,res<64,res<64,SUBNET>>>;
 
-template <typename SUBNET> using alevel1 = ares<256,ares<256,ares_down<256,SUBNET>>>;
-template <typename SUBNET> using alevel2 = ares<128,ares<128,ares_down<128,SUBNET>>>;
-template <typename SUBNET> using alevel3 = ares<64,ares<64,ares<64,ares_down<64,SUBNET>>>>;
-template <typename SUBNET> using alevel4 = ares<32,ares<32,ares_down<32,SUBNET>>>;
+template <typename SUBNET> using alevel1 = ares<512,ares<512,ares_down<512,SUBNET>>>;
+template <typename SUBNET> using alevel2 = ares<256,ares<256,ares<256,ares<256,ares<256,ares_down<256,SUBNET>>>>>>;
+template <typename SUBNET> using alevel3 = ares<128,ares<128,ares<128,ares_down<128,SUBNET>>>>;
+template <typename SUBNET> using alevel4 = ares<64,ares<64,ares<64,SUBNET>>>;
 
 // training network type
 using net_type = loss_multiclass_log<fc<CLASSES,avg_pool_everything<
@@ -53,9 +54,9 @@ using net_type = loss_multiclass_log<fc<CLASSES,avg_pool_everything<
                             level2<
                             level3<
                             level4<
-                            relu<bn_con<con<16,5,5,2,2,
+                            max_pool<3,3,2,2,relu<bn_con<con<64,7,7,2,2,
                             input_rgb_image_sized<IMGSIZE>
-                            >>>>>>>>>>;
+                            >>>>>>>>>>>;
 
 // testing network type (replaced batch normalization with fixed affine transforms)
 using anet_type = loss_multiclass_log<fc<CLASSES,avg_pool_everything<
@@ -63,10 +64,29 @@ using anet_type = loss_multiclass_log<fc<CLASSES,avg_pool_everything<
                             alevel2<
                             alevel3<
                             alevel4<
-                            relu<affine<con<16,5,5,2,2,
+                            max_pool<3,3,2,2,relu<affine<con<64,7,7,2,2,
                             input_rgb_image_sized<IMGSIZE>
-                            >>>>>>>>>>;
-//-----------------------------------------------------------------------------------------
+                            >>>>>>>>>>>;
+
+// ----------------------------------------------------------------------------------------
+
+template <typename anynet_type, size_t layernum>
+void set_learning_rate_multiplier(anynet_type &_anynet, double _value)
+{
+    layer<layernum>(_anynet).layer_details().set_learning_rate_multiplier(_value);
+    layer<layernum>(_anynet).layer_details().set_bias_learning_rate_multiplier(_value);
+}
+
+class MyVisitor {
+public:
+    template <typename any_net>
+    void operator()(size_t _idx, any_net &_layer) {
+        _layer.layer_details().set_learning_rate_multiplier(0);
+        _layer.layer_details().set_bias_learning_rate_multiplier(0);
+    }
+};
+
+// -----------------------------------------------------------------------------------------
 
 struct image_info
 {
@@ -110,9 +130,9 @@ const cv::String keys =
        "{number n         |   1    | number of classifiers to be trained   }"
        "{split s          | 0.05   | test portion of train data   }"
        "{lossthresh       | 0.20   | testset loss threshold for network saving }"
-       "{swptrain         | 10000  | determines after how many steps without progress (training loss) decay should be applied to learning rate  }"
+       "{swptrain         | 5000   | determines after how many steps without progress (training loss) decay should be applied to learning rate  }"
        "{swptest          | 1000   | determines after how many steps without progress (test loss) decay should be applied to learning rate  }"
-       "{minlrthresh      | 1.0e-3 | minimum learning rate, determines when trining should be stopped  }";
+       "{minlrthresh      | 1.0e-5 | minimum learning rate, determines when trining should be stopped  }";
 // -----------------------------------------------------------------------------------------
 int main(int argc, char** argv) try
 {
@@ -138,28 +158,68 @@ int main(int argc, char** argv) try
     for(int n = 0; n < cmdparser.get<int>("number"); ++n) {
         cout << "\nNET #" << n << "\n------------------------------------------------------" << endl;
 
-        std::vector<image_info> trainingset, validationtset;
-        get_training_files_listing(cmdparser.get<std::string>("traindirpath"), trainingset, validationtset, cmdparser.get<float>("split"));        
-        cout << "Training data split (train / test): " << trainingset.size() << " / " << validationtset.size() << endl;
+        std::vector<image_info> trainingset, validationset;
+        get_training_files_listing(cmdparser.get<std::string>("traindirpath"), trainingset, validationset, cmdparser.get<float>("split"));
+        cout << "Training data split (train / test): " << trainingset.size() << " / " << validationset.size() << endl;
         const auto number_of_classes = trainingset.back().numeric_label + 1;
         cout << "Number of classes in training set: " << number_of_classes << endl;
-        if(trainingset.size() == 0 || validationtset.size() == 0 || number_of_classes != CLASSES)    {
+        if(trainingset.size() == 0 || validationset.size() == 0 || number_of_classes != CLASSES)    {
             cout << "Didn't find dataset or dataset size split is wrong!" << endl;           
             return 1;
         }
 
-        net_type net;
-        dnn_trainer<net_type> trainer(net,sgd(0.0001, 0.9));
+        anet_type net;
+        anet_type resnet34(num_fc_outputs(1000)); // as in original imagenet set
+        deserialize("/home/alex/Programming/3rdParties/dlib/data/resnet34_1000_imagenet_classifier.dnn") >> resnet34;
+        layer<3>(net) = layer<3>(resnet34); // copy all except first 0,1,2 layers
+        set_all_bn_running_stats_window_sizes(net, number_of_classes);
+
+        cout << "The net has " << net.num_layers << " layers in it." << endl;
+        set_learning_rate_multiplier<anet_type,143>(net,0);
+        set_learning_rate_multiplier<anet_type,138>(net,0);
+        set_learning_rate_multiplier<anet_type,135>(net,0);
+        set_learning_rate_multiplier<anet_type,130>(net,0);
+        set_learning_rate_multiplier<anet_type,127>(net,0);
+        set_learning_rate_multiplier<anet_type,122>(net,0);
+        set_learning_rate_multiplier<anet_type,119>(net,0);
+        set_learning_rate_multiplier<anet_type,114>(net,0);
+        set_learning_rate_multiplier<anet_type,111>(net,0);
+        set_learning_rate_multiplier<anet_type,103>(net,0);
+        set_learning_rate_multiplier<anet_type,100>(net,0);
+        set_learning_rate_multiplier<anet_type,95>(net,0);
+        set_learning_rate_multiplier<anet_type,92>(net,0);
+        set_learning_rate_multiplier<anet_type,87>(net,0);
+        set_learning_rate_multiplier<anet_type,84>(net,0);
+        set_learning_rate_multiplier<anet_type,79>(net,0);
+        set_learning_rate_multiplier<anet_type,76>(net,0);
+        set_learning_rate_multiplier<anet_type,68>(net,0);
+        set_learning_rate_multiplier<anet_type,65>(net,0);
+        set_learning_rate_multiplier<anet_type,60>(net,0);
+        set_learning_rate_multiplier<anet_type,57>(net,0);
+        set_learning_rate_multiplier<anet_type,52>(net,0);
+        set_learning_rate_multiplier<anet_type,49>(net,0);
+        set_learning_rate_multiplier<anet_type,44>(net,0);
+        set_learning_rate_multiplier<anet_type,41>(net,0);
+        set_learning_rate_multiplier<anet_type,36>(net,0);
+        set_learning_rate_multiplier<anet_type,33>(net,0);
+        set_learning_rate_multiplier<anet_type,28>(net,0);
+        set_learning_rate_multiplier<anet_type,25>(net,0);
+        set_learning_rate_multiplier<anet_type,17>(net,0);
+        set_learning_rate_multiplier<anet_type,14>(net,0);
+        //set_learning_rate_multiplier<anet_type,9>(net,0);
+        //set_learning_rate_multiplier<anet_type,6>(net,0);
+        set_learning_rate_multiplier<anet_type,1>(net,2);
+        /*cout << net << endl;
+        return 0;*/
+
+        dnn_trainer<anet_type> trainer(net,sgd(0.0001, 0.9));
         trainer.be_verbose();
-        trainer.set_learning_rate(0.1);
+        trainer.set_learning_rate(0.01);
         trainer.set_synchronization_file(cmdparser.get<std::string>("outputdirpath") + "/trainer_" + std::to_string(n) + "_state.dat", std::chrono::minutes(15));
         // This threshold is probably excessively large.  You could likely get good results
         // with a smaller value but if you aren't in a hurry this value will surely work well.
         trainer.set_iterations_without_progress_threshold(cmdparser.get<int>("swptrain"));
         trainer.set_test_iterations_without_progress_threshold(cmdparser.get<int>("swptest"));
-        // Since the progress threshold is so large might as well set the batch normalization
-        // stats window to something big too.
-        //set_all_bn_running_stats_window_sizes(net, number_of_classes);
 
         std::vector<matrix<rgb_pixel>> samples, validationsamples;
         std::vector<unsigned long> labels, validationlabels;
@@ -172,101 +232,67 @@ int main(int argc, char** argv) try
         auto f = [&data, &trainingset, number_of_classes](time_t seed)
         {
             dlib::rand rnd(time(0)+seed);
-            matrix<rgb_pixel> img;            
-            std::pair<image_info, matrix<rgb_pixel>> temp;
+            matrix<rgb_pixel> img;
+            dlib::array<matrix<rgb_pixel>> crops;
+            std::pair<image_info, matrix<rgb_pixel>> temp;           
             while(data.is_enabled())
             {
-                long _classes = 0;
-                std::vector<bool> _vsoc_selected(number_of_classes, false);
-                while(_classes < number_of_classes) {
-                    temp.first = trainingset[rnd.get_random_32bit_number()%trainingset.size()];
-                    if(_vsoc_selected[temp.first.numeric_label] == false) {
-                        _vsoc_selected[temp.first.numeric_label] = true;
-                        _classes++;
-                        dlib::load_image(img,temp.first.filename);
-                        //img = std::move(load_rgb_image_with_fixed_size(temp.first.filename,IMGSIZE,IMGSIZE,false));
-                        if(rnd.get_random_float() > 0.5f)
-                            dlib::disturb_colors(img,rnd);
-                        if(rnd.get_random_float() > 0.5f)
-                            img = fliplr(img);
-                        if(rnd.get_random_float() > -0.1f) {
-                            dlib::array<matrix<rgb_pixel>> crops;
-                            size_t num_crops = 1;
-                            //randomly_jitter_image(img,crops,seed,num_crops,0,0,1.1,0.04,11.0);
-                            randomly_crop_image(img,crops,rnd,num_crops,0.8f,0.99f,IMGSIZE,IMGSIZE);
-                            img = std::move(crops[0]);
-                            /*if(rnd.get_random_float() > 0.3f) {
-                                randomly_cutout_rect(img,crops,rnd,num_crops,0.4,0.4);
-                                img = std::move(crops[0]);
-                            }*/
-                        }
-                        temp.second = std::move(img);
-                        data.enqueue(temp);
-                    }
-                }
+                temp.first = trainingset[rnd.get_random_32bit_number()%trainingset.size()];
+                dlib::load_image(img,temp.first.filename);
+                dlib::disturb_colors(img,rnd);
+                if(rnd.get_random_float() > 0.5f)
+                    img = fliplr(img);
+                randomly_jitter_image(img,crops,seed,1,IMGSIZE,IMGSIZE,1.2,0.05,15.0);
+                /*if(rnd.get_random_float() > 0.5f)
+                    randomly_cutout_rect(crops[0],crops,rnd,1,0.5,0.5);*/
+                temp.second = std::move(crops[0]);
+                data.enqueue(temp);
             }
         };
         std::thread data_loader1([f](){ f(1); });
-#ifdef DLIB_USE_CUDA
         std::thread data_loader2([f](){ f(2); });
+#ifdef DLIB_USE_CUDA        
         std::thread data_loader3([f](){ f(3); });
         std::thread data_loader4([f](){ f(4); });
         std::thread data_loader5([f](){ f(5); });
         std::thread data_loader6([f](){ f(6); });
         std::thread data_loader7([f](){ f(7); });
+        std::thread data_loader8([f](){ f(7); });
 #endif
 
         dlib::pipe<std::pair<image_info,matrix<rgb_pixel>>> validationdata(256);
-        auto vf = [&validationdata, &validationtset, number_of_classes](time_t seed)
+        auto vf = [&validationdata, &validationset, number_of_classes](time_t seed)
         {
             dlib::rand rnd(time(0)+seed);
-            matrix<rgb_pixel> img;
             std::pair<image_info, matrix<rgb_pixel>> temp;
             while(validationdata.is_enabled())
             {
-                long _classes = 0;
-                std::vector<bool> _vsoc_selected(number_of_classes, false);
-                while(_classes < number_of_classes) {
-                    temp.first = validationtset[rnd.get_random_32bit_number()%validationtset.size()];
-                    if(_vsoc_selected[temp.first.numeric_label] == false) {
-                        _vsoc_selected[temp.first.numeric_label] = true;
-                        _classes++;
-                        img = std::move(load_rgb_image_with_fixed_size(temp.first.filename,IMGSIZE,IMGSIZE,false));
-                        /*
-                        if(rnd.get_random_float() > 0.1f) {// take in mind that this is validation images preprocessing
-                            dlib::array<matrix<rgb_pixel>> crops;
-                            size_t num_crops = 1;
-                            randomly_jitter_image(img,crops,seed,num_crops,0,0,1.1,0.03,9.0);
-                            img = std::move(crops[0]);
-                        }*/
-                        temp.second = std::move(img);
-                        validationdata.enqueue(temp);
-                    }
-                }
+                temp.first = validationset[rnd.get_random_32bit_number()%validationset.size()];
+                temp.second = std::move(load_rgb_image_with_fixed_size(temp.first.filename,IMGSIZE,IMGSIZE,false));
+                validationdata.enqueue(temp);
             }
         };
-        std::thread data_loader8([vf](){ vf(1); });
+        std::thread data_loader9([vf](){ vf(1); });
 #ifdef DLIB_USE_CUDA
-        std::thread data_loader9([vf](){ vf(2); });
-        std::thread data_loader10([vf](){ vf(3); });
+        std::thread data_loader10([vf](){ vf(2); });
 #endif
 
         // The main training loop.  Keep making mini-batches and giving them to the trainer.
         // We will run until the learning rate has dropped to 1e-4 or number of steps exceeds 1e5
         const double _min_learning_rate_thresh = cmdparser.get<double>("minlrthresh");
 #ifdef DLIB_USE_CUDA
-        const size_t _training_minibatch_size = 101;
-        const size_t _test_minibatch_size = 101;
+        const size_t _training_minibatch_size = 99;
+        const size_t _test_minibatch_size = 99;
 #else
         const size_t _training_minibatch_size = 128;
         const size_t _test_minibatch_size = 32;
 #endif
         while(trainer.get_learning_rate() > _min_learning_rate_thresh)
         {
+            std::pair<image_info, matrix<rgb_pixel>> img;
             samples.clear();
             labels.clear();
-            // make mini-batch
-            std::pair<image_info, matrix<rgb_pixel>> img;
+            // make mini-batch           
             while(samples.size() < _training_minibatch_size) {
                 data.dequeue(img);
                 samples.push_back(std::move(img.second));
@@ -274,14 +300,13 @@ int main(int argc, char** argv) try
             }
             trainer.train_one_step(samples, labels);
 
-            if(trainer.get_train_one_step_calls() % 40 == 0) { // Now we can perform validation test
+            if(trainer.get_train_one_step_calls() % 20 == 0) { // Now we can perform validation test
                 validationsamples.clear();
-                validationlabels.clear();
-                std::pair<image_info, matrix<rgb_pixel>> validationimg;
+                validationlabels.clear();               
                 while(validationsamples.size() < _test_minibatch_size) {
-                    validationdata.dequeue(validationimg);
-                    validationsamples.push_back(std::move(validationimg.second));
-                    validationlabels.push_back(validationimg.first.numeric_label);
+                    validationdata.dequeue(img);
+                    validationsamples.push_back(std::move(img.second));
+                    validationlabels.push_back(img.first.numeric_label);
                 }
                 trainer.test_one_step(validationsamples,validationlabels);
             }
@@ -294,15 +319,15 @@ int main(int argc, char** argv) try
         data.disable();
         validationdata.disable();
         data_loader1.join();
-        data_loader8.join();
-#ifdef DLIB_USE_CUDA
         data_loader2.join();
+        data_loader9.join();
+#ifdef DLIB_USE_CUDA        
         data_loader3.join();
         data_loader4.join();
         data_loader5.join();
         data_loader6.join();
         data_loader7.join();
-        data_loader9.join();
+        data_loader8.join();
         data_loader10.join();
 #endif
 
@@ -321,19 +346,19 @@ int main(int argc, char** argv) try
             cout << "Testing network on train dataset..." << endl;
             int num_right_top1 = 0;
             int num_wrong_top1 = 0;
-            dlib::rand rnd(time(0));
+            dlib::rand rnd(0);
             // loop over all the imagenet validation images
             double logloss = 0.0;
-            for (auto l : validationtset)
-            {
-                dlib::array<matrix<rgb_pixel>> images;
-                matrix<rgb_pixel> img = std::move(load_rgb_image_with_fixed_size(l.filename,IMGSIZE,IMGSIZE,false));
+            for (auto l : validationset) {
+                matrix<rgb_pixel> img;
+                load_image(img,l.filename);
                 // Grab N random crops from the image.  We will run all of them through the
                 // network and average the results.
-                const size_t num_crops = 1;
-                randomly_jitter_image(img,images,time(0),num_crops,0,0,1,0,0);
+                dlib::array<matrix<rgb_pixel>> images;
+                const size_t num_crops = 10;
+                randomly_crop_image(img,images,rnd,num_crops,0.89,0.99,IMGSIZE,IMGSIZE);
                 matrix<float,1,CLASSES> p = sum_rows(mat(snet(images.begin(), images.end())))/num_crops;
-                // p(i) == the probability the image contains object of class i.
+                // p(i) is the probability that the image contains object of class i.
                 // update log loss
                 logloss += -std::log(p(l.numeric_label));
                 // check top 1 accuracy
@@ -353,7 +378,7 @@ int main(int argc, char** argv) try
                     }
                 }
             }
-            logloss /= validationtset.size();
+            logloss /= validationset.size();
             cout << "Average testset log loss:  " << logloss << endl;
             cout << "Test accuracy: " << 1.0 - (double)num_wrong_top1/(num_right_top1+num_wrong_top1) << endl;
             cout << "Wrong / Total: " << num_wrong_top1 << "/" << (num_right_top1+num_wrong_top1) << endl;

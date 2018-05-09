@@ -20,7 +20,7 @@ int main(int argc, char *argv[])
     }
 
     auto dir = dlib::directory(argv[1]);
-    dlib::rand rnd(time(0));
+    dlib::rand rnd(0);
     for(auto file : dir.get_files()) {
 
         cv::Mat _mat = cv::imread(file.full_name(), CV_LOAD_IMAGE_UNCHANGED);
@@ -33,11 +33,13 @@ int main(int argc, char *argv[])
             dlib::matrix<dlib::rgb_pixel> _drgbm = cvmat2dlibmatrix<dlib::rgb_pixel>(_mat);
             dlib::array<dlib::matrix<dlib::rgb_pixel>> _vimgs;
 
-            dlib::randomly_crop_image(_drgbm,_vimgs,rnd,4,0.7,0.99);
+            //dlib::randomly_crop_image(_drgbm,_vimgs,rnd,4,0.7,0.99);
             //dlib::randomly_cutout_rect(_drgbm,_vimgs,rnd,4,0.3,0.3,45.0*rnd.get_random_double());
-            //dlib::randomly_jitter_image(_drgbm,_vimgs,time(0),4);
+            dlib::randomly_jitter_image(_drgbm,_vimgs,0,10,0,0,1.3,0.05,15.0);
 
             for(unsigned long i = 0; i <_vimgs.size(); ++i) {
+                dlib::disturb_colors(_vimgs[i],rnd);
+                //dlib::apply_random_color_offset(_vimgs[i],rnd);
                 _mat = dlibmatrix2cvmat<dlib::rgb_pixel>(_vimgs[i]);
                 // Visualise
                 cv::imshow("Probe", _mat);
