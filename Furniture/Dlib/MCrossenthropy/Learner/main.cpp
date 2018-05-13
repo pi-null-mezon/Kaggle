@@ -16,10 +16,9 @@ using namespace std;
 using namespace dlib;
 
 #define CLASSES 128
-#define IMGSIZE 227
+#define IMGSIZE 400
 
 // ----------------------------------------------------------------------------------------
-
 template <template <int,template<typename>class,int,typename> class block, int N, template<typename>class BN, typename SUBNET>
 using residual = add_prev1<block<N,BN,1,tag1<SUBNET>>>;
 
@@ -29,34 +28,22 @@ using residual_down = add_prev2<avg_pool<2,2,2,2,skip1<tag2<block<N,BN,2,tag1<SU
 template <int N, template <typename> class BN, int stride, typename SUBNET>
 using block  = BN<con<N,3,3,1,1,relu<BN<con<N,3,3,stride,stride,SUBNET>>>>>;
 
-
 template <int N, typename SUBNET> using res       = relu<residual<block,N,bn_con,SUBNET>>;
 template <int N, typename SUBNET> using ares      = relu<residual<block,N,affine,SUBNET>>;
 template <int N, typename SUBNET> using res_down  = relu<residual_down<block,N,bn_con,SUBNET>>;
 template <int N, typename SUBNET> using ares_down = relu<residual_down<block,N,affine,SUBNET>>;
 
-
 // ----------------------------------------------------------------------------------------
 
-template <typename SUBNET> using level1 = res<512,res<512,res_down<512,SUBNET>>>;
-template <typename SUBNET> using level2 = res<256,res<256,res<256,res<256,res<256,res_down<256,SUBNET>>>>>>;
-template <typename SUBNET> using level3 = res<128,res<128,res<128,res_down<128,SUBNET>>>>;
-template <typename SUBNET> using level4 = res<64,res<64,res<64,SUBNET>>>;
+template <typename SUBNET> using level1 = res<256,res<256,res_down<256,SUBNET>>>;
+template <typename SUBNET> using level2 = res<128,res<128,res_down<128,SUBNET>>>;
+template <typename SUBNET> using level3 = res<64,res<64,res_down<64,SUBNET>>>;
+template <typename SUBNET> using level4 = res<32,res<32,res_down<32,SUBNET>>>;
 
-template <typename SUBNET> using alevel1 = ares<512,ares<512,ares_down<512,SUBNET>>>;
-template <typename SUBNET> using alevel2 = ares<256,ares<256,ares<256,ares<256,ares<256,ares_down<256,SUBNET>>>>>>;
-template <typename SUBNET> using alevel3 = ares<128,ares<128,ares<128,ares_down<128,SUBNET>>>>;
-template <typename SUBNET> using alevel4 = ares<64,ares<64,ares<64,SUBNET>>>;
-
-// training network type
-using net_type = loss_multiclass_log<fc<CLASSES,avg_pool_everything<
-                            level1<
-                            level2<
-                            level3<
-                            level4<
-                            max_pool<3,3,2,2,relu<bn_con<con<64,7,7,2,2,
-                            input_rgb_image_sized<IMGSIZE>
-                            >>>>>>>>>>>;
+template <typename SUBNET> using alevel1 = ares<256,ares<256,ares_down<256,SUBNET>>>;
+template <typename SUBNET> using alevel2 = ares<128,ares<128,ares_down<128,SUBNET>>>;
+template <typename SUBNET> using alevel3 = ares<64,ares<64,ares_down<64,SUBNET>>>;
+template <typename SUBNET> using alevel4 = ares<32,ares<32,ares_down<32,SUBNET>>>;
 
 // testing network type (replaced batch normalization with fixed affine transforms)
 using anet_type = loss_multiclass_log<fc<CLASSES,avg_pool_everything<
@@ -64,9 +51,19 @@ using anet_type = loss_multiclass_log<fc<CLASSES,avg_pool_everything<
                             alevel2<
                             alevel3<
                             alevel4<
-                            max_pool<3,3,2,2,relu<affine<con<64,7,7,2,2,
+                            relu<affine<con<16,5,5,2,2,
                             input_rgb_image_sized<IMGSIZE>
-                            >>>>>>>>>>>;
+                            >>>>>>>>>>;
+
+// training network type
+using net_type = loss_multiclass_log<fc<CLASSES,avg_pool_everything<
+                            level1<
+                            level2<
+                            level3<
+                            level4<
+                            relu<bn_con<con<16,5,5,2,2,
+                            input_rgb_image_sized<IMGSIZE>
+                            >>>>>>>>>>;
 
 // ----------------------------------------------------------------------------------------
 
@@ -95,7 +92,7 @@ struct image_info
     long numeric_label;
 };
 
-void get_training_files_listing(const std::string& images_folder, std::vector<image_info>& traininfo, std::vector<image_info>& validinfo, float _validation_part)
+void get_files_listing(const std::string& images_folder, std::vector<image_info>& info)
 {
     image_info temp;
     temp.numeric_label = 0;
@@ -106,17 +103,14 @@ void get_training_files_listing(const std::string& images_folder, std::vector<im
     /*cout << "Note that labels will be presented in following order: " << endl;
     for(size_t i = 0; i < subdirs.size(); ++i)
         cout << "label " << i << " - class name " <<   subdirs[i].name() << endl;*/
-    dlib::rand rnd(1);
+
     cout << "Subdirs found: " << subdirs.size() << endl;
     for (auto subdir : subdirs)  {
         // Now get all the images in this label type
         temp.label = subdir.name();
         for (auto image_file : subdir.get_files()) {
             temp.filename = image_file;
-            if(rnd.get_random_float() < _validation_part)
-                validinfo.push_back(temp);
-            else
-                traininfo.push_back(temp);
+            info.push_back(temp);
         }
         ++temp.numeric_label;
     }
@@ -124,15 +118,15 @@ void get_training_files_listing(const std::string& images_folder, std::vector<im
 
 // ----------------------------------------------------------------------------------------
 const cv::String keys =
-       "{help h           |        | print this message   }"
-       "{traindirpath   t |        | training directory location   }"
-       "{outputdirpath  o |        | output directory location   }"
-       "{number n         |   1    | number of classifiers to be trained   }"
-       "{split s          | 0.05   | test portion of train data   }"
-       "{lossthresh       | 0.20   | testset loss threshold for network saving }"
-       "{swptrain         | 5000   | determines after how many steps without progress (training loss) decay should be applied to learning rate  }"
-       "{swptest          | 1000   | determines after how many steps without progress (test loss) decay should be applied to learning rate  }"
-       "{minlrthresh      | 1.0e-5 | minimum learning rate, determines when trining should be stopped  }";
+       "{help h           |        | print this message}"
+       "{traindirpath   t |        | training directory location}"
+       "{validdirpath   v |        | validation directory location}"
+       "{outputdirpath  o |        | output directory location}"
+       "{number n         |   1    | number of classifiers to be trained}"
+       "{lossthresh       | 0.20   | testset loss threshold for network saving}"
+       "{swptrain         | 7500   | determines after how many steps without progress (training loss) decay should be applied to learning rate}"
+       "{swptest          | 1000   | determines after how many steps without progress (test loss) decay should be applied to learning rate}"
+       "{minlrthresh      | 1.0e-4 | minimum learning rate, determines when trining should be stopped}";
 // -----------------------------------------------------------------------------------------
 int main(int argc, char** argv) try
 {
@@ -144,6 +138,10 @@ int main(int argc, char** argv) try
     }
     if(!cmdparser.has("traindirpath")) {
         cout << "You have not provide path to training directory!";
+        return 2;
+    }
+    if(!cmdparser.has("validdirpath")) {
+        cout << "You have not provide path to validation directory!";
         return 2;
     }
     if(!cmdparser.has("outputdirpath")) {
@@ -159,7 +157,8 @@ int main(int argc, char** argv) try
         cout << "\nNET #" << n << "\n------------------------------------------------------" << endl;
 
         std::vector<image_info> trainingset, validationset;
-        get_training_files_listing(cmdparser.get<std::string>("traindirpath"), trainingset, validationset, cmdparser.get<float>("split"));
+        get_files_listing(cmdparser.get<std::string>("traindirpath"), trainingset);
+        get_files_listing(cmdparser.get<std::string>("validdirpath"), validationset);
         cout << "Training data split (train / test): " << trainingset.size() << " / " << validationset.size() << endl;
         const auto number_of_classes = trainingset.back().numeric_label + 1;
         cout << "Number of classes in training set: " << number_of_classes << endl;
@@ -168,13 +167,13 @@ int main(int argc, char** argv) try
             return 1;
         }
 
-        anet_type net;
-        anet_type resnet34(num_fc_outputs(1000)); // as in original imagenet set
+        net_type net;
+        /*anet_type resnet34(); // as in original imagenet set
         deserialize("/home/alex/Programming/3rdParties/dlib/data/resnet34_1000_imagenet_classifier.dnn") >> resnet34;
-        layer<3>(net) = layer<3>(resnet34); // copy all except first 0,1,2 layers
+        layer<3>(net) = layer<3>(resnet34); // copy all except first 0,1,2 layers*/
         set_all_bn_running_stats_window_sizes(net, number_of_classes);
 
-        cout << "The net has " << net.num_layers << " layers in it." << endl;
+        /*cout << "The net has " << net.num_layers << " layers in it." << endl;
         set_learning_rate_multiplier<anet_type,143>(net,0);
         set_learning_rate_multiplier<anet_type,138>(net,0);
         set_learning_rate_multiplier<anet_type,135>(net,0);
@@ -206,16 +205,17 @@ int main(int argc, char** argv) try
         set_learning_rate_multiplier<anet_type,25>(net,0);
         set_learning_rate_multiplier<anet_type,17>(net,0);
         set_learning_rate_multiplier<anet_type,14>(net,0);
-        //set_learning_rate_multiplier<anet_type,9>(net,0);
-        //set_learning_rate_multiplier<anet_type,6>(net,0);
+        set_learning_rate_multiplier<anet_type,9>(net,0);
+        set_learning_rate_multiplier<anet_type,6>(net,0);
         set_learning_rate_multiplier<anet_type,1>(net,2);
-        /*cout << net << endl;
+        cout << net << endl;
         return 0;*/
 
-        dnn_trainer<anet_type> trainer(net,sgd(0.0001, 0.9));
+        dnn_trainer<net_type> trainer(net,sgd(0.0001, 0.9));
         trainer.be_verbose();
-        trainer.set_learning_rate(0.01);
+        trainer.set_learning_rate(0.1);
         trainer.set_synchronization_file(cmdparser.get<std::string>("outputdirpath") + "/trainer_" + std::to_string(n) + "_state.dat", std::chrono::minutes(15));
+        trainer.set_learning_rate(0.01);
         // This threshold is probably excessively large.  You could likely get good results
         // with a smaller value but if you aren't in a hurry this value will surely work well.
         trainer.set_iterations_without_progress_threshold(cmdparser.get<int>("swptrain"));
@@ -239,11 +239,12 @@ int main(int argc, char** argv) try
             {
                 temp.first = trainingset[rnd.get_random_32bit_number()%trainingset.size()];
                 dlib::load_image(img,temp.first.filename);
-                dlib::disturb_colors(img,rnd);
+                /*dlib::disturb_colors(img,rnd);
                 if(rnd.get_random_float() > 0.5f)
                     img = fliplr(img);
-                randomly_jitter_image(img,crops,seed,1,IMGSIZE,IMGSIZE,1.2,0.05,15.0);
-                /*if(rnd.get_random_float() > 0.5f)
+                randomly_jitter_image(img,crops,seed,1,IMGSIZE,IMGSIZE,1.2,0.05,15.0);*/
+                randomly_crop_image(img,crops,rnd,1,0.95,0.99,IMGSIZE,IMGSIZE);
+                /*if(rnd.get_random_float() > 0.1f)
                     randomly_cutout_rect(crops[0],crops,rnd,1,0.5,0.5);*/
                 temp.second = std::move(crops[0]);
                 data.enqueue(temp);
@@ -281,8 +282,8 @@ int main(int argc, char** argv) try
         // We will run until the learning rate has dropped to 1e-4 or number of steps exceeds 1e5
         const double _min_learning_rate_thresh = cmdparser.get<double>("minlrthresh");
 #ifdef DLIB_USE_CUDA
-        const size_t _training_minibatch_size = 99;
-        const size_t _test_minibatch_size = 99;
+        const size_t _training_minibatch_size = 79;
+        const size_t _test_minibatch_size = 79;
 #else
         const size_t _training_minibatch_size = 128;
         const size_t _test_minibatch_size = 32;
@@ -300,7 +301,7 @@ int main(int argc, char** argv) try
             }
             trainer.train_one_step(samples, labels);
 
-            if(trainer.get_train_one_step_calls() % 20 == 0) { // Now we can perform validation test
+            if(trainer.get_train_one_step_calls() % 10 == 0) { // Now we can perform validation test
                 validationsamples.clear();
                 validationlabels.clear();               
                 while(validationsamples.size() < _test_minibatch_size) {
@@ -335,14 +336,15 @@ int main(int argc, char** argv) try
         trainer.get_net();
         net.clean();
         cout << "Network #" << n << " (trainset loss: " << trainer.get_average_loss() << "; test loss: " << trainer.get_average_test_loss() << ")" << endl;
-        if(trainer.get_average_test_loss() < cmdparser.get<double>("lossthresh")) {
-            //serialize(cmdparser.get<std::string>("outputdirpath") + "/net_" + std::to_string(n) + "_(" + std::to_string(trainer.get_average_loss()) + " - " + std::to_string(trainer.get_average_test_loss()) + ").dat") << net;
+        if(trainer.get_average_test_loss() < cmdparser.get<double>("lossthresh")) {           
             // Now test the network on the validation dataset.  First, make a testing
             // network with softmax as the final layer.  We don't have to do this if we just wanted
             // to test the "top1 accuracy" since the normal network outputs the class prediction.
             // But this snet object will make getting the top5 predictions easy as it directly
             // outputs the probability of each class as its final output.
-            softmax<anet_type::subnet_type> snet; snet.subnet() = net.subnet();
+            anet_type anet = net; // batch norm -> affine
+            softmax<anet_type::subnet_type> snet;
+            snet.subnet() = anet.subnet();
             cout << "Testing network on train dataset..." << endl;
             int num_right_top1 = 0;
             int num_wrong_top1 = 0;
@@ -355,8 +357,8 @@ int main(int argc, char** argv) try
                 // Grab N random crops from the image.  We will run all of them through the
                 // network and average the results.
                 dlib::array<matrix<rgb_pixel>> images;
-                const size_t num_crops = 10;
-                randomly_crop_image(img,images,rnd,num_crops,0.89,0.99,IMGSIZE,IMGSIZE);
+                const size_t num_crops = 3;
+                randomly_crop_image(img,images,rnd,num_crops,0.85,0.99,IMGSIZE,IMGSIZE);
                 matrix<float,1,CLASSES> p = sum_rows(mat(snet(images.begin(), images.end())))/num_crops;
                 // p(i) is the probability that the image contains object of class i.
                 // update log loss

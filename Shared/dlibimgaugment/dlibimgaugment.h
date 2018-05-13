@@ -95,7 +95,7 @@ void randomly_cutout_rect(const matrix<image_type>& img, dlib::array<matrix<imag
 }
 
 
-dlib::matrix<dlib::rgb_pixel> load_rgb_image_with_fixed_size(std::string _filename, int _trows, int _tcols, bool _crop, bool *_isloadded=0)
+dlib::matrix<dlib::rgb_pixel> load_rgb_image_with_fixed_size(std::string _filename, int _tcols, int _trows, bool _crop, bool *_isloadded=0)
 {
     cv::Mat _originalimgmat = cv::imread(_filename, CV_LOAD_IMAGE_COLOR);
     if(_isloadded)

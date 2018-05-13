@@ -30,7 +30,8 @@ int main(int argc, char *argv[])
         cout << "Img channels: " << _mat.channels() << endl;
         if(_mat.empty() == false) {
 
-            dlib::matrix<dlib::rgb_pixel> _drgbm = cvmat2dlibmatrix<dlib::rgb_pixel>(_mat);
+            //dlib::matrix<dlib::rgb_pixel> _drgbm = cvmat2dlibmatrix<dlib::rgb_pixel>(_mat);
+            dlib::matrix<dlib::rgb_pixel> _drgbm = dlib::load_rgb_image_with_fixed_size(file.full_name(),500,200,true);
             dlib::array<dlib::matrix<dlib::rgb_pixel>> _vimgs;
 
             //dlib::randomly_crop_image(_drgbm,_vimgs,rnd,4,0.7,0.99);
@@ -39,6 +40,7 @@ int main(int argc, char *argv[])
 
             for(unsigned long i = 0; i <_vimgs.size(); ++i) {
                 dlib::disturb_colors(_vimgs[i],rnd);
+                _vimgs[i] = dlib::fliplr(_vimgs[i]);
                 //dlib::apply_random_color_offset(_vimgs[i],rnd);
                 _mat = dlibmatrix2cvmat<dlib::rgb_pixel>(_vimgs[i]);
                 // Visualise

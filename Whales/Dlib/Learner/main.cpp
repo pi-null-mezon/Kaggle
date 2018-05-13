@@ -205,7 +205,6 @@ int main(int argc, char** argv)
     trainer.set_learning_rate(0.1);
     trainer.be_verbose();
     trainer.set_synchronization_file("whales_metric_sync", std::chrono::minutes(10));
-    trainer.set_learning_rate(0.001);
 
     // I've set this to something really small to make the example terminate
     // sooner.  But when you really want to train a good model you should set
