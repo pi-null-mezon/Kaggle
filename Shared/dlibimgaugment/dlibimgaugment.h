@@ -124,7 +124,7 @@ dlib::matrix<uchar> load_grayscale_image_with_fixed_size(std::string _filename, 
         return dlib::matrix<uchar>();
 
     if(_crop == true)
-        return cvmat2dlibmatrix<dlib::rgb_pixel>(cropFromCenterAndResize(_originalimgmat,cv::Size(_tcols,_trows)));
+        return cvmat2dlibmatrix<uchar>(cropFromCenterAndResize(_originalimgmat,cv::Size(_tcols,_trows)));
 
     if(_originalimgmat.cols > _tcols || _originalimgmat.rows > _trows)
         cv::resize(_originalimgmat,_originalimgmat,cv::Size(_tcols,_trows),0,0,CV_INTER_AREA);
