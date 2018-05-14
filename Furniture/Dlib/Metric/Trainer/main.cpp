@@ -233,7 +233,7 @@ int main(int argc, char** argv) try
         dnn_trainer<net_type> trainer(net, sgd(0.0001, 0.9));
         trainer.set_learning_rate(0.1);
         trainer.be_verbose();
-        trainer.set_synchronization_file("face_metric_sync", std::chrono::minutes(10));
+        trainer.set_synchronization_file(cmdparser.get<std::string>("outputdirpath") + std::string("/face_metric_sync_") + std::to_string(n), std::chrono::minutes(10));
         trainer.set_iterations_without_progress_threshold(cmdparser.get<unsigned long>("swptrain"));
         trainer.set_test_iterations_without_progress_threshold(cmdparser.get<unsigned long>("swpvalid"));
 
@@ -317,7 +317,7 @@ int main(int argc, char** argv) try
 
         // Save the network to disk
         net.clean();
-        serialize("metric_network_renset.dat") << net;
+        serialize(cmdparser.get<std::string>("outputdirpath") + std::string("/metric_network_resnet_") + std::to_string(n) + std::string(".dat")) << net;
 
         // stop all the data loading threads and wait for them to terminate.
         qimagestrain.disable();
