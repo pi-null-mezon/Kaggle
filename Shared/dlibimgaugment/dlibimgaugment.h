@@ -114,6 +114,25 @@ dlib::matrix<dlib::rgb_pixel> load_rgb_image_with_fixed_size(std::string _filena
     return cvmat2dlibmatrix<dlib::rgb_pixel>(_originalimgmat);
 }
 
+dlib::matrix<uchar> load_grayscale_image_with_fixed_size(std::string _filename, int _tcols, int _trows, bool _crop, bool *_isloadded=0)
+{
+    cv::Mat _originalimgmat = cv::imread(_filename, CV_LOAD_IMAGE_GRAYSCALE);
+    if(_isloadded)
+        *_isloadded = !_originalimgmat.empty();
+
+    if(_originalimgmat.empty())
+        return dlib::matrix<uchar>();
+
+    if(_crop == true)
+        return cvmat2dlibmatrix<dlib::rgb_pixel>(cropFromCenterAndResize(_originalimgmat,cv::Size(_tcols,_trows)));
+
+    if(_originalimgmat.cols > _tcols || _originalimgmat.rows > _trows)
+        cv::resize(_originalimgmat,_originalimgmat,cv::Size(_tcols,_trows),0,0,CV_INTER_AREA);
+    else if(_originalimgmat.cols < _tcols || _originalimgmat.rows < _trows)
+        cv::resize(_originalimgmat,_originalimgmat,cv::Size(_tcols,_trows),0,0,CV_INTER_LINEAR);
+    return cvmat2dlibmatrix<uchar>(_originalimgmat);
+}
+
 } // end of dlib namespace
 
 #endif // DLIBIMGAUGMENT_H

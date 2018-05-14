@@ -71,8 +71,6 @@ void load_mini_batch (
     DLIB_CASSERT(num_people <= objs.size(), "The dataset doesn't have that many people in it.");
 
     std::vector<bool> already_selected(objs.size(), false);
-    matrix<rgb_pixel> image; 
-    cv::Mat _mat;
     for (size_t i = 0; i < num_people; ++i)
     {
         size_t id = rnd.get_random_32bit_number()%objs.size();
@@ -84,11 +82,7 @@ void load_mini_batch (
         for (size_t j = 0; j < samples_per_id; ++j)
         {
             const auto& obj = objs[id][rnd.get_random_32bit_number()%objs[id].size()];
-            //load_image(image, obj);
-            _mat = cv::imread(obj);
-            cv::resize(_mat,_mat,cv::Size(500,200),0,0,CV_INTER_AREA);
-            image = cvmat2dlibmatrix<dlib::rgb_pixel>(_mat);
-            images.push_back(std::move(image));
+            images.push_back(std::move(load_rgb_image_with_fixed_size(obj,500,200,true)));
             labels.push_back(id);
         }
     }
@@ -100,13 +94,11 @@ void load_mini_batch (
     {
         disturb_colors(crop,rnd);
         // Jitter most crops
-        if(rnd.get_random_double() > 0.1) {
-            randomly_jitter_image(crop,_vcrops,seed,1);
-            crop = _vcrops[0];
-        }
+        randomly_jitter_image(crop,_vcrops,seed,1,0,0,1.2,0.05,15.0);
+        crop = std::move(_vcrops[0]);
         /*if(rnd.get_random_double() > 0.2) {
             randomly_cutout_rect(crop,_vcrops,rnd,1,0.5,0.5);
-            crop = _vcrops[0];
+            crop = std::move(_vcrops[0]);
         }*/
     }
 
@@ -276,7 +268,7 @@ int main(int argc, char** argv)
     // Now, just to show an example of how you would use the network, let's check how well
     // it performs on the training data.
     dlib::rand rnd(time(0));
-    load_mini_batch(5, 5, rnd, objs, images, labels, time(0));
+    load_mini_batch(15, 5, rnd, objs, images, labels, time(0));
 
     // Normally you would use the non-batch-normalized version of the network to do
     // testing, which is what we do here.
