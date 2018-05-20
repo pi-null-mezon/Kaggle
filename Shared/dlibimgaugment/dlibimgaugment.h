@@ -17,7 +17,7 @@ namespace dlib {
 // Do not forget about existance of dlib::apply_random_color_offset(crop, rnd)
 
 template<typename image_type>
-void randomly_jitter_image(const matrix<image_type>& img, dlib::array<matrix<image_type>>& crops, time_t seed, size_t num_crops, unsigned long _trows=0, unsigned long _tcols=0, double _maxsizepercents=1.1, double _maxtranslationpercents=0.05, double _maxrotationdeg=15.0)
+void randomly_jitter_image(const matrix<image_type>& img, dlib::array<matrix<image_type>>& crops, time_t seed, size_t num_crops, unsigned long _tcols=0, unsigned long _trows=0, double _maxsizepercents=1.1, double _maxtranslationpercents=0.05, double _maxrotationdeg=15.0)
 {
     if(_tcols == 0)
         _tcols = num_columns(img);
@@ -57,7 +57,7 @@ rectangle make_random_cropping_rect(const matrix<image_type> &img, dlib::rand &r
 }
 
 template<typename image_type>
-void randomly_crop_image(const matrix<image_type>& img,dlib::array<matrix<image_type>>& crops, dlib::rand& rnd, long num_crops, float _mins, float _maxs, unsigned long _trows=0, unsigned long _tcols=0)
+void randomly_crop_image(const matrix<image_type>& img,dlib::array<matrix<image_type>>& crops, dlib::rand& rnd, long num_crops, float _mins, float _maxs, unsigned long _tcols=0, unsigned long _trows=0, bool _rndfliplr=false, bool _rnddisturbcolors=false)
 {
     if(_tcols == 0)
         _tcols = num_columns(img);
@@ -73,11 +73,14 @@ void randomly_crop_image(const matrix<image_type>& img,dlib::array<matrix<image_
     for(auto&& _tmpimg : crops)
     {
         // Also randomly flip the image
-        if (rnd.get_random_double() > 0.5)
-            _tmpimg = fliplr(_tmpimg);
+        if(_rndfliplr) {
+            if (rnd.get_random_double() > 0.5)
+                _tmpimg = fliplr(_tmpimg);
+        }
 
         // And then randomly adjust the colors.
-        disturb_colors(_tmpimg, rnd);
+        if(_rnddisturbcolors)
+            disturb_colors(_tmpimg, rnd);
         //apply_random_color_offset(_tmpimg, rnd);
     }
 

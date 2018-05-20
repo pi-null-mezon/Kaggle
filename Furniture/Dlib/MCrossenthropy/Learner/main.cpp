@@ -242,7 +242,7 @@ int main(int argc, char** argv) try
                 /*dlib::disturb_colors(img,rnd);
                 if(rnd.get_random_float() > 0.5f)
                     img = fliplr(img);
-                randomly_jitter_image(img,crops,seed,1,IMGSIZE,IMGSIZE,1.2,0.05,15.0);*/
+                randomly_jitter_image(img,crops,rnd.get_integer(INT_MAX),1,IMGSIZE,IMGSIZE,1.2,0.05,15.0);*/
                 randomly_crop_image(img,crops,rnd,1,0.95,0.99,IMGSIZE,IMGSIZE);
                 /*if(rnd.get_random_float() > 0.1f)
                     randomly_cutout_rect(crops[0],crops,rnd,1,0.5,0.5);*/
@@ -348,7 +348,7 @@ int main(int argc, char** argv) try
             cout << "Testing network on train dataset..." << endl;
             int num_right_top1 = 0;
             int num_wrong_top1 = 0;
-            dlib::rand rnd(0);
+            dlib::rand rnd(time(0));
             // loop over all the imagenet validation images
             double logloss = 0.0;
             for (auto l : validationset) {
@@ -357,8 +357,8 @@ int main(int argc, char** argv) try
                 // Grab N random crops from the image.  We will run all of them through the
                 // network and average the results.
                 dlib::array<matrix<rgb_pixel>> images;
-                const size_t num_crops = 3;
-                randomly_crop_image(img,images,rnd,num_crops,0.85,0.99,IMGSIZE,IMGSIZE);
+                const size_t num_crops = 7;
+                randomly_crop_image(img,images,rnd,num_crops,0.85,0.99,IMGSIZE,IMGSIZE,true,true);
                 matrix<float,1,CLASSES> p = sum_rows(mat(snet(images.begin(), images.end())))/num_crops;
                 // p(i) is the probability that the image contains object of class i.
                 // update log loss

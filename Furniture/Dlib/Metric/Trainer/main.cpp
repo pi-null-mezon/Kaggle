@@ -233,7 +233,7 @@ int main(int argc, char** argv) try
         dnn_trainer<net_type> trainer(net, sgd(0.0001, 0.9));
         trainer.set_learning_rate(0.1);
         trainer.be_verbose();
-        trainer.set_synchronization_file(cmdparser.get<std::string>("outputdirpath") + std::string("/face_metric_sync_") + std::to_string(n), std::chrono::minutes(10));
+        trainer.set_synchronization_file(cmdparser.get<std::string>("outputdirpath") + std::string("/metric_sync_") + std::to_string(n), std::chrono::minutes(10));
         trainer.set_iterations_without_progress_threshold(cmdparser.get<unsigned long>("swptrain"));
         trainer.set_test_iterations_without_progress_threshold(cmdparser.get<unsigned long>("swpvalid"));
 
@@ -312,12 +312,9 @@ int main(int argc, char** argv) try
         }
 
         // Wait for training threads to stop
-        trainer.get_net();
-        cout << "done training" << endl;
-
-        // Save the network to disk
+        trainer.get_net();       
         net.clean();
-        serialize(cmdparser.get<std::string>("outputdirpath") + std::string("/metric_network_resnet_") + std::to_string(n) + std::string(".dat")) << net;
+        cout << "done training" << endl;
 
         // stop all the data loading threads and wait for them to terminate.
         qimagestrain.disable();
@@ -374,7 +371,8 @@ int main(int argc, char** argv) try
         cout << "num_right: "<< num_right << endl;
         cout << "num_wrong: "<< num_wrong << endl;
 
-        serialize(cmdparser.get<std::string>("outputdirpath") + "/net_" + std::to_string(n) + "_(" + std::to_string(trainer.get_average_loss()) + " - " + std::to_string(trainer.get_average_test_loss()) + ").dat") << testing_net;
+        // Save the network to disk
+        serialize(cmdparser.get<std::string>("outputdirpath") + "/net_" + std::to_string(n) + "_(" + std::to_string(trainer.get_average_loss()) + " - " + std::to_string(trainer.get_average_test_loss()) + ").dat") << net;
 
         // Also wait for threaded processing to stop in the trainer.
 
@@ -390,7 +388,7 @@ int main(int argc, char** argv) try
             cout << "Testing network on train dataset..." << endl;
             int num_right_top1 = 0;
             int num_wrong_top1 = 0;
-            dlib::rand rnd(0);
+            dlib::rand rnd(time(0));
             // loop over all the imagenet validation images
             double logloss = 0.0;
             for (auto l : validationset) {
@@ -400,7 +398,7 @@ int main(int argc, char** argv) try
                 // network and average the results.
                 dlib::array<matrix<rgb_pixel>> images;
                 const size_t num_crops = 3;
-                randomly_crop_image(img,images,rnd,num_crops,0.85,0.99,IMGSIZE,IMGSIZE);
+                randomly_crop_image(img,images,rnd,num_crops,0.85,0.99,IMGSIZE,IMGSIZE,true,true);
                 matrix<float,1,CLASSES> p = sum_rows(mat(snet(images.begin(), images.end())))/num_crops;
                 // p(i) is the probability that the image contains object of class i.
                 // update log loss

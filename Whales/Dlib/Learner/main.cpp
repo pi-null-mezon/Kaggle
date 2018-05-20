@@ -62,14 +62,14 @@ void load_mini_batch (
     dlib::rand& rnd,
     const std::vector<std::vector<string>>& objs,
     std::vector<matrix<rgb_pixel>>& images,
-    std::vector<unsigned long>& labels,
-    time_t seed
+    std::vector<unsigned long>& labels
 )
 {
     images.clear();
     labels.clear();
     DLIB_CASSERT(num_people <= objs.size(), "The dataset doesn't have that many people in it.");
 
+    dlib::matrix<dlib::rgb_pixel> _tmpimg;
     std::vector<bool> already_selected(objs.size(), false);
     for (size_t i = 0; i < num_people; ++i)
     {
@@ -82,24 +82,24 @@ void load_mini_batch (
         for (size_t j = 0; j < samples_per_id; ++j)
         {
             const auto& obj = objs[id][rnd.get_random_32bit_number()%objs[id].size()];
-            images.push_back(std::move(load_rgb_image_with_fixed_size(obj,500,200,true)));
+            load_image(_tmpimg,obj);
+            images.push_back(std::move(_tmpimg));
             labels.push_back(id);
         }
     }
 
-    // You might want to do some data augmentation at this point.  Here we do some simple
-    // color augmentation.
+    // You might want to do some data augmentation at this point
     dlib::array<dlib::matrix<dlib::rgb_pixel>> _vcrops;
     for (auto&& crop : images)
     {
         disturb_colors(crop,rnd);
         // Jitter most crops
-        randomly_jitter_image(crop,_vcrops,seed,1,0,0,1.2,0.05,15.0);
+        randomly_jitter_image(crop,_vcrops,rnd.get_integer(INT_MAX),1,550,220,1.2,0.05,15.0);
         crop = std::move(_vcrops[0]);
-        /*if(rnd.get_random_double() > 0.2) {
+        if(rnd.get_random_double() > 0.2) {
             randomly_cutout_rect(crop,_vcrops,rnd,1,0.5,0.5);
             crop = std::move(_vcrops[0]);
-        }*/
+        }
     }
 
     // All the images going into a mini-batch have to be the same size.  And really, all
@@ -115,17 +115,13 @@ void load_mini_batch (
 
 // ----------------------------------------------------------------------------------------
 
-// The next page of code defines a ResNet network.  It's basically copied
-// and pasted from the dnn_imagenet_ex.cpp example, except we replaced the loss
-// layer with loss_metric and make the network somewhat smaller.
-
 template <template <int,template<typename>class,int,typename> class block, int N, template<typename>class BN, typename SUBNET>
 using residual = add_prev1<block<N,BN,1,tag1<SUBNET>>>;
 
 template <template <int,template<typename>class,int,typename> class block, int N, template<typename>class BN, typename SUBNET>
 using residual_down = add_prev2<avg_pool<2,2,2,2,skip1<tag2<block<N,BN,2,tag1<SUBNET>>>>>>;
 
-template <int N, template <typename> class BN, int stride, typename SUBNET> 
+template <int N, template <typename> class BN, int stride, typename SUBNET>
 using block  = BN<con<N,3,3,1,1,relu<BN<con<N,3,3,stride,stride,SUBNET>>>>>;
 
 template <int N, typename SUBNET> using res       = relu<residual<block,N,bn_con,SUBNET>>;
@@ -193,15 +189,15 @@ int main(int argc, char** argv)
 
     net_type net;
 
-    dnn_trainer<net_type> trainer(net, sgd(0.0001,0.9));
+    dnn_trainer<net_type> trainer(net, sgd(0.0003,0.9));
     trainer.set_learning_rate(0.1);
     trainer.be_verbose();
     trainer.set_synchronization_file("whales_metric_sync", std::chrono::minutes(10));
-
+ 
     // I've set this to something really small to make the example terminate
     // sooner.  But when you really want to train a good model you should set
     // this to something like 10000 so training doesn't terminate too early.
-    trainer.set_iterations_without_progress_threshold(5000);
+    trainer.set_iterations_without_progress_threshold(4000);
 
     // If you have a lot of data then it might not be reasonable to load it all
     // into RAM.  So you will need to be sure you are decompressing your images
@@ -219,7 +215,7 @@ int main(int argc, char** argv)
         {
             try
             {
-                load_mini_batch(16, 7, rnd, objs, images, labels, seed);
+                load_mini_batch(16, 7, rnd, objs, images, labels);
                 qimages.enqueue(images);
                 qlabels.enqueue(labels);
             }
@@ -268,7 +264,7 @@ int main(int argc, char** argv)
     // Now, just to show an example of how you would use the network, let's check how well
     // it performs on the training data.
     dlib::rand rnd(time(0));
-    load_mini_batch(15, 5, rnd, objs, images, labels, time(0));
+    load_mini_batch(16, 7, rnd, objs, images, labels);
 
     // Normally you would use the non-batch-normalized version of the network to do
     // testing, which is what we do here.
