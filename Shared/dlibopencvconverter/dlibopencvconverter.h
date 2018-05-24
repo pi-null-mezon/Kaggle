@@ -54,7 +54,7 @@ dlib::matrix<uchar> cvmat2dlibmatrix(const cv::Mat &_cvmat)
 template <>
 dlib::matrix<float> cvmat2dlibmatrix(const cv::Mat &_cvmat)
 {
-    // TO DO checks of the channels number and color depth
+    assert(_cvmat.channels() == 1);
     cv::Mat _mat = _cvmat;
     if(_cvmat.isContinuous() == false)
         _mat = _cvmat.clone();

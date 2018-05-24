@@ -33,17 +33,19 @@ int main(int argc, char *argv[])
             dlib::matrix<dlib::rgb_pixel> _drgbm;
             dlib::array<dlib::matrix<dlib::rgb_pixel>> _vimgs;           
             for(int j = 0; j < 10; ++j) {
-                dlib::load_image(_drgbm,file.full_name());
+                _drgbm = cvmat2dlibmatrix<dlib::rgb_pixel>(_mat);
                 dlib::disturb_colors(_drgbm,rnd);                
                 //dlib::randomly_crop_image(_drgbm,_vimgs,rnd,1,0.7,1.0,0,0,true,true);
-                dlib::randomly_jitter_image(_drgbm,_vimgs,rnd.get_integer(INT_MAX),1,0,0,1.15,0.04,15.0);
+                dlib::randomly_jitter_image(_drgbm,_vimgs,rnd.get_integer(LONG_MAX),1,500,200,1.5,0.11,17.0);
                 _drgbm = std::move(_vimgs[0]);
-                if(rnd.get_random_float() > 0.3f)
-                    dlib::randomly_cutout_rect(_drgbm,_vimgs,rnd,1,0.5,0.7,0*rnd.get_random_double());               
+                if(rnd.get_random_float() > 0.5f) {
+                    dlib::randomly_cutout_rect(_drgbm,_vimgs,rnd,1,0.5,0.5,180*rnd.get_random_double());
+                    _drgbm = std::move(_vimgs[0]);
+                }
                 for(unsigned long i = 0; i <_vimgs.size(); ++i) {
                     //_vimgs[i] = dlib::fliplr(_vimgs[i]);
                     // Visualise
-                    cv::imshow("Probe", dlibmatrix2cvmat<dlib::rgb_pixel>(_vimgs[i]));
+                    cv::imshow("Probe", dlibmatrix2cvmat<dlib::rgb_pixel>(_drgbm));
                     cv::imshow("Original", _mat);
                     cv::waitKey(0);
                 }
