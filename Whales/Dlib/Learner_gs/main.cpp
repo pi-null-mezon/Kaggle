@@ -83,7 +83,7 @@ void load_mini_batch (
         {
             const auto& obj = objs[id][rnd.get_random_32bit_number()%objs[id].size()];
             //load_image(_tmpimg,obj);
-            images.push_back(std::move(load_grayscale_image_with_normalization(obj,0,0,true)));
+            images.push_back(std::move(load_grayscale_image_with_normalization(obj,0,0,false)));
             labels.push_back(id);
         }
     }
@@ -93,10 +93,10 @@ void load_mini_batch (
     for (auto&& crop : images)
     {
         // Jitter most crops
-        randomly_jitter_image(crop,_vcrops,rnd.get_integer(LONG_MAX),1,500,200,1.3,0.09,17.0);
+        randomly_jitter_image(crop,_vcrops,rnd.get_integer(LONG_MAX),1,500,200,1.35,0.05,20.0);
         crop = std::move(_vcrops[0]);
-        if(rnd.get_random_double() > 0.1) {
-            randomly_cutout_rect(crop,_vcrops,rnd,1,0.5,0.5,rnd.get_random_float()*180.0);
+        if(rnd.get_random_double() > 0.2) {
+            randomly_cutout_rect(crop,_vcrops,rnd,1,0.5,0.7,rnd.get_random_float()*180.0);
             crop = std::move(_vcrops[0]);
         }
     }
@@ -187,7 +187,7 @@ int main(int argc, char** argv)
 
     net_type net;
 
-    dnn_trainer<net_type> trainer(net, sgd(0.0005,0.9));
+    dnn_trainer<net_type> trainer(net, sgd(0.0001,0.9));
     trainer.set_learning_rate(0.1);
     trainer.be_verbose();
     trainer.set_synchronization_file("whales_metric_sync", std::chrono::minutes(10));
@@ -195,7 +195,7 @@ int main(int argc, char** argv)
     // I've set this to something really small to make the example terminate
     // sooner.  But when you really want to train a good model you should set
     // this to something like 10000 so training doesn't terminate too early.
-    trainer.set_iterations_without_progress_threshold(2500);
+    trainer.set_iterations_without_progress_threshold(5000);
 
     // If you have a lot of data then it might not be reasonable to load it all
     // into RAM.  So you will need to be sure you are decompressing your images
@@ -213,7 +213,7 @@ int main(int argc, char** argv)
         {
             try
             {
-                load_mini_batch(16, 7, rnd, objs, images, labels);
+                load_mini_batch(27, 5, rnd, objs, images, labels);
                 qimages.enqueue(images);
                 qlabels.enqueue(labels);
             }
@@ -235,7 +235,7 @@ int main(int argc, char** argv)
 
     // Here we do the training.  We keep passing mini-batches to the trainer until the
     // learning rate has dropped low enough.
-    while(trainer.get_learning_rate() >= 1e-5)
+    while(trainer.get_learning_rate() >= 1e-6)
     {
         qimages.dequeue(images);
         qlabels.dequeue(labels);
@@ -262,7 +262,7 @@ int main(int argc, char** argv)
     // Now, just to show an example of how you would use the network, let's check how well
     // it performs on the training data.
     dlib::rand rnd(time(0));
-    load_mini_batch(16, 7, rnd, objs, images, labels);
+    load_mini_batch(41, 3, rnd, objs, images, labels);
 
     // Normally you would use the non-batch-normalized version of the network to do
     // testing, which is what we do here.
