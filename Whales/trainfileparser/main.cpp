@@ -17,13 +17,14 @@ int main(int argc, char *argv[])
 
     QFile _file(_filename);
     if(_file.open(QFile::ReadOnly) == false) {
+        qWarning() << "Can not open file with labels mapping! Abort...";
         return 1;
     } else {
         _file.readLine(); // Drop first line with header
     }
 
     QDir _outputdir;
-    qInfo() << "Start file coping:";
+    qInfo() << "Start files coping:";
     while(!_file.atEnd()) {
         QString _strline = _file.readLine();
         QString _targetdirname = QString(_outputdirname).append(QString("/%1").arg(_strline.section(',',1).simplified()));

@@ -59,6 +59,7 @@ void load_mini_batch (
     const size_t num_people,     // how many different people to include
     const size_t samples_per_id, // how many images per person to select.
     dlib::rand& rnd,
+    cv::RNG & cvrng,
     const std::vector<std::vector<string>>& objs,
     std::vector<matrix<rgb_pixel>>& images,
     std::vector<unsigned long>& labels
@@ -79,26 +80,23 @@ void load_mini_batch (
 
         for (size_t j = 0; j < samples_per_id; ++j)
         {
-            const auto& obj = objs[id][rnd.get_random_32bit_number()%objs[id].size()];           
-            images.push_back(std::move(dlib::load_rgb_image_with_fixed_size(obj,500,200,false)));
+            const auto& obj = objs[id][rnd.get_random_32bit_number()%objs[id].size()];
+            images.push_back(std::move(cvmat2dlibmatrix<dlib::rgb_pixel>( jitterimage(cv::imread(obj,CV_LOAD_IMAGE_COLOR),cvrng,cv::Size(500,200)) )));
             labels.push_back(id);
         }
     }
 
     // You might want to do some data augmentation at this point
-    dlib::array<dlib::matrix<dlib::rgb_pixel>> _vcrops;
+    //dlib::array<dlib::matrix<dlib::rgb_pixel>> _vcrops;
     for (auto&& crop : images)
     {
-        disturb_colors(crop,rnd);
-        // Jitter most crops
-        if(rnd.get_random_double() > 0.5) {
-            randomly_jitter_image(crop,_vcrops,rnd.get_integer(LONG_MAX),1,0,0,1.05,0.01,3.0);
-            crop = std::move(_vcrops[0]);
-        }
-        if(rnd.get_random_double() > 0.2) {
+        apply_random_color_offset(crop,rnd);
+        //disturb_colors(crop,rnd);
+        // Cutout
+        /*if(rnd.get_random_double() > 0.2) {
             randomly_cutout_rect(crop,_vcrops,rnd,1,0.5,0.5);
             crop = std::move(_vcrops[0]);
-        }
+        }*/
     }
 
     // All the images going into a mini-batch have to be the same size.  And really, all
@@ -169,22 +167,26 @@ using anet_type = loss_metric<fc_no_bias<128,avg_pool_everything<
 
 int main(int argc, char** argv)
 {
-    if (argc != 2)
+    if (argc != 3)
     {
         cout << "Give a folder as input.  It should contain sub-folders of images and we will " << endl;
         cout << "learn to distinguish between these sub-folders with metric learning.  " << endl;
         cout << "that comes with dlib by running this command:" << endl;
-        cout << "   ./learner whales" << endl;
+        cout << "   ./learner whalestrain whalestest" << endl;
         return 1;
     }
 
-    auto objs = load_objects_list(argv[1]);
+    auto trainobjs = load_objects_list(argv[1]);
+    auto testobjs = load_objects_list(argv[2]);
 
-    cout << "objs.size(): "<< objs.size() << endl;
+    cout << "trainobjs.size(): "<< trainobjs.size() << endl;
+    cout << "testobjs.size(): "<< testobjs.size() << endl;
 
     std::vector<matrix<rgb_pixel>> images;
     std::vector<unsigned long> labels;
 
+    std::vector<matrix<rgb_pixel>> testimages;
+    std::vector<unsigned long> testlabels;
 
     net_type net;
 
@@ -196,7 +198,8 @@ int main(int argc, char** argv)
     // I've set this to something really small to make the example terminate
     // sooner.  But when you really want to train a good model you should set
     // this to something like 10000 so training doesn't terminate too early.
-    trainer.set_iterations_without_progress_threshold(5000);
+    trainer.set_iterations_without_progress_threshold(50000);
+    trainer.set_test_iterations_without_progress_threshold(1000);
 
     // If you have a lot of data then it might not be reasonable to load it all
     // into RAM.  So you will need to be sure you are decompressing your images
@@ -205,16 +208,17 @@ int main(int argc, char** argv)
     // mini-batches into dlib::pipes.  
     dlib::pipe<std::vector<matrix<rgb_pixel>>> qimages(4);
     dlib::pipe<std::vector<unsigned long>> qlabels(4);
-    auto data_loader = [&qimages, &qlabels, &objs](time_t seed)
+    auto data_loader = [&qimages, &qlabels, &trainobjs](time_t seed)
     {
         dlib::rand rnd(time(0)+seed);
+        cv::RNG cvrng(time(0)+seed);
         std::vector<matrix<rgb_pixel>> images;
         std::vector<unsigned long> labels;
         while(qimages.is_enabled())
         {
             try
             {
-                load_mini_batch(16, 7, rnd, objs, images, labels);
+                load_mini_batch(18, 7, rnd, cvrng, trainobjs, images, labels);
                 qimages.enqueue(images);
                 qlabels.enqueue(labels);
             }
@@ -233,14 +237,49 @@ int main(int argc, char** argv)
     std::thread data_loader4([data_loader](){ data_loader(4); });
     std::thread data_loader5([data_loader](){ data_loader(5); });
 
+    // Same for the test
+    dlib::pipe<std::vector<matrix<rgb_pixel>>> testqimages(1);
+    dlib::pipe<std::vector<unsigned long>> testqlabels(1);
+    auto testdata_loader = [&testqimages, &testqlabels, &testobjs](time_t seed)
+    {
+        dlib::rand rnd(time(0)+seed);
+        cv::RNG cvrng(time(0)+seed);
+        std::vector<matrix<rgb_pixel>> images;
+        std::vector<unsigned long> labels;
+        while(testqimages.is_enabled())
+        {
+            try
+            {
+                load_mini_batch(18, 7, rnd, cvrng, testobjs, images, labels);
+                testqimages.enqueue(images);
+                testqlabels.enqueue(labels);
+            }
+            catch(std::exception& e)
+            {
+                cout << "EXCEPTION IN LOADING DATA" << endl;
+                cout << e.what() << endl;
+            }
+        }
+    };
+    // Run the data_loader from 5 threads.  You should set the number of threads
+    // relative to the number of CPU cores you have.
+    std::thread testdata_loader1([testdata_loader](){ testdata_loader(1); });
+
 
     // Here we do the training.  We keep passing mini-batches to the trainer until the
     // learning rate has dropped low enough.
-    while(trainer.get_learning_rate() >= 1e-6)
+    size_t _step = 0;
+    while(trainer.get_learning_rate() >= 1e-4)
     {
+        _step++;
         qimages.dequeue(images);
         qlabels.dequeue(labels);
         trainer.train_one_step(images, labels);
+        if((_step % 11) == 0) {
+            testqimages.dequeue(testimages);
+            testqlabels.dequeue(testlabels);
+            trainer.test_one_step(testimages,testlabels);
+        }
     }
 
     // Wait for training threads to stop
@@ -259,11 +298,15 @@ int main(int argc, char** argv)
     data_loader3.join();
     data_loader4.join();
     data_loader5.join();
+    testqimages.disable();
+    testqlabels.disable();
+    testdata_loader1.join();
 
     // Now, just to show an example of how you would use the network, let's check how well
     // it performs on the training data.
     dlib::rand rnd(time(0));
-    load_mini_batch(16, 7, rnd, objs, images, labels);
+    cv::RNG cvrng(time(0));
+    load_mini_batch(18, 7, rnd, cvrng, trainobjs, images, labels);
 
     // Normally you would use the non-batch-normalized version of the network to do
     // testing, which is what we do here.
