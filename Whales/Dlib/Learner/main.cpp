@@ -83,21 +83,17 @@ void load_mini_batch (
         for (size_t j = 0; j < samples_per_id; ++j)
         {
             const auto& obj = objs[id][rnd.get_random_32bit_number()%objs[id].size()];
-            if(rnd.get_random_double() > 0.2) {
+            if(rnd.get_random_double() > 0.25) {
                 _tmpmat = cv::imread(obj,CV_LOAD_IMAGE_COLOR);
                 if(_tmpmat.cols*_tmpmat.rows > 100000)
                     cv::resize(_tmpmat,_tmpmat,cv::Size(512,192),0,0,CV_INTER_AREA);
                 else
                     cv::resize(_tmpmat,_tmpmat,cv::Size(512,192),0,0,CV_INTER_CUBIC);
-                if(rnd.get_random_double() > 0.7)
+                if(rnd.get_random_double() > 0.75)
                     cv::blur(_tmpmat,_tmpmat,cv::Size(5,5));
                 _tmpmatrix = std::move(cvmat2dlibmatrix<dlib::rgb_pixel>(_tmpmat));
             } else {
                 _tmpmatrix = std::move(load_rgb_image_with_fixed_size(obj,512,192,true));
-            }
-            if(rnd.get_random_double() > 0.8) {
-                randomly_crop_image(_tmpmatrix,_vcrops,rnd,1,0.800,0.999,0,0,true);
-                _tmpmatrix = std::move(_vcrops[0]);
             }
             images.push_back(std::move(_tmpmatrix));
             labels.push_back(id);
@@ -109,10 +105,10 @@ void load_mini_batch (
     {        
         disturb_colors(crop,rnd);
         if(rnd.get_random_double() > 0.1) {
-            randomly_jitter_image(crop,_vcrops,rnd.get_integer(LONG_MAX),1,0,0,1.11,0.05,15.0);
+            randomly_jitter_image(crop,_vcrops,rnd.get_integer(LONG_MAX),1,0,0,1.13,0.07,17.0);
             crop = std::move(_vcrops[0]);
         }
-        if(rnd.get_random_double() > 0.2) {
+        if(rnd.get_random_double() > 0.15) {
             randomly_cutout_rect(crop,_vcrops,rnd,1,0.5,0.5,rnd.get_random_double()*90.0);
             crop = std::move(_vcrops[0]);
         }
@@ -147,13 +143,13 @@ template <int N, typename SUBNET> using ares_down = relu<residual_down<block,N,a
 
 // ----------------------------------------------------------------------------------------
 
-template <typename SUBNET> using level0 = res<512,res_down<512,SUBNET>>;
+template <typename SUBNET> using level0 = res_down<512,SUBNET>;
 template <typename SUBNET> using level1 = res_down<256,SUBNET>;
 template <typename SUBNET> using level2 = res_down<128,SUBNET>;
 template <typename SUBNET> using level3 = res_down<64,SUBNET>;
 template <typename SUBNET> using level4 = res_down<32,SUBNET>;
 
-template <typename SUBNET> using alevel0 = ares<512,ares_down<512,SUBNET>>;
+template <typename SUBNET> using alevel0 = ares_down<512,SUBNET>;
 template <typename SUBNET> using alevel1 = ares_down<256,SUBNET>;
 template <typename SUBNET> using alevel2 = ares_down<128,SUBNET>;
 template <typename SUBNET> using alevel3 = ares_down<64,SUBNET>;

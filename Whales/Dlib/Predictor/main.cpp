@@ -78,7 +78,7 @@ int main(int argc, char *argv[])
         auto _vpredictions = _ptr->recognize(_cvmat,true);
         if(_vpredictions.size() > 4) {
             for(size_t j = 0; j < 5; j++) {
-                if(_vpredictions[j].second < 0.54) {
+                if(_vpredictions[j].second < 0.50) {
                     _ts << ' ' << _ptr->getLabelInfo(_vpredictions[j].first).c_str();
                 } else {
                     _ts << " new_whale";
