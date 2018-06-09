@@ -40,10 +40,19 @@ int main(int argc, char *argv[])
 
 
             for(int j = 0; j < 10; ++j) {
-                dlib::matrix<dlib::rgb_pixel> _drgbm = std::move( cvmat2dlibmatrix<dlib::rgb_pixel>( jitterimage(_mat,cvrng,cv::Size(500,200)) ) );
+                cv::resize(_mat,_mat,cv::Size(500,200),0,0,CV_INTER_CUBIC);
+                dlib::matrix<dlib::rgb_pixel> _drgbm = std::move( cvmat2dlibmatrix<dlib::rgb_pixel>(_mat) );
 
                 dlib::apply_random_color_offset(_drgbm,rnd);
                 dlib::array<dlib::matrix<dlib::rgb_pixel>> _vimgs;
+                /*if(rnd.get_random_float() > 0.2f) {
+                    dlib::randomly_jitter_image(_drgbm,_vimgs,rnd.get_integer(LONG_MAX),1,0,0,1.01,0.02,3.0);
+                    _drgbm = std::move(_vimgs[0]);
+                }*/
+                /*if(rnd.get_random_float() > 0.2f) {
+                    dlib::randomly_crop_image(_drgbm,_vimgs,rnd,1,0.800,0.999,0,0,true);
+                    _drgbm = std::move(_vimgs[0]);
+                }*/
                 if(rnd.get_random_float() > 0.2f) {
                     dlib::randomly_cutout_rect(_drgbm,_vimgs,rnd,1,0.5,0.5);
                     _drgbm = std::move(_vimgs[0]);

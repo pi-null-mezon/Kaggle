@@ -35,6 +35,24 @@ int main(int argc, char *argv[])
             qInfo() << _filename << " has been copied to the target location";
         }
     }
+
+    /*_outputdir = QDir(argv[3]); // need to be reinit in (for Linux)
+    QStringList _subdirs = _outputdir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+    qInfo() << "Subdirs in outputdir (" << _outputdir.absolutePath() << "): " << _subdirs.size();
+    for(int i = 0; i < _subdirs.size(); ++i) {
+        QDir _tmpdir(_outputdir.absolutePath().append("/%1").arg(_subdirs.at(i)));
+        auto _files = _tmpdir.entryList(QDir::Files | QDir::NoDotAndDotDot);
+        qInfo() << "Files in " << _tmpdir.absolutePath() << _files.size();
+        if(_files.size() < 4) {
+            for(int j = 0; j < _files.size(); ++j) {
+                QFile::remove(_tmpdir.absoluteFilePath(_files.at(j)));
+            }
+            bool _res = _outputdir.rmdir(_subdirs.at(i));
+            if(_res == false)
+                qInfo() << "Can not remove!";
+        }
+    }*/
+
     qInfo() << "All tasks have been accomplished";
     return 0;
 }

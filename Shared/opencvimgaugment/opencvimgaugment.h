@@ -78,8 +78,18 @@ cv::Mat cropFromCenterAndResize(const cv::Mat &input, cv::Size size)
     return output;
 }
 
-
-cv::Mat jitterimage(const cv::Mat &_inmat, cv::RNG &_cvrng, const cv::Size &_targetsize=cv::Size(0,0), double _maxscale=.05, double _maxshift=0.02, double _maxangle=3, int _bordertype=cv::BORDER_CONSTANT)
+/**
+ * @brief Apply random affine transformation to image
+ * @param _inmat - input image
+ * @param _cvrng - random number generator
+ * @param _targetsize - target output image size
+ * @param _maxscale - scale deviation
+ * @param _maxshift - translation deviation
+ * @param _maxangle - angle deviation in degrees
+ * @param _bordertype - opencv border type
+ * @return transformed image
+ */
+cv::Mat jitterimage(const cv::Mat &_inmat, cv::RNG &_cvrng, const cv::Size &_targetsize=cv::Size(0,0), double _maxscale=0.05, double _maxshift=0.02, double _maxangle=3, int _bordertype=cv::BORDER_CONSTANT)
 {
     cv::Mat _outmat;
     const cv::Size _insize(_inmat.cols,_inmat.rows);
