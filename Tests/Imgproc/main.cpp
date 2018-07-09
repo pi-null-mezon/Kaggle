@@ -31,28 +31,31 @@ int main(int argc, char *argv[])
         cout << "Img channels: " << _mat.channels() << endl;
         if(_mat.empty() == false) {
 
-            /*for(int j = 0; j < 10; ++j) {
-                cv::Mat _tmpmat = std::move(jitterimage(_mat,cvrng,cv::Size(500,200)));
+            //_mat = std::move(distortimage(_mat,cvrng));
+
+            for(int j = 0; j < 10; ++j) {
+                cv::Mat _tmpmat = std::move(jitterimage(_mat,cvrng,cv::Size(0,0),0.5));
+                //_tmpmat = std::move(distortimage(_tmpmat,cvrng));
                 cv::imshow("Probe", _tmpmat);
                 cv::imshow("Original", _mat);
                 cv::waitKey(0);
-            }*/
+            }
 
 
-            for(int j = 0; j < 10; ++j) {
+            /*for(int j = 0; j < 10; ++j) {
                 cv::resize(_mat,_mat,cv::Size(500,200),0,0,CV_INTER_CUBIC);
                 dlib::matrix<dlib::rgb_pixel> _drgbm = std::move( cvmat2dlibmatrix<dlib::rgb_pixel>(_mat) );
 
                 dlib::apply_random_color_offset(_drgbm,rnd);
                 dlib::array<dlib::matrix<dlib::rgb_pixel>> _vimgs;
-                /*if(rnd.get_random_float() > 0.2f) {
-                    dlib::randomly_jitter_image(_drgbm,_vimgs,rnd.get_integer(LONG_MAX),1,0,0,1.01,0.02,3.0);
+                if(rnd.get_random_float() > 0.2f) {
+                    dlib::randomly_jitter_image(_drgbm,_vimgs,rnd.get_integer(LONG_MAX),1,0,0,1.11,0.05,13.0);
                     _drgbm = std::move(_vimgs[0]);
-                }*/
-                /*if(rnd.get_random_float() > 0.2f) {
+                }
+                if(rnd.get_random_float() > 0.2f) {
                     dlib::randomly_crop_image(_drgbm,_vimgs,rnd,1,0.800,0.999,0,0,true);
                     _drgbm = std::move(_vimgs[0]);
-                }*/
+                }
                 if(rnd.get_random_float() > 0.2f) {
                     dlib::randomly_cutout_rect(_drgbm,_vimgs,rnd,1,0.5,0.5);
                     _drgbm = std::move(_vimgs[0]);
@@ -60,7 +63,7 @@ int main(int argc, char *argv[])
                 cv::imshow("Probe", dlibmatrix2cvmat<dlib::rgb_pixel>(_drgbm));
                 cv::imshow("Original", _mat);
                 cv::waitKey(0);
-            }
+            }*/
         }
 
     }

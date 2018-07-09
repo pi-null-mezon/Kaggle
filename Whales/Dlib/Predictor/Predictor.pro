@@ -16,6 +16,15 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 SOURCES += main.cpp
 
+HEADERS += \
+    $${PWD}/../../../Shared/dlibimgaugment/dlibimgaugment.h \
+    $${PWD}/../../../Shared/opencvimgaugment/opencvimgaugment.h \
+    $${PWD}/../../../Shared/dlibopencvconverter/dlibopencvconverter.h
+
+INCLUDEPATH += $${PWD}/../../../Shared/dlibimgaugment \
+               $${PWD}/../../../Shared/opencvimgaugment \
+               $${PWD}/../../../Shared/dlibopencvconverter
+
 include($${PWD}/../../../Shared/dlib.pri)
 include($${PWD}/../../../Shared/opencv.pri)
 

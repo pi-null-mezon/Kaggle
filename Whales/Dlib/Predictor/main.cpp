@@ -7,6 +7,10 @@
 
 #include "dlibwhalesrecognizer.h"
 
+#include "dlibimgaugment.h"
+#include "opencvimgaugment.h"
+#include "dlibopencvconverter.h"
+
 const cv::String _options = "{help h       | | this help}"
                             "{inputdir i   | | directory name where images are stored}"
                             "{recmodel r   | | filename of the recognitiotn model}"
@@ -71,21 +75,36 @@ int main(int argc, char *argv[])
     QStringList _fileslist = _qdir.entryList(_filters, QDir::Files | QDir::NoDotAndDotDot, QDir::Name);
 
     _ts << "Image,Id"; // header
-    for(int i = 0; i < _fileslist.size(); ++i) {
-        qInfo("%d) %s enrolled",i,_fileslist.at(i).toUtf8().constData());
+    cv::RNG _cvrng(0);
+    for(int i = 0; i < _fileslist.size(); ++i) {       
         _ts << "\n" << _fileslist.at(i) << ',';
-        cv::Mat _cvmat = cv::imread(_qdir.absoluteFilePath(_fileslist.at(i)).toUtf8().constData());
-        auto _vpredictions = _ptr->recognize(_cvmat,true);
+        cv::Mat _cvmat = std::move(cv::imread(_qdir.absoluteFilePath(_fileslist.at(i)).toUtf8().constData()));
+        //dlib::matrix<dlib::rgb_pixel> _dlibmatrix = cvmat2dlibmatrix(_cvmat);
+        double _distance = DBL_MAX;
+        int _lbl = -1;
+        int _attempts = 0, _maxattempts = 100;
+        while((_distance > 0.475) && (_attempts < _maxattempts)) {
+            _ptr->predict(jitterimage(_cvmat,_cvrng,cv::Size(0,0),0.5,0.05,11.0), _lbl, _distance);
+            _attempts++;
+        }
+        if(_attempts < _maxattempts) {
+            _ts << ' ' << _ptr->getLabelInfo(_lbl).c_str() << " new_whale";
+        } else {
+            _ts << " new_whale new_whale";
+            _ts.flush();
+        }
+
+        /*auto _vpredictions = _ptr->recognize(_cvmat,true);
         if(_vpredictions.size() > 4) {
             for(size_t j = 0; j < 5; j++) {
-                if(_vpredictions[j].second < 0.50) {
+                if(_vpredictions[j].second < 0.53) {
                     _ts << ' ' << _ptr->getLabelInfo(_vpredictions[j].first).c_str();
                 } else {
                     _ts << " new_whale";
                 }
             }
-        }
-
+        }*/
+        qInfo("%d) %s enrolled",i,_fileslist.at(i).toUtf8().constData());
     }
     qInfo("All tasks have been accomplished successfully");
     _ts.flush();

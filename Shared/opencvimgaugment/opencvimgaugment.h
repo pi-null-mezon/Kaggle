@@ -112,4 +112,25 @@ cv::Mat jitterimage(const cv::Mat &_inmat, cv::RNG &_cvrng, const cv::Size &_tar
     return _outmat;
 }
 
+/**
+ * @brief distortimage - applies random perspective transformation to input image
+ * @param _inmat - input image
+ * @param _cvrng - random number generator
+ * @return transformed image
+ */
+cv::Mat distortimage(const cv::Mat&_inmat, cv::RNG &_cvrng, double _maxportion=0.09, int _interp_method=CV_INTER_LINEAR, int _bordertype=cv::BORDER_DEFAULT)
+{
+    cv::Point2f pts1[]={cv::Point2f(0,0),
+    cv::Point2f(_inmat.cols,0),
+    cv::Point2f(_inmat.cols,_inmat.rows),
+    cv::Point2f(0,_inmat.rows)};
+    cv::Point2f pts2[]={cv::Point2f(-_inmat.cols*_cvrng.uniform(-_maxportion,_maxportion),-_inmat.rows*_cvrng.uniform(-_maxportion,_maxportion)),
+    cv::Point2f(_inmat.cols*_cvrng.uniform(1.-_maxportion,1.+_maxportion),-_inmat.rows*_cvrng.uniform(-_maxportion,_maxportion)),
+    cv::Point2f(_inmat.cols*_cvrng.uniform(1.-_maxportion,1.+_maxportion),_inmat.rows*_cvrng.uniform(1.-_maxportion,1.+_maxportion)),
+    cv::Point2f(-_inmat.cols*_cvrng.uniform(-_maxportion,_maxportion),_inmat.rows*_cvrng.uniform(1.-_maxportion,1.+_maxportion))};
+    cv::Mat _outmat;
+    cv::warpPerspective(_inmat,_outmat,cv::getPerspectiveTransform(pts1,pts2),cv::Size(_inmat.cols,_inmat.rows),_interp_method,_bordertype,cv::Scalar(104,117,123));
+    return _outmat;
+}
+
 #endif // OPENCVIMGAUGMENT_H

@@ -69,8 +69,6 @@ void load_mini_batch (
     labels.clear();
     DLIB_CASSERT(num_people <= objs.size(), "The dataset doesn't have that many people in it.");
     cv::Mat _tmpmat;
-    dlib::matrix<dlib::rgb_pixel> _tmpmatrix;
-    dlib::array<matrix<dlib::rgb_pixel>> _vcrops;
     std::vector<bool> already_selected(objs.size(), false);
     for (size_t i = 0; i < num_people; ++i)
     {
@@ -83,50 +81,52 @@ void load_mini_batch (
         for (size_t j = 0; j < samples_per_id; ++j)
         {
             const auto& obj = objs[id][rnd.get_random_32bit_number()%objs[id].size()];
-            if(rnd.get_random_double() > 0.25) {
+            if(rnd.get_random_double() > 0.2) {
                 _tmpmat = cv::imread(obj,CV_LOAD_IMAGE_COLOR);
                 if(_tmpmat.cols*_tmpmat.rows > 100000)
                     cv::resize(_tmpmat,_tmpmat,cv::Size(512,192),0,0,CV_INTER_AREA);
                 else
                     cv::resize(_tmpmat,_tmpmat,cv::Size(512,192),0,0,CV_INTER_CUBIC);
-                if(rnd.get_random_double() > 0.75)
-                    cv::blur(_tmpmat,_tmpmat,cv::Size(5,5));
-                _tmpmatrix = std::move(cvmat2dlibmatrix<dlib::rgb_pixel>(_tmpmat));
+                if(rnd.get_random_double() > 0.8)
+                    cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
+                /*if(rnd.get_random_double() > 0.9) {
+                    _tmpmat = std::move(distortimage(_tmpmat,cvrng));
+                }*/
+                images.push_back(std::move(cvmat2dlibmatrix<dlib::rgb_pixel>(_tmpmat)));
             } else {
-                _tmpmatrix = std::move(load_rgb_image_with_fixed_size(obj,512,192,true));
+                images.push_back(std::move(load_rgb_image_with_fixed_size(obj,512,192,true)));
             }
-            images.push_back(std::move(_tmpmatrix));
             labels.push_back(id);
         }
     }
 
     // You might want to do some data augmentation at this point
+    dlib::array<dlib::matrix<dlib::rgb_pixel>> _vcrops;
     for (auto&& crop : images)
-    {        
+    {
         disturb_colors(crop,rnd);
         if(rnd.get_random_double() > 0.1) {
-            randomly_jitter_image(crop,_vcrops,rnd.get_integer(LONG_MAX),1,0,0,1.13,0.07,17.0);
+            randomly_jitter_image(crop,_vcrops,rnd.get_integer(LONG_MAX),1,0,0,1.11,0.05,15.0);
             crop = std::move(_vcrops[0]);
         }
-        if(rnd.get_random_double() > 0.15) {
+        /*if(rnd.get_random_double() > 0.2) {
             randomly_cutout_rect(crop,_vcrops,rnd,1,0.5,0.5,rnd.get_random_double()*90.0);
             crop = std::move(_vcrops[0]);
-        }
+        }*/
     }
 
     // All the images going into a mini-batch have to be the same size.  And really, all
     // the images in your entire training dataset should be the same size for what we are
-    // doing to make the most sense.  
+    // doing to make the most sense.
     DLIB_CASSERT(images.size() > 0);
     for (auto&& img : images)
     {
-        DLIB_CASSERT(img.nr() == images[0].nr() && img.nc() == images[0].nc(), 
+        DLIB_CASSERT(img.nr() == images[0].nr() && img.nc() == images[0].nc(),
             "All the images in a single mini-batch must be the same size.");
     }
 }
 
 // ----------------------------------------------------------------------------------------
-
 template <template <int,template<typename>class,int,typename> class block, int N, template<typename>class BN, typename SUBNET>
 using residual = add_prev1<block<N,BN,1,tag1<SUBNET>>>;
 
@@ -143,17 +143,17 @@ template <int N, typename SUBNET> using ares_down = relu<residual_down<block,N,a
 
 // ----------------------------------------------------------------------------------------
 
-template <typename SUBNET> using level0 = res_down<512,SUBNET>;
-template <typename SUBNET> using level1 = res_down<256,SUBNET>;
-template <typename SUBNET> using level2 = res_down<128,SUBNET>;
-template <typename SUBNET> using level3 = res_down<64,SUBNET>;
-template <typename SUBNET> using level4 = res_down<32,SUBNET>;
+template <typename SUBNET> using level0 = res<512,res_down<512,SUBNET>>;
+template <typename SUBNET> using level1 = res<256,res_down<256,SUBNET>>;
+template <typename SUBNET> using level2 = res<128,res_down<128,SUBNET>>;
+template <typename SUBNET> using level3 = res<64,res_down<64,SUBNET>>;
+template <typename SUBNET> using level4 = res<32,res_down<32,SUBNET>>;
 
-template <typename SUBNET> using alevel0 = ares_down<512,SUBNET>;
-template <typename SUBNET> using alevel1 = ares_down<256,SUBNET>;
-template <typename SUBNET> using alevel2 = ares_down<128,SUBNET>;
-template <typename SUBNET> using alevel3 = ares_down<64,SUBNET>;
-template <typename SUBNET> using alevel4 = ares_down<32,SUBNET>;
+template <typename SUBNET> using alevel0 = ares<512,ares_down<512,SUBNET>>;
+template <typename SUBNET> using alevel1 = ares<256,ares_down<256,SUBNET>>;
+template <typename SUBNET> using alevel2 = ares<128,ares_down<128,SUBNET>>;
+template <typename SUBNET> using alevel3 = ares<64,ares_down<64,SUBNET>>;
+template <typename SUBNET> using alevel4 = ares<32,ares_down<32,SUBNET>>;
 
 
 // training network type
@@ -163,7 +163,7 @@ using net_type = loss_metric<fc_no_bias<128,avg_pool_everything<
                             level2<
                             level3<
                             level4<
-                            relu<bn_con<con<32,7,7,2,2,
+                            relu<bn_con<con<16,7,7,2,2,
                             input_rgb_image
                             >>>>>>>>>>>;
 
@@ -174,10 +174,9 @@ using anet_type = loss_metric<fc_no_bias<128,avg_pool_everything<
                             alevel2<
                             alevel3<
                             alevel4<
-                            relu<affine<con<32,7,7,2,2,
+                            relu<affine<con<16,7,7,2,2,
                             input_rgb_image
                             >>>>>>>>>>>;
-
 // ----------------------------------------------------------------------------------------
 
 int main(int argc, char** argv)
@@ -209,6 +208,7 @@ int main(int argc, char** argv)
     trainer.set_learning_rate(0.1);
     trainer.be_verbose();
     trainer.set_synchronization_file("whales_metric_sync", std::chrono::minutes(10));
+    trainer.set_learning_rate(0.001);
 
     // I've set this to something really small to make the example terminate
     // sooner.  But when you really want to train a good model you should set
@@ -233,7 +233,7 @@ int main(int argc, char** argv)
         {
             try
             {
-                load_mini_batch(25, 8, rnd, cvrng, trainobjs, images, labels);
+                load_mini_batch(20, 8, rnd, cvrng, trainobjs, images, labels);
                 qimages.enqueue(images);
                 qlabels.enqueue(labels);
             }
@@ -265,7 +265,7 @@ int main(int argc, char** argv)
         {
             try
             {
-                load_mini_batch(25, 8, rnd, cvrng, testobjs, images, labels);
+                load_mini_batch(20, 8, rnd, cvrng, testobjs, images, labels);
                 testqimages.enqueue(images);
                 testqlabels.enqueue(labels);
             }
@@ -284,7 +284,7 @@ int main(int argc, char** argv)
     // Here we do the training.  We keep passing mini-batches to the trainer until the
     // learning rate has dropped low enough.
     size_t _step = 0;
-    while(trainer.get_learning_rate() >= 1e-6)
+    while(trainer.get_learning_rate() >= 1e-2)
     {
         _step++;
         qimages.dequeue(images);
@@ -321,7 +321,7 @@ int main(int argc, char** argv)
     // it performs on the training data.
     dlib::rand rnd(time(0));
     cv::RNG cvrng(time(0));
-    load_mini_batch(25, 8, rnd, cvrng, testobjs, images, labels);
+    load_mini_batch(20, 8, rnd, cvrng, testobjs, images, labels);
 
     // Normally you would use the non-batch-normalized version of the network to do
     // testing, which is what we do here.
