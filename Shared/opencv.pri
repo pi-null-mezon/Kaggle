@@ -46,6 +46,8 @@ win32 {
 
 linux {
 
+    LIBS += -L/usr/local/lib
+
     LIBS += -lopencv_core \
             -lopencv_objdetect \
             -lopencv_highgui \

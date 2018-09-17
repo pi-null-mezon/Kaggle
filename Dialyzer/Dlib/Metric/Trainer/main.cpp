@@ -56,7 +56,8 @@ void load_mini_batch (
         {
             const auto& obj = objs[id][rnd.get_random_32bit_number()%objs[id].size()];
             if(_applyaugmentation) {
-                images.push_back(std::move(load_rgb_image_with_fixed_size(obj,320,180,false)));
+                dlib::load_image(image,obj);
+                images.push_back(std::move(image));
             } else {
                 images.push_back(std::move(load_rgb_image_with_fixed_size(obj,260,150,true)));
             }
@@ -154,7 +155,7 @@ int main(int argc, char** argv) try
            {
                try
                {
-                   load_mini_batch(16, 10, rnd, objstrain, images, labels, true);
+                   load_mini_batch(16, 16, rnd, objstrain, images, labels, true);
                    qimagestrain.enqueue(images);
                    qlabelstrain.enqueue(labels);
                }
@@ -207,7 +208,7 @@ int main(int argc, char** argv) try
            qimagestrain.dequeue(imagestrain);
            qlabelstrain.dequeue(labelstrain);
            trainer.train_one_step(imagestrain, labelstrain);
-           if((_step % 11) == 0) {
+           if((_step % 5) == 0) {
                qimagesvalid.dequeue(imagesvalid);
                qlabelsvalid.dequeue(labelsvalid);
                trainer.test_one_step(imagesvalid, labelsvalid);
@@ -231,7 +232,7 @@ int main(int argc, char** argv) try
 
         // Now, let's check how well it performs on the validation data.
         dlib::rand rnd(time(0));
-        load_mini_batch(16, 10, rnd, objsvalid, imagesvalid, labelsvalid, false);
+        load_mini_batch(16, 16, rnd, objsvalid, imagesvalid, labelsvalid, false);
         // Let's acquire a non-batch-normalized version of the network
         anet_type testing_net = net;
         // Run all the images through the network to get their vector embeddings.
