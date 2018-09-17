@@ -86,8 +86,10 @@ void load_mini_batch (
                 if(_tmpmat.cols*_tmpmat.rows > 100000)
                     cv::resize(_tmpmat,_tmpmat,cv::Size(512,192),0,0,CV_INTER_AREA);
                 else
-                    cv::resize(_tmpmat,_tmpmat,cv::Size(512,192),0,0,CV_INTER_CUBIC);
+                    cv::resize(_tmpmat,_tmpmat,cv::Size(512,192),0,0,CV_INTER_LINEAR);
                 if(rnd.get_random_double() > 0.8)
+                    cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
+                if(rnd.get_random_double() > 0.9)
                     cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
                 /*if(rnd.get_random_double() > 0.9) {
                     _tmpmat = std::move(distortimage(_tmpmat,cvrng));
@@ -106,7 +108,7 @@ void load_mini_batch (
     {
         disturb_colors(crop,rnd);
         if(rnd.get_random_double() > 0.1) {
-            randomly_jitter_image(crop,_vcrops,rnd.get_integer(LONG_MAX),1,0,0,1.11,0.05,15.0);
+            randomly_jitter_image(crop,_vcrops,rnd.get_integer(LONG_MAX),1,0,0,1.1,0.04,13.0);
             crop = std::move(_vcrops[0]);
         }
         /*if(rnd.get_random_double() > 0.2) {
@@ -204,17 +206,16 @@ int main(int argc, char** argv)
 
     net_type net;
 
-    dnn_trainer<net_type> trainer(net, sgd(0.0001, 0.9));
+    dnn_trainer<net_type> trainer(net, sgd(0.001, 0.9));
     trainer.set_learning_rate(0.1);
     trainer.be_verbose();
     trainer.set_synchronization_file("whales_metric_sync", std::chrono::minutes(10));
-    trainer.set_learning_rate(0.001);
 
     // I've set this to something really small to make the example terminate
     // sooner.  But when you really want to train a good model you should set
     // this to something like 10000 so training doesn't terminate too early.
     trainer.set_iterations_without_progress_threshold(50000);
-    trainer.set_test_iterations_without_progress_threshold(1000);
+    trainer.set_test_iterations_without_progress_threshold(700);
 
     // If you have a lot of data then it might not be reasonable to load it all
     // into RAM.  So you will need to be sure you are decompressing your images
@@ -233,7 +234,7 @@ int main(int argc, char** argv)
         {
             try
             {
-                load_mini_batch(20, 8, rnd, cvrng, trainobjs, images, labels);
+                load_mini_batch(80, 2, rnd, cvrng, trainobjs, images, labels);
                 qimages.enqueue(images);
                 qlabels.enqueue(labels);
             }
@@ -265,7 +266,7 @@ int main(int argc, char** argv)
         {
             try
             {
-                load_mini_batch(20, 8, rnd, cvrng, testobjs, images, labels);
+                load_mini_batch(80, 2, rnd, cvrng, testobjs, images, labels);
                 testqimages.enqueue(images);
                 testqlabels.enqueue(labels);
             }
@@ -321,7 +322,7 @@ int main(int argc, char** argv)
     // it performs on the training data.
     dlib::rand rnd(time(0));
     cv::RNG cvrng(time(0));
-    load_mini_batch(20, 8, rnd, cvrng, testobjs, images, labels);
+    load_mini_batch(80, 2, rnd, cvrng, testobjs, images, labels);
 
     // Normally you would use the non-batch-normalized version of the network to do
     // testing, which is what we do here.

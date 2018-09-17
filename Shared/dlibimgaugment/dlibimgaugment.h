@@ -113,7 +113,7 @@ dlib::matrix<dlib::rgb_pixel> load_rgb_image_with_fixed_size(std::string _filena
     if((_originalimgmat.cols != _tcols) || (_originalimgmat.rows != _trows)) {
         int resizetype = CV_INTER_AREA;
         if(_originalimgmat.cols*_originalimgmat.rows < _tcols*_trows)
-            resizetype = CV_INTER_CUBIC;
+            resizetype = CV_INTER_LINEAR;
         cv::resize(_originalimgmat,_originalimgmat,cv::Size(_tcols,_trows),0,0,resizetype);
     }
     return cvmat2dlibmatrix<dlib::rgb_pixel>(_originalimgmat);
