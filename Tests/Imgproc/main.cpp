@@ -33,8 +33,8 @@ int main(int argc, char *argv[])
 
             //_mat = std::move(distortimage(_mat,cvrng));
 
-            for(int j = 0; j < 10; ++j) {
-                cv::Mat _tmpmat = std::move(jitterimage(_mat,cvrng,cv::Size(0,0),0.5));
+            for(int j = 0; j < 5; ++j) {
+                cv::Mat _tmpmat = std::move(jitterimage(_mat,cvrng));
                 //_tmpmat = std::move(distortimage(_tmpmat,cvrng));
                 cv::imshow("Probe", _tmpmat);
                 cv::imshow("Original", _mat);
