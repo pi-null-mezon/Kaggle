@@ -69,8 +69,10 @@ void load_mini_batch (
     if(_applyaugmentation) {
         dlib::array<dlib::matrix<dlib::rgb_pixel>> _vcrops;
         for (auto&& crop : images)
-        {
+        {           
             randomly_crop_image(crop,_vcrops,rnd,1,0.85,0.999,260,150,false,true);
+            crop = std::move(_vcrops[0]);
+            randomly_cutout_rect(crop,_vcrops,rnd,1,0.5,0.5,180.0*rnd.get_random_double());
             crop = std::move(_vcrops[0]);
         }
     }
@@ -136,10 +138,11 @@ int main(int argc, char** argv) try
 
         net_type net;
 
-        dnn_trainer<net_type> trainer(net, sgd(0.0001, 0.9));
+        dnn_trainer<net_type> trainer(net, sgd(0.0005, 0.9));
         trainer.set_learning_rate(0.1);
         trainer.be_verbose();
         trainer.set_synchronization_file(cmdparser.get<std::string>("outputdirpath") + std::string("/metric_sync_") + std::to_string(n), std::chrono::minutes(10));
+        trainer.set_learning_rate(0.01);
         trainer.set_iterations_without_progress_threshold(cmdparser.get<unsigned int>("swptrain"));
         trainer.set_test_iterations_without_progress_threshold(cmdparser.get<unsigned int>("swpvalid"));
 
