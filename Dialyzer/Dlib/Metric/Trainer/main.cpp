@@ -98,6 +98,7 @@ const cv::String keys =
        "{help h           |        | print this message}"
        "{traindirpath   t |        | training directory location}"
        "{validdirpath   v |        | validation directory location}"
+       "{testdirpath      |        | accuracy test directory location}"
        "{outputdirpath  o |        | output directory location}"
        "{number n         |   1    | number of classifiers to be trained}"
        "{swptrain         | 5000   | determines after how many steps without progress (training loss) decay should be applied to learning rate}"
@@ -115,33 +116,41 @@ int main(int argc, char** argv) try
     }
     if(!cmdparser.has("traindirpath")) {
         cout << "You have not provide path to training directory!";
-        return 2;
+        return 1;
     }
     if(!cmdparser.has("validdirpath")) {
         cout << "You have not provide path to validation directory!";
+        return 2;
+    }
+    if(!cmdparser.has("testdirpath")) {
+        cout << "You have not provide path to test directory!";
+        return 3;
     }
     if(!cmdparser.has("outputdirpath")) {
         cout << "You have not provide path to output directory!";
-        return 2;
+        return 4;
     }
     if(cmdparser.get<int>("number") <= 0) {
         cout << "Number of classifiers should be greater than 0!";
-        return 2;
+        return 5;
     }
 
     for(int n = 0; n < cmdparser.get<int>("number"); ++n) {
         cout << "\nNET #" << n << "\n------------------------------------------------------" << endl;
 
-        auto objstrain = load_objects_list(cmdparser.get<std::string>("traindirpath"));
-        auto objsvalid = load_objects_list(cmdparser.get<std::string>("validdirpath"));
+        auto objstrain = std::move(load_objects_list(cmdparser.get<std::string>("traindirpath")));
+        auto objsvalid = std::move(load_objects_list(cmdparser.get<std::string>("validdirpath")));
+        auto objstest =  std::move(load_objects_list(cmdparser.get<std::string>("testdirpath")));
 
         cout << "train objs.size(): "<< objstrain.size() << endl;
         cout << "valid objs.size(): "<< objsvalid.size() << endl;
+        cout << "test  objs.size(): "<< objstest.size()  << endl;
 
         std::vector<matrix<rgb_pixel>> imagestrain, imagesvalid;
         std::vector<unsigned long> labelstrain, labelsvalid;
 
         net_type net;
+        cout << net;
 
         dnn_trainer<net_type> trainer(net, sgd(0.0005, 0.9));
         trainer.set_learning_rate(0.1);
@@ -239,7 +248,7 @@ int main(int argc, char** argv) try
 
         // Now, let's check how well it performs on the validation data.
         dlib::rand rnd(2308);
-        load_mini_batch(16, 21, rnd, objsvalid, imagesvalid, labelsvalid, false);
+        load_mini_batch(16, 4, rnd, objstest, imagesvalid, labelsvalid, false);
         // Let's acquire a non-batch-normalized version of the network
         anet_type testing_net = net;
         // Run all the images through the network to get their vector embeddings.
@@ -274,7 +283,7 @@ int main(int argc, char** argv) try
         cout << "num_right: "<< num_right << endl;
         cout << "num_wrong: "<< num_wrong << endl;
         // Save the network to disk
-        serialize(cmdparser.get<std::string>("outputdirpath") + std::string("/net_") + std::to_string(n) + std::string("_(testloss ") + std::to_string(trainer.get_average_test_loss()) + std::string(").dat")) << net;
+        serialize(cmdparser.get<std::string>("outputdirpath") + std::string("/net_") + std::to_string(n) + std::string("_(testaccuracy ") + std::to_string(static_cast<float>(num_wrong)/(num_wrong+num_right)) + std::string(").dat")) << net;
     }
 }
 catch(std::exception& e)
