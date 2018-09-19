@@ -46,10 +46,14 @@ void randomly_jitter_image(const matrix<image_type>& img, dlib::array<matrix<ima
 }
 
 template<typename image_type>
-rectangle make_random_cropping_rect(const matrix<image_type> &img, dlib::rand &rnd, float mins=0.900f, float maxs=0.999f)
+rectangle make_random_cropping_rect(const matrix<image_type> &img, dlib::rand &rnd, float _mins, float _maxs, long _tcols, long _trows)
 {   
-    auto scale = mins + rnd.get_random_double()*(maxs-mins);
-    rectangle rect(scale*img.nc(), scale*img.nr());
+    auto _scale = _mins + rnd.get_random_double()*(_maxs-_mins);
+    _tcols *= _scale;
+    _trows *= _scale;
+    assert(_tcols < img.nc());
+    assert(_trows < img.nr());
+    rectangle rect(_tcols, _trows);
     // randomly shift the box around
     point offset(rnd.get_random_32bit_number()%(img.nc()-rect.width()),
                  rnd.get_random_32bit_number()%(img.nr()-rect.height()));
@@ -66,7 +70,7 @@ void randomly_crop_image(const matrix<image_type>& img,dlib::array<matrix<image_
 
     std::vector<chip_details> dets;
     for (long i = 0; i < num_crops; ++i) {
-        auto rect = make_random_cropping_rect(img, rnd, _mins, _maxs);
+        auto rect = make_random_cropping_rect(img, rnd, _mins, _maxs,_tcols,_trows);
         dets.push_back(chip_details(rect, chip_dims(_trows,_tcols)));
     }
     extract_image_chips(img, dets, crops);

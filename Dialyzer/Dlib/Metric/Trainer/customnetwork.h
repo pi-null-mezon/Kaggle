@@ -23,37 +23,35 @@ template <int N, typename SUBNET> using ares_down = relu<residual_down<block,N,a
 // ----------------------------------------------------------------------------------------
 
 template <typename SUBNET> using level0 = res_down<256,SUBNET>;
-template <typename SUBNET> using level1 = res<256,res<256,res_down<256,SUBNET>>>;
-template <typename SUBNET> using level2 = res<128,res<128,res_down<128,SUBNET>>>;
-template <typename SUBNET> using level3 = res<64,res<64,res<64,res_down<64,SUBNET>>>>;
-template <typename SUBNET> using level4 = res<32,res<32,res<32,SUBNET>>>;
+template <typename SUBNET> using level1 = res<256,res_down<256,SUBNET>>;
+template <typename SUBNET> using level2 = res<128,res_down<128,SUBNET>>;
+template <typename SUBNET> using level3 = res<64,res<64,res_down<64,SUBNET>>>;
+template <typename SUBNET> using level4 = res<32,res<32,SUBNET>>;
 
 template <typename SUBNET> using alevel0 = ares_down<256,SUBNET>;
-template <typename SUBNET> using alevel1 = ares<256,ares<256,ares_down<256,SUBNET>>>;
-template <typename SUBNET> using alevel2 = ares<128,ares<128,ares_down<128,SUBNET>>>;
-template <typename SUBNET> using alevel3 = ares<64,ares<64,ares<64,ares_down<64,SUBNET>>>>;
-template <typename SUBNET> using alevel4 = ares<32,ares<32,ares<32,SUBNET>>>;
+template <typename SUBNET> using alevel1 = ares<256,ares_down<256,SUBNET>>;
+template <typename SUBNET> using alevel2 = ares<128,ares_down<128,SUBNET>>;
+template <typename SUBNET> using alevel3 = ares<64,ares<64,ares_down<64,SUBNET>>>;
+template <typename SUBNET> using alevel4 = ares<32,ares<32,SUBNET>>;
 
 // training network type
 using net_type = loss_metric<fc_no_bias<32,avg_pool_everything<
-                            level0<
                             level1<
                             level2<
                             level3<
                             level4<
-                            max_pool<3,3,2,2,relu<bn_con<con<32,5,5,2,2,
+                            relu<bn_con<con<32,5,5,2,2,
                             input_rgb_image
-                            >>>>>>>>>>>>;
+                            >>>>>>>>>>;
 
 // testing network type (replaced batch normalization with fixed affine transforms)
 using anet_type = loss_metric<fc_no_bias<32,avg_pool_everything<
-                            alevel0<
                             alevel1<
                             alevel2<
                             alevel3<
                             alevel4<
-                            max_pool<3,3,2,2,relu<affine<con<32,5,5,2,2,
+                            relu<affine<con<32,5,5,2,2,
                             input_rgb_image
-                            >>>>>>>>>>>>;
+                            >>>>>>>>>>;
 
 #endif // CUSTOMNETWORK_H

@@ -70,7 +70,7 @@ cv::Mat cropFromCenterAndResize(const cv::Mat &input, cv::Size size)
         cv::Mat croppedImg(input, roiRect);
         int interpolationMethod = 0;
         if(size.area() > roiRect.area())
-            interpolationMethod = CV_INTER_CUBIC;
+            interpolationMethod = CV_INTER_LINEAR;
         else
             interpolationMethod = CV_INTER_AREA;
         cv::resize(croppedImg, output, size, 0, 0, interpolationMethod);

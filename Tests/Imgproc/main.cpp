@@ -33,37 +33,34 @@ int main(int argc, char *argv[])
 
             //_mat = std::move(distortimage(_mat,cvrng));
 
-            for(int j = 0; j < 5; ++j) {
+            /*for(int j = 0; j < 5; ++j) {
                 cv::Mat _tmpmat = std::move(jitterimage(_mat,cvrng));
                 //_tmpmat = std::move(distortimage(_tmpmat,cvrng));
                 cv::imshow("Probe", _tmpmat);
                 cv::imshow("Original", _mat);
                 cv::waitKey(0);
-            }
+            }*/
 
 
-            /*for(int j = 0; j < 10; ++j) {
-                cv::resize(_mat,_mat,cv::Size(500,200),0,0,CV_INTER_CUBIC);
+            for(int j = 0; j < 10; ++j) {
+                cv::resize(_mat,_mat,cv::Size(285,160),0,0,cv::INTER_AREA);
                 dlib::matrix<dlib::rgb_pixel> _drgbm = std::move( cvmat2dlibmatrix<dlib::rgb_pixel>(_mat) );
-
-                dlib::apply_random_color_offset(_drgbm,rnd);
                 dlib::array<dlib::matrix<dlib::rgb_pixel>> _vimgs;
-                if(rnd.get_random_float() > 0.2f) {
-                    dlib::randomly_jitter_image(_drgbm,_vimgs,rnd.get_integer(LONG_MAX),1,0,0,1.11,0.05,13.0);
+
+                dlib::randomly_crop_image(_drgbm,_vimgs,rnd,1,0.950,0.999,200,150,false,true);
+                _drgbm = std::move(_vimgs[0]);
+                if(rnd.get_random_float() > 0.1f) {
+                    dlib::randomly_jitter_image(_drgbm,_vimgs,rnd.get_integer(LONG_MAX),1,0,0,1.1,0.05,45);
                     _drgbm = std::move(_vimgs[0]);
                 }
-                if(rnd.get_random_float() > 0.2f) {
-                    dlib::randomly_crop_image(_drgbm,_vimgs,rnd,1,0.800,0.999,0,0,true);
-                    _drgbm = std::move(_vimgs[0]);
-                }
-                if(rnd.get_random_float() > 0.2f) {
-                    dlib::randomly_cutout_rect(_drgbm,_vimgs,rnd,1,0.5,0.5);
+                if(rnd.get_random_float() > 0.1f) {
+                    dlib::randomly_cutout_rect(_drgbm,_vimgs,rnd,1,0.1,0.1);
                     _drgbm = std::move(_vimgs[0]);
                 }
                 cv::imshow("Probe", dlibmatrix2cvmat<dlib::rgb_pixel>(_drgbm));
                 cv::imshow("Original", _mat);
                 cv::waitKey(0);
-            }*/
+            }
         }
 
     }
