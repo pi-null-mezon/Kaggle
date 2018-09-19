@@ -162,7 +162,7 @@ int main(int argc, char** argv) try
            {
                try
                {
-                   load_mini_batch(16, 25, rnd, objstrain, images, labels, true);
+                   load_mini_batch(16, 11, rnd, objstrain, images, labels, true);
                    qimagestrain.enqueue(images);
                    qlabelstrain.enqueue(labels);
                }
@@ -192,7 +192,7 @@ int main(int argc, char** argv) try
            {
                try
                {
-                   load_mini_batch(16, 16, rnd, objsvalid, images, labels, false);
+                   load_mini_batch(16, 11, rnd, objsvalid, images, labels, false);
                    qimagesvalid.enqueue(images);
                    qlabelsvalid.enqueue(labels);
                }
