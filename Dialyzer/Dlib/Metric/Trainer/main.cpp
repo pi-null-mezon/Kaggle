@@ -56,9 +56,9 @@ void load_mini_batch (
         {
             const auto& obj = objs[id][rnd.get_random_32bit_number()%objs[id].size()];
             if(_applyaugmentation) {
-                images.push_back(std::move(load_rgb_image_with_fixed_size(obj,285,160,false)));
+                images.push_back(std::move(load_rgb_image_with_fixed_size(obj,427,240,false)));
             } else {
-                images.push_back(std::move(load_rgb_image_with_fixed_size(obj,200,150,true)));
+                images.push_back(std::move(load_rgb_image_with_fixed_size(obj,300,224,true)));
             }
             labels.push_back(id);
         }
@@ -69,7 +69,7 @@ void load_mini_batch (
         dlib::array<dlib::matrix<dlib::rgb_pixel>> _vcrops;
         for (auto&& crop : images)
         {
-            randomly_crop_image(crop,_vcrops,rnd,1,0.950,0.999,200,150,false,true);
+            randomly_crop_image(crop,_vcrops,rnd,1,0.900,0.999,300,224,false,true);
             crop = std::move(_vcrops[0]);
             if(rnd.get_random_double() > 0.5) {
                 randomly_jitter_image(crop,_vcrops,rnd.get_integer(LONG_MAX),1,0,0,1.1,0.05,30.0);
