@@ -29,6 +29,7 @@ void load_mini_batch (
     const size_t num_classees,     // how many different classees to include
     const size_t samples_per_id,   // how many images per calss to select.
     dlib::rand& rnd,
+    cv::RNG& cvrng,
     const std::vector<std::vector<string>>& objs,
     std::vector<matrix<rgb_pixel>>& images,
     std::vector<unsigned long>& labels,
@@ -53,26 +54,27 @@ void load_mini_batch (
         for (size_t j = 0; j < samples_per_id; ++j)
         {
             string obj;
-            if(objs[id].size() == samples_per_id)
+            if(objs[id].size() == samples_per_id) {
                 obj = objs[id][j];
-            else
+            } else {
                 obj = objs[id][rnd.get_random_32bit_number()%objs[id].size()];
-
-            images.push_back(std::move(load_rgb_image_with_fixed_size(obj,250,150,true)));
-            labels.push_back(id);
-        }
-    }
-
-    // You might want to do some data augmentation at this point
-    if(_applyaugmentation) {
-        dlib::array<dlib::matrix<dlib::rgb_pixel>> _vcrops;
-        for (auto&& crop : images)
-        {
-            randomly_jitter_image(crop,_vcrops,rnd.get_integer(LONG_MAX),1,0,0,1.1,0.03,11.0);
-            crop = std::move(_vcrops[0]);
-            if(rnd.get_random_double() > 0.1) {
-                disturb_colors(crop, rnd);
             }
+
+            if(_applyaugmentation) { // You might want to do some data augmentation at this point
+                cv::Mat _tmpmat = loadIbgrmatWsize(obj,300,300,true);
+                if(rnd.get_random_double() > 0.5)
+                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.2,0.03,15,cv::BORDER_REPLICATE);
+                else
+                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.2,0.03,11,cv::BORDER_REFLECT);
+                matrix<rgb_pixel> _dlibimgmatrix = std::move(cvmat2dlibmatrix<rgb_pixel>(_tmpmat));
+                if(rnd.get_random_double() > 0.1) {
+                    disturb_colors(_dlibimgmatrix, rnd);
+                }
+                images.push_back(std::move(_dlibimgmatrix));
+            } else {
+                images.push_back(std::move(load_rgb_image_with_fixed_size(obj,300,300,true)));
+            }
+            labels.push_back(id);
         }
     }
 
@@ -145,7 +147,7 @@ int main(int argc, char** argv) try
 
         net_type net;
 
-        dnn_trainer<net_type> trainer(net, sgd(0.001, 0.9));
+        dnn_trainer<net_type> trainer(net, sgd(0.0005, 0.9));
         trainer.set_learning_rate(0.1);
         trainer.be_verbose();
         trainer.set_synchronization_file(cmdparser.get<std::string>("outputdirpath") + std::string("/metric_sync_") + std::to_string(n), std::chrono::minutes(10));
@@ -158,13 +160,14 @@ int main(int argc, char** argv) try
         auto traindata_loader = [&qimagestrain, &qlabelstrain, &objstrain](time_t seed)
         {
            dlib::rand rnd(time(0)+seed);
+           cv::RNG    cvrnd(time(0)+seed);
            std::vector<matrix<rgb_pixel>> images;
            std::vector<unsigned long> labels;
            while(qimagestrain.is_enabled())
            {
                try
                {
-                   load_mini_batch(16, 22, rnd, objstrain, images, labels, true);
+                   load_mini_batch(15, 11, rnd, cvrnd, objstrain, images, labels, true);
                    qimagestrain.enqueue(images);
                    qlabelstrain.enqueue(labels);
                }
@@ -188,13 +191,14 @@ int main(int argc, char** argv) try
         auto validdata_loader = [&qimagesvalid, &qlabelsvalid, &objsvalid](time_t seed)
         {
            dlib::rand rnd(time(0)+seed);
+           cv::RNG    cvrnd(time(0)+seed);
            std::vector<matrix<rgb_pixel>> images;
            std::vector<unsigned long> labels;
            while(qimagesvalid.is_enabled())
            {
                try
                {
-                   load_mini_batch(16, 22, rnd, objsvalid, images, labels, false);
+                   load_mini_batch(15, 11, rnd, cvrnd, objsvalid, images, labels, false);
                    qimagesvalid.enqueue(images);
                    qlabelsvalid.enqueue(labels);
                }
@@ -241,8 +245,9 @@ int main(int argc, char** argv) try
 
         // Now, let's check how well it performs on the validation data.
         dlib::rand rnd(2308);
+        cv::RNG    cvrnd(2308);
         cout << "Validation subset:" << endl;
-        load_mini_batch(16, 4, rnd, objstest, imagesvalid, labelsvalid, false);
+        load_mini_batch(16, 11, rnd, cvrnd, objstest, imagesvalid, labelsvalid, false);
         // Let's acquire a non-batch-normalized version of the network
         anet_type testing_net = net;
         // Run all the images through the network to get their vector embeddings.
@@ -280,7 +285,7 @@ int main(int argc, char** argv) try
         cout << "accuracy: "<< _accuracy << endl;
 
         cout << "Test set:" << endl;
-        load_mini_batch(22, 4, rnd, objstest, imagesvalid, labelsvalid, false);
+        load_mini_batch(22, 4, rnd, cvrnd, objstest, imagesvalid, labelsvalid, false);
         // Run all the images through the network to get their vector embeddings.
         embedded = testing_net(imagesvalid);
         // Now, check if the embedding puts images with the same labels near each other and

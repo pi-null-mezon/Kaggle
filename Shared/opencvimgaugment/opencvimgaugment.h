@@ -133,4 +133,25 @@ cv::Mat distortimage(const cv::Mat&_inmat, cv::RNG &_cvrng, double _maxportion=0
     return _outmat;
 }
 
+cv::Mat loadIbgrmatWsize(std::string _filename, int _tcols, int _trows, bool _crop, bool *_isloadded=0)
+{
+    cv::Mat _originalimgmat = cv::imread(_filename, CV_LOAD_IMAGE_COLOR);
+    if(_isloadded)
+        *_isloadded = !_originalimgmat.empty();
+
+    if(_originalimgmat.empty())
+        return cv::Mat();
+
+    if(_crop == true)
+        return cropFromCenterAndResize(_originalimgmat,cv::Size(_tcols,_trows));
+
+    if((_originalimgmat.cols != _tcols) || (_originalimgmat.rows != _trows)) {
+        int resizetype = CV_INTER_AREA;
+        if(_originalimgmat.cols*_originalimgmat.rows < _tcols*_trows)
+            resizetype = CV_INTER_LINEAR;
+        cv::resize(_originalimgmat,_originalimgmat,cv::Size(_tcols,_trows),0,0,resizetype);
+    }
+    return _originalimgmat;
+}
+
 #endif // OPENCVIMGAUGMENT_H
