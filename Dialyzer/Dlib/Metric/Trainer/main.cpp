@@ -42,7 +42,6 @@ void load_mini_batch (
     labels.reserve(num_classees*samples_per_id);
 
     std::vector<bool> already_selected(objs.size(), false);
-    matrix<rgb_pixel> image;
     for (size_t i = 0; i < num_classees; ++i)
     {
         size_t id = rnd.get_random_32bit_number()%objs.size();
@@ -51,15 +50,15 @@ void load_mini_batch (
             id = rnd.get_random_32bit_number()%objs.size();
         already_selected[id] = true;
 
-        cv::Mat _tmpmat;
         for (size_t j = 0; j < samples_per_id; ++j)
         {
-            const auto& obj = objs[id][rnd.get_random_32bit_number()%objs[id].size()];
-            if(_applyaugmentation) {
-                images.push_back(std::move(load_rgb_image_with_fixed_size(obj,427,240,false)));
-            } else {
-                images.push_back(std::move(load_rgb_image_with_fixed_size(obj,300,224,true)));
-            }
+            string obj;
+            if(objs[id].size() == samples_per_id)
+                obj = objs[id][j];
+            else
+                obj = objs[id][rnd.get_random_32bit_number()%objs[id].size()];
+
+            images.push_back(std::move(load_rgb_image_with_fixed_size(obj,250,150,true)));
             labels.push_back(id);
         }
     }
@@ -69,16 +68,11 @@ void load_mini_batch (
         dlib::array<dlib::matrix<dlib::rgb_pixel>> _vcrops;
         for (auto&& crop : images)
         {
-            randomly_crop_image(crop,_vcrops,rnd,1,0.900,0.999,300,224,false,true);
+            randomly_jitter_image(crop,_vcrops,rnd.get_integer(LONG_MAX),1,0,0,1.1,0.03,11.0);
             crop = std::move(_vcrops[0]);
-            if(rnd.get_random_double() > 0.5) {
-                randomly_jitter_image(crop,_vcrops,rnd.get_integer(LONG_MAX),1,0,0,1.1,0.05,30.0);
-                crop = std::move(_vcrops[0]);
+            if(rnd.get_random_double() > 0.1) {
+                disturb_colors(crop, rnd);
             }
-            /*if(rnd.get_random_double() > 0.1) {
-                randomly_cutout_rect(crop,_vcrops,rnd,1,0.3,0.3,0);
-                crop = std::move(_vcrops[0]);
-            }*/
         }
     }
 
@@ -150,9 +144,8 @@ int main(int argc, char** argv) try
         std::vector<unsigned long> labelstrain, labelsvalid;
 
         net_type net;
-        cout << net;
 
-        dnn_trainer<net_type> trainer(net, sgd(0.0005, 0.9));
+        dnn_trainer<net_type> trainer(net, sgd(0.001, 0.9));
         trainer.set_learning_rate(0.1);
         trainer.be_verbose();
         trainer.set_synchronization_file(cmdparser.get<std::string>("outputdirpath") + std::string("/metric_sync_") + std::to_string(n), std::chrono::minutes(10));
@@ -171,7 +164,7 @@ int main(int argc, char** argv) try
            {
                try
                {
-                   load_mini_batch(16, 11, rnd, objstrain, images, labels, true);
+                   load_mini_batch(16, 22, rnd, objstrain, images, labels, true);
                    qimagestrain.enqueue(images);
                    qlabelstrain.enqueue(labels);
                }
@@ -201,7 +194,7 @@ int main(int argc, char** argv) try
            {
                try
                {
-                   load_mini_batch(16, 11, rnd, objsvalid, images, labels, false);
+                   load_mini_batch(16, 22, rnd, objsvalid, images, labels, false);
                    qimagesvalid.enqueue(images);
                    qlabelsvalid.enqueue(labels);
                }
@@ -248,6 +241,7 @@ int main(int argc, char** argv) try
 
         // Now, let's check how well it performs on the validation data.
         dlib::rand rnd(2308);
+        cout << "Validation subset:" << endl;
         load_mini_batch(16, 4, rnd, objstest, imagesvalid, labelsvalid, false);
         // Let's acquire a non-batch-normalized version of the network
         anet_type testing_net = net;
@@ -279,11 +273,49 @@ int main(int argc, char** argv) try
                         ++num_wrong;
                 }
             }
+        }       
+        cout << "num_right: "<< num_right << endl;
+        cout << "num_wrong: "<< num_wrong << endl;
+        auto _accuracy = static_cast<float>(num_right)/(num_wrong+num_right);
+        cout << "accuracy: "<< _accuracy << endl;
+
+        cout << "Test set:" << endl;
+        load_mini_batch(22, 4, rnd, objstest, imagesvalid, labelsvalid, false);
+        // Run all the images through the network to get their vector embeddings.
+        embedded = testing_net(imagesvalid);
+        // Now, check if the embedding puts images with the same labels near each other and
+        // images with different labels far apart.
+        num_right = 0;
+        num_wrong = 0;
+        for (size_t i = 0; i < embedded.size(); ++i)
+        {
+            for (size_t j = i+1; j < embedded.size(); ++j)
+            {
+                if (labelsvalid[i] == labelsvalid[j])
+                {
+                    // The loss_metric layer will cause images with the same label to be less
+                    // than net.loss_details().get_distance_threshold() distance from each
+                    // other.  So we can use that distance value as our testing threshold.
+                    if (length(embedded[i]-embedded[j]) < testing_net.loss_details().get_distance_threshold())
+                        ++num_right;
+                    else
+                        ++num_wrong;
+                }
+                else
+                {
+                    if (length(embedded[i]-embedded[j]) >= testing_net.loss_details().get_distance_threshold())
+                        ++num_right;
+                    else
+                        ++num_wrong;
+                }
+            }
         }
         cout << "num_right: "<< num_right << endl;
         cout << "num_wrong: "<< num_wrong << endl;
+        _accuracy = static_cast<float>(num_right)/(num_wrong+num_right);
+        cout << "accuracy: "<< _accuracy << endl;
         // Save the network to disk
-        serialize(cmdparser.get<std::string>("outputdirpath") + std::string("/net_") + std::to_string(n) + std::string("_(testaccuracy ") + std::to_string(static_cast<float>(num_wrong)/(num_wrong+num_right)) + std::string(").dat")) << net;
+        serialize(cmdparser.get<std::string>("outputdirpath") + std::string("/net_") + std::to_string(n) + std::string("_(TA_") + std::to_string(_accuracy) + std::string(").dat")) << net;
     }
 }
 catch(std::exception& e)

@@ -36,7 +36,7 @@ void randomly_jitter_image(const matrix<image_type>& img, dlib::array<matrix<ima
 
     dlib::rectangle _imgrect = get_rect(img);
 
-    std::vector<mmod_rect> _boxes(num_crops, shrink_rect(_imgrect,(unsigned long)(_imgrect.width()*0.025))), _crop_boxes;
+    std::vector<mmod_rect> _boxes(num_crops, shrink_rect(_imgrect,(unsigned long)(_imgrect.width()*0.01))), _crop_boxes;
     matrix<image_type> _tmpimg;
     crops.resize(num_crops);
     for(size_t i = 0; i < num_crops; ++i) {       

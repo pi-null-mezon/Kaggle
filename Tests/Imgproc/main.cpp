@@ -43,20 +43,21 @@ int main(int argc, char *argv[])
 
 
             for(int j = 0; j < 10; ++j) {
-                cv::resize(_mat,_mat,cv::Size(427,240),0,0,cv::INTER_AREA);
+                cv::resize(_mat,_mat,cv::Size(250,150),0,0,cv::INTER_AREA);
                 dlib::matrix<dlib::rgb_pixel> _drgbm = std::move( cvmat2dlibmatrix<dlib::rgb_pixel>(_mat) );
                 dlib::array<dlib::matrix<dlib::rgb_pixel>> _vimgs;
 
-                dlib::randomly_crop_image(_drgbm,_vimgs,rnd,1,0.950,0.999,300,224,false,true);
-                _drgbm = std::move(_vimgs[0]);
-                if(rnd.get_random_float() > 0.1f) {
-                    dlib::randomly_jitter_image(_drgbm,_vimgs,rnd.get_integer(LONG_MAX),1,0,0,1.1,0.05,45);
+                //dlib::randomly_crop_image(_drgbm,_vimgs,rnd,1,0.900,0.999,250,150,false,true);
+                //_drgbm = std::move(_vimgs[0]);
+                if(rnd.get_random_float() > 0.0f) {
+                   dlib::randomly_jitter_image(_drgbm,_vimgs,rnd.get_integer(LONG_MAX),1,0,0,1.0,0.02,10);
                     _drgbm = std::move(_vimgs[0]);
+                    dlib::disturb_colors(_drgbm,rnd);
                 }
-                if(rnd.get_random_float() > 0.1f) {
+                /*if(rnd.get_random_float() > 0.1f) {
                     dlib::randomly_cutout_rect(_drgbm,_vimgs,rnd,1,0.1,0.1);
                     _drgbm = std::move(_vimgs[0]);
-                }
+                }*/
                 cv::imshow("Probe", dlibmatrix2cvmat<dlib::rgb_pixel>(_drgbm));
                 cv::imshow("Original", _mat);
                 cv::waitKey(0);
