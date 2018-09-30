@@ -61,18 +61,37 @@ void load_mini_batch (
             }
 
             if(_applyaugmentation) { // You might want to do some data augmentation at this point
-                cv::Mat _tmpmat = loadIbgrmatWsize(obj,300,300,true);
+                cv::Mat _tmpmat = loadIbgrmatWsize(obj,360,270,true);
                 if(rnd.get_random_double() > 0.5)
-                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.2,0.03,15,cv::BORDER_REPLICATE);
+                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.17,0.03,13,cv::BORDER_REPLICATE);
                 else
-                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.2,0.03,11,cv::BORDER_REFLECT);
-                matrix<rgb_pixel> _dlibimgmatrix = std::move(cvmat2dlibmatrix<rgb_pixel>(_tmpmat));
-                if(rnd.get_random_double() > 0.1) {
+                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.17,0.03,13,cv::BORDER_REFLECT);
+
+                if(rnd.get_random_float() > 0.1f)
+                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float());
+
+                if(rnd.get_random_float() > 0.5f)
+                    cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
+
+                if(rnd.get_random_float() > 0.1f)
+                    for(int y = 0; y < _tmpmat.rows; ++y) {
+                        unsigned char *_p = _tmpmat.ptr<unsigned char>(y);
+                        for(int x = 0; x < _tmpmat.cols; ++x) {
+                            float _m = (1.0f - std::abs(y - _tmpmat.rows/2.0f)/(_tmpmat.rows/2.0f));
+                            _m *= _m;
+                            _p[3*x]   *= _m;
+                            _p[3*x+1] *= _m;
+                            _p[3*x+2] *= _m;
+                        }
+                    }
+
+                matrix<rgb_pixel> _dlibimgmatrix = cvmat2dlibmatrix<rgb_pixel>(_tmpmat);
+                if(rnd.get_random_double() > 0.0) {
                     disturb_colors(_dlibimgmatrix, rnd);
                 }
                 images.push_back(std::move(_dlibimgmatrix));
             } else {
-                images.push_back(std::move(load_rgb_image_with_fixed_size(obj,300,300,true)));
+                images.push_back(load_rgb_image_with_fixed_size(obj,360,270,true));
             }
             labels.push_back(id);
         }
@@ -134,9 +153,9 @@ int main(int argc, char** argv) try
     for(int n = 0; n < cmdparser.get<int>("number"); ++n) {
         cout << "\nNET #" << n << "\n------------------------------------------------------" << endl;
 
-        auto objstrain = std::move(load_objects_list(cmdparser.get<std::string>("traindirpath")));
-        auto objsvalid = std::move(load_objects_list(cmdparser.get<std::string>("validdirpath")));
-        auto objstest =  std::move(load_objects_list(cmdparser.get<std::string>("testdirpath")));
+        auto objstrain = load_objects_list(cmdparser.get<std::string>("traindirpath"));
+        auto objsvalid = load_objects_list(cmdparser.get<std::string>("validdirpath"));
+        auto objstest =  load_objects_list(cmdparser.get<std::string>("testdirpath"));
 
         cout << "train objs.size(): "<< objstrain.size() << endl;
         cout << "valid objs.size(): "<< objsvalid.size() << endl;
@@ -147,10 +166,11 @@ int main(int argc, char** argv) try
 
         net_type net;
 
-        dnn_trainer<net_type> trainer(net, sgd(0.0005, 0.9));
+        dnn_trainer<net_type> trainer(net, sgd(0.0001f, 0.9f));
         trainer.set_learning_rate(0.1);
         trainer.be_verbose();
         trainer.set_synchronization_file(cmdparser.get<std::string>("outputdirpath") + std::string("/metric_sync_") + std::to_string(n), std::chrono::minutes(10));
+        trainer.set_learning_rate(0.001);
         trainer.set_iterations_without_progress_threshold(cmdparser.get<unsigned int>("swptrain"));
         trainer.set_test_iterations_without_progress_threshold(cmdparser.get<unsigned int>("swpvalid"));
 
@@ -159,15 +179,15 @@ int main(int argc, char** argv) try
         dlib::pipe<std::vector<unsigned long>> qlabelstrain(4);
         auto traindata_loader = [&qimagestrain, &qlabelstrain, &objstrain](time_t seed)
         {
-           dlib::rand rnd(time(0)+seed);
-           cv::RNG    cvrnd(time(0)+seed);
+           dlib::rand rnd(time(nullptr)+seed);
+           cv::RNG    cvrnd(static_cast<uint64_t>(time(nullptr)+seed));
            std::vector<matrix<rgb_pixel>> images;
            std::vector<unsigned long> labels;
            while(qimagestrain.is_enabled())
            {
                try
                {
-                   load_mini_batch(15, 11, rnd, cvrnd, objstrain, images, labels, true);
+                   load_mini_batch(22, 7, rnd, cvrnd, objstrain, images, labels, true);
                    qimagestrain.enqueue(images);
                    qlabelstrain.enqueue(labels);
                }
@@ -190,15 +210,15 @@ int main(int argc, char** argv) try
         dlib::pipe<std::vector<unsigned long>> qlabelsvalid(2);
         auto validdata_loader = [&qimagesvalid, &qlabelsvalid, &objsvalid](time_t seed)
         {
-           dlib::rand rnd(time(0)+seed);
-           cv::RNG    cvrnd(time(0)+seed);
+           dlib::rand rnd(time(nullptr)+seed);
+           cv::RNG    cvrnd(static_cast<uint64_t>(time(nullptr)+seed));
            std::vector<matrix<rgb_pixel>> images;
            std::vector<unsigned long> labels;
            while(qimagesvalid.is_enabled())
            {
                try
                {
-                   load_mini_batch(15, 11, rnd, cvrnd, objsvalid, images, labels, false);
+                   load_mini_batch(16, 6, rnd, cvrnd, objsvalid, images, labels, false);
                    qimagesvalid.enqueue(images);
                    qlabelsvalid.enqueue(labels);
                }
@@ -221,7 +241,7 @@ int main(int argc, char** argv) try
            qimagestrain.dequeue(imagestrain);
            qlabelstrain.dequeue(labelstrain);
            trainer.train_one_step(imagestrain, labelstrain);
-           if((_step % 5) == 0) {
+           if((_step % 4) == 0) {
                qimagesvalid.dequeue(imagesvalid);
                qlabelsvalid.dequeue(labelsvalid);
                trainer.test_one_step(imagesvalid, labelsvalid);
@@ -285,7 +305,7 @@ int main(int argc, char** argv) try
         cout << "accuracy: "<< _accuracy << endl;
 
         cout << "Test set:" << endl;
-        load_mini_batch(22, 4, rnd, cvrnd, objstest, imagesvalid, labelsvalid, false);
+        load_mini_batch(22, 6, rnd, cvrnd, objstest, imagesvalid, labelsvalid, false);
         // Run all the images through the network to get their vector embeddings.
         embedded = testing_net(imagesvalid);
         // Now, check if the embedding puts images with the same labels near each other and
@@ -322,6 +342,7 @@ int main(int argc, char** argv) try
         // Save the network to disk
         serialize(cmdparser.get<std::string>("outputdirpath") + std::string("/net_") + std::to_string(n) + std::string("_(TA_") + std::to_string(_accuracy) + std::string(").dat")) << net;
     }
+	return 0;
 }
 catch(std::exception& e)
 {

@@ -20,46 +20,42 @@ template <int N, typename SUBNET> using ares      = relu<residual<block,N,affine
 template <int N, typename SUBNET> using res_down  = relu<residual_down<block,N,bn_con,SUBNET>>;
 template <int N, typename SUBNET> using ares_down = relu<residual_down<block,N,affine,SUBNET>>;
 // ----------------------------------------------------------------------------------------
-#define FNUM 16
-template <typename SUBNET> using level0 = res_down<FNUM*8,SUBNET>;
-template <typename SUBNET> using level1 = res<FNUM*7,SUBNET>;
-template <typename SUBNET> using level2 = res<FNUM*6,res_down<FNUM*6,SUBNET>>;
-template <typename SUBNET> using level3 = res<FNUM*5,res_down<FNUM*5,SUBNET>>;
-template <typename SUBNET> using level4 = res<FNUM*4,res_down<FNUM*4,SUBNET>>;
-template <typename SUBNET> using level5 = res<FNUM*3,res_down<FNUM*3,SUBNET>>;
-template <typename SUBNET> using level6 = res<FNUM*2,res_down<FNUM*2,SUBNET>>;
+#define FNUM 32
+template <typename SUBNET> using level1 = res_down<FNUM*6,SUBNET>;
+template <typename SUBNET> using level2 = res<FNUM*5,res_down<FNUM*5,SUBNET>>;
+template <typename SUBNET> using level3 = res<FNUM*4,res_down<FNUM*4,SUBNET>>;
+template <typename SUBNET> using level4 = res<FNUM*3,res_down<FNUM*3,SUBNET>>;
+template <typename SUBNET> using level5 = res<FNUM*2,res_down<FNUM*2,SUBNET>>;
+template <typename SUBNET> using level6 = res<FNUM,res_down<FNUM,SUBNET>>;
 
-template <typename SUBNET> using alevel0 = ares_down<FNUM*8,SUBNET>;
-template <typename SUBNET> using alevel1 = ares<FNUM*7,SUBNET>;
-template <typename SUBNET> using alevel2 = ares<FNUM*6,ares_down<FNUM*6,SUBNET>>;
-template <typename SUBNET> using alevel3 = ares<FNUM*5,ares_down<FNUM*5,SUBNET>>;
-template <typename SUBNET> using alevel4 = ares<FNUM*4,ares_down<FNUM*4,SUBNET>>;
-template <typename SUBNET> using alevel5 = ares<FNUM*3,ares_down<FNUM*3,SUBNET>>;
-template <typename SUBNET> using alevel6 = ares<FNUM*2,ares_down<FNUM*2,SUBNET>>;
+template <typename SUBNET> using alevel1 = ares_down<FNUM*6,SUBNET>;
+template <typename SUBNET> using alevel2 = ares<FNUM*5,ares_down<FNUM*5,SUBNET>>;
+template <typename SUBNET> using alevel3 = ares<FNUM*4,ares_down<FNUM*4,SUBNET>>;
+template <typename SUBNET> using alevel4 = ares<FNUM*3,ares_down<FNUM*3,SUBNET>>;
+template <typename SUBNET> using alevel5 = ares<FNUM*2,ares_down<FNUM*2,SUBNET>>;
+template <typename SUBNET> using alevel6 = ares<FNUM,ares_down<FNUM,SUBNET>>;
 // training network type
-using net_type = loss_metric<fc_no_bias<128,avg_pool_everything<
-                            level0<
+using net_type = loss_metric<fc_no_bias<128,avg_pool_everything<                            
                             level1<
                             level2<
                             level3<
                             level4<
                             level5<
                             level6<
-                            relu<bn_con<con<FNUM,5,5,2,2,
+                            relu<bn_con<con<FNUM,7,7,2,2,
                             input_rgb_image
-                            >>>>>>>>>>>>>;
+                            >>>>>>>>>>>>;
 
 // testing network type (replaced batch normalization with fixed affine transforms)
 using anet_type = loss_metric<fc_no_bias<128,avg_pool_everything<
-                            alevel0<
                             alevel1<
                             alevel2<
                             alevel3<
                             alevel4<
                             alevel5<
                             alevel6<
-                            relu<affine<con<FNUM,5,5,2,2,
+                            relu<affine<con<FNUM,7,7,2,2,
                             input_rgb_image
-                            >>>>>>>>>>>>>;
+                            >>>>>>>>>>>>;
 
 #endif // CUSTOMNETWORK_H
