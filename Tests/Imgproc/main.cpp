@@ -32,16 +32,7 @@ int main(int argc, char *argv[])
         if(_mat.empty() == false) {           
             for(int j = 0; j < 10; ++j) {
                 cv::Mat _tmpmat = jitterimage(_mat,cvrng,cv::Size(0,0),0.17,0.02,15,cv::BORDER_REPLICATE);
-                if(rnd.get_random_float() > 0.5f) {
-                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),0);
-                } else {
-                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),1);
-                }
-                if(rnd.get_random_float() > 0.5f) {
-                    _tmpmat = cutoutRect(_tmpmat,1,rnd.get_random_float());
-                } else {
-                    _tmpmat = cutoutRect(_tmpmat,0,rnd.get_random_float());
-                }
+                _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.15f,0.15f);
                 cv::imshow("Probe", _tmpmat);
                 cv::imshow("Original", _mat);
                 cv::waitKey(0);

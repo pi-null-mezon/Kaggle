@@ -3,6 +3,8 @@
 
 #include <opencv2/core.hpp>
 #include <opencv2/imgproc.hpp>
+#include <opencv2/imgcodecs.hpp>
+
 
 /**
  * @brief Makes image copy with the cutout rectangle on top, color of the cutout region equals to mean color of the input image
@@ -133,9 +135,9 @@ cv::Mat distortimage(const cv::Mat&_inmat, cv::RNG &_cvrng, double _maxportion=0
     return _outmat;
 }
 
-cv::Mat loadIbgrmatWsize(std::string _filename, int _tcols, int _trows, bool _crop, bool *_isloadded=0)
+cv::Mat loadIbgrmatWsize(std::string _filename, int _tcols, int _trows, bool _crop, bool *_isloadded=nullptr)
 {
-    cv::Mat _originalimgmat = cv::imread(_filename, CV_LOAD_IMAGE_COLOR);
+    cv::Mat _originalimgmat = cv::imread(_filename, cv::IMREAD_COLOR);
     if(_isloadded)
         *_isloadded = !_originalimgmat.empty();
 

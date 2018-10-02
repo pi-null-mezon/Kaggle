@@ -63,17 +63,24 @@ void load_mini_batch (
             if(_applyaugmentation) { // You might want to do some data augmentation at this point
                 cv::Mat _tmpmat = loadIbgrmatWsize(obj,360,270,true);
                 if(rnd.get_random_double() > 0.5)
-                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.17,0.03,13,cv::BORDER_REPLICATE);
+                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.2,0.03,13,cv::BORDER_REPLICATE);
                 else
-                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.17,0.03,13,cv::BORDER_REFLECT);
-
-                if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float());
+                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.2,0.03,13,cv::BORDER_REFLECT);
 
                 if(rnd.get_random_float() > 0.5f)
-                    cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
+                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),0);
+                else
+                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),1);
 
-                if(rnd.get_random_float() > 0.1f)
+                if(rnd.get_random_float() > 0.5f)
+                    _tmpmat = cutoutRect(_tmpmat,0,rnd.get_random_float(),0.3f);
+                else
+                    _tmpmat = cutoutRect(_tmpmat,1,rnd.get_random_float(),0.3f);
+
+                /*if(rnd.get_random_float() > 0.5f)
+                    cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));*/
+
+                /*if(rnd.get_random_float() > 0.1f)
                     for(int y = 0; y < _tmpmat.rows; ++y) {
                         unsigned char *_p = _tmpmat.ptr<unsigned char>(y);
                         for(int x = 0; x < _tmpmat.cols; ++x) {
@@ -83,7 +90,7 @@ void load_mini_batch (
                             _p[3*x+1] *= _m;
                             _p[3*x+2] *= _m;
                         }
-                    }
+                    }*/
 
                 matrix<rgb_pixel> _dlibimgmatrix = cvmat2dlibmatrix<rgb_pixel>(_tmpmat);
                 if(rnd.get_random_double() > 0.0) {
@@ -166,11 +173,10 @@ int main(int argc, char** argv) try
 
         net_type net;
 
-        dnn_trainer<net_type> trainer(net, sgd(0.0001f, 0.9f));
+        dnn_trainer<net_type> trainer(net, sgd(0.0005f, 0.9f));
         trainer.set_learning_rate(0.1);
         trainer.be_verbose();
-        trainer.set_synchronization_file(cmdparser.get<std::string>("outputdirpath") + std::string("/metric_sync_") + std::to_string(n), std::chrono::minutes(10));
-        trainer.set_learning_rate(0.001);
+        trainer.set_synchronization_file(cmdparser.get<std::string>("outputdirpath") + std::string("/metric_sync_") + std::to_string(n), std::chrono::minutes(2));
         trainer.set_iterations_without_progress_threshold(cmdparser.get<unsigned int>("swptrain"));
         trainer.set_test_iterations_without_progress_threshold(cmdparser.get<unsigned int>("swpvalid"));
 
@@ -187,7 +193,7 @@ int main(int argc, char** argv) try
            {
                try
                {
-                   load_mini_batch(22, 7, rnd, cvrnd, objstrain, images, labels, true);
+                   load_mini_batch(13, 13, rnd, cvrnd, objstrain, images, labels, true);
                    qimagestrain.enqueue(images);
                    qlabelstrain.enqueue(labels);
                }
@@ -218,7 +224,7 @@ int main(int argc, char** argv) try
            {
                try
                {
-                   load_mini_batch(16, 6, rnd, cvrnd, objsvalid, images, labels, false);
+                   load_mini_batch(13, 13, rnd, cvrnd, objsvalid, images, labels, false);
                    qimagesvalid.enqueue(images);
                    qlabelsvalid.enqueue(labels);
                }
@@ -267,7 +273,7 @@ int main(int argc, char** argv) try
         dlib::rand rnd(2308);
         cv::RNG    cvrnd(2308);
         cout << "Validation subset:" << endl;
-        load_mini_batch(16, 11, rnd, cvrnd, objstest, imagesvalid, labelsvalid, false);
+        load_mini_batch(13, 13, rnd, cvrnd, objstest, imagesvalid, labelsvalid, false);
         // Let's acquire a non-batch-normalized version of the network
         anet_type testing_net = net;
         // Run all the images through the network to get their vector embeddings.
@@ -305,7 +311,7 @@ int main(int argc, char** argv) try
         cout << "accuracy: "<< _accuracy << endl;
 
         cout << "Test set:" << endl;
-        load_mini_batch(22, 6, rnd, cvrnd, objstest, imagesvalid, labelsvalid, false);
+        load_mini_batch(13, 6, rnd, cvrnd, objstest, imagesvalid, labelsvalid, false);
         // Run all the images through the network to get their vector embeddings.
         embedded = testing_net(imagesvalid);
         // Now, check if the embedding puts images with the same labels near each other and
