@@ -40,7 +40,7 @@ fig = figure
     end
    
 disp('Saving plot on hard drive as png file...'); 
-set(fig, 'PaperUnits', 'inches', 'PaperPosition', [0 0 1920 1080]/800);
-print(fig, [directory, '/tsne_graph.png'], '-dpng', '-r800');
+set(fig, 'PaperUnits', 'inches', 'PaperPosition', [0 0 7680 4320]/300);
+print(fig, [directory, '/tsne_graph.png'], '-dpng', '-r300');
 close(fig);
 disp('Work has been finished');

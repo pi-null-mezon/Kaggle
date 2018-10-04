@@ -11,7 +11,8 @@ include($${PWD}/../../../Shared/opencv.pri)
 HEADERS += \
     $${PWD}/../../../Shared/dlibimgaugment/dlibimgaugment.h \
     $${PWD}/../../../Shared/opencvimgaugment/opencvimgaugment.h \
-    $${PWD}/../../../Shared/dlibopencvconverter/dlibopencvconverter.h
+    $${PWD}/../../../Shared/dlibopencvconverter/dlibopencvconverter.h \
+    customnetwork.h
 
 INCLUDEPATH += $${PWD}/../../../Shared/dlibimgaugment \
                $${PWD}/../../../Shared/opencvimgaugment \
