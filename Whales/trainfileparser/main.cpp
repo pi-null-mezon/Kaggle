@@ -23,36 +23,29 @@ int main(int argc, char *argv[])
         _file.readLine(); // Drop first line with header
     }
 
-    QDir _outputdir;
-    qInfo() << "Start files coping:";
+
+    qInfo() << "Input file parsing...";
+    QMap<QString,QString> _labelsmap; // label to filename
     while(!_file.atEnd()) {
         QString _strline = _file.readLine();
-        QString _targetdirname = QString(_outputdirname).append(QString("/%1").arg(_strline.section(',',1).simplified()));
-        _outputdir.mkpath(_targetdirname);
-        QString _filename = _strline.section(',',0,0);
-        if(QFile::copy(QString(_inputdirname).append(QString("/%1").arg(_filename)),
-                       _targetdirname.append(QString("/%1").arg(_filename)))) {
-            qInfo() << _filename << " has been copied to the target location";
-        }
+        _labelsmap.insertMulti(_strline.section(',',1).simplified(),_strline.section(',',0,0));
     }
 
-    /*_outputdir = QDir(argv[3]); // need to be reinit in (for Linux)
-    QStringList _subdirs = _outputdir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
-    qInfo() << "Subdirs in outputdir (" << _outputdir.absolutePath() << "): " << _subdirs.size();
-    for(int i = 0; i < _subdirs.size(); ++i) {
-        QDir _tmpdir(_outputdir.absolutePath().append("/%1").arg(_subdirs.at(i)));
-        auto _files = _tmpdir.entryList(QDir::Files | QDir::NoDotAndDotDot);
-        qInfo() << "Files in " << _tmpdir.absolutePath() << _files.size();
-        if(_files.size() < 4) {
+    QDir _outputdir(_outputdirname);
+    QDir _inputdir(_inputdirname);
+    QStringList _labels = _labelsmap.uniqueKeys();
+    for(int i = 0; i < _labels.size(); ++i) {
+        int _count = _labelsmap.count(_labels.at(i));
+        if(_count > 3) {
+            qInfo("  label %s - %d instances", _labels.at(i).toUtf8().constData(), _count);
+            _outputdir.mkdir(_labels.at(i));
+            QStringList _files = _labelsmap.values(_labels.at(i));
             for(int j = 0; j < _files.size(); ++j) {
-                QFile::remove(_tmpdir.absoluteFilePath(_files.at(j)));
+                QFile::copy(_inputdir.absoluteFilePath(_files.at(j)),
+                            _outputdir.absolutePath().append("/%1/%2").arg(_labels.at(i),_files.at(j)));
             }
-            bool _res = _outputdir.rmdir(_subdirs.at(i));
-            if(_res == false)
-                qInfo() << "Can not remove!";
         }
-    }*/
-
-    qInfo() << "All tasks have been accomplished";
+    }
+    qInfo() << "File copying has been accomplished";
     return 0;
 }
