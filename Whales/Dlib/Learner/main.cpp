@@ -97,14 +97,11 @@ void load_mini_batch (
                     _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.13,0.07,13,cv::BORDER_REFLECT);
 
                 if(rnd.get_random_float() > 0.1f) {
-                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),0);
-                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),1);
+                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float());
                 }
 
                 matrix<rgb_pixel> _dlibimgmatrix = cvmat2dlibmatrix<rgb_pixel>(_tmpmat);
-                if(rnd.get_random_double() > 0.0) {
-                    disturb_colors(_dlibimgmatrix, rnd);
-                }
+                disturb_colors(_dlibimgmatrix, rnd);
                 images.push_back(std::move(_dlibimgmatrix));
             } else {
                 images.push_back(load_rgb_image_with_fixed_size(obj,500,200,true));
@@ -148,10 +145,11 @@ int main(int argc, char** argv)
 
     net_type net;
 
-    dnn_trainer<net_type> trainer(net, sgd(0.0005, 0.9));
+    dnn_trainer<net_type> trainer(net, sgd(0.0005f, 0.9f));
     trainer.set_learning_rate(0.1);
     trainer.be_verbose();
     trainer.set_synchronization_file("whales_metric_sync", std::chrono::minutes(10));
+    trainer.set_learning_rate(0.01);
 
     // I've set this to something really small to make the example terminate
     // sooner.  But when you really want to train a good model you should set
@@ -168,8 +166,8 @@ int main(int argc, char** argv)
     dlib::pipe<std::vector<unsigned long>> qlabels(4);
     auto data_loader = [&qimages, &qlabels, &trainobjs](time_t seed)
     {
-        dlib::rand rnd(time(0)+seed);
-        cv::RNG cvrng(time(0)+seed);
+        dlib::rand rnd(time(nullptr)+seed);
+        cv::RNG cvrng(static_cast<uint64_t>(time(nullptr) + seed));
         std::vector<matrix<rgb_pixel>> images;
         std::vector<unsigned long> labels;
         while(qimages.is_enabled())
@@ -198,8 +196,8 @@ int main(int argc, char** argv)
     dlib::pipe<std::vector<unsigned long>> testqlabels(1);
     auto testdata_loader = [&testqimages, &testqlabels, &testobjs](time_t seed)
     {
-        dlib::rand rnd(time(0)+seed);
-        cv::RNG cvrng(time(0)+seed);
+        dlib::rand rnd(time(nullptr)+seed);
+        cv::RNG cvrng(static_cast<uint64_t>(time(nullptr) + seed));
         std::vector<matrix<rgb_pixel>> images;
         std::vector<unsigned long> labels;
         while(testqimages.is_enabled())
@@ -244,7 +242,7 @@ int main(int argc, char** argv)
 
     // Save the network to disk
     net.clean();
-    serialize("whales_metric_network_resnet.dat") << net;
+    serialize("dlib_resnet_metric_flukes.dat") << net;
 
     // stop all the data loading threads and wait for them to terminate.
     qimages.disable();
@@ -258,8 +256,8 @@ int main(int argc, char** argv)
 
     // Now, just to show an example of how you would use the network, let's check how well
     // it performs on the training data.
-    dlib::rand rnd(time(0));
-    cv::RNG cvrng(time(0));
+    dlib::rand rnd(time(nullptr));
+    cv::RNG cvrng(static_cast<uint64_t>(time(nullptr)));
     load_mini_batch(80, 2, rnd, cvrng, testobjs, images, labels, false);
 
     // Normally you would use the non-batch-normalized version of the network to do
@@ -296,7 +294,7 @@ int main(int argc, char** argv)
             }
         }
     }
-    cout << "Test accuracy: " << (float)num_right / (num_right+num_wrong);
+    cout << "Test accuracy: " << static_cast<float>(num_right) / (num_right+num_wrong) << endl;
     cout << "num_right: "<< num_right << endl;
     cout << "num_wrong: "<< num_wrong << endl;
 

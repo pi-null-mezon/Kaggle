@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
     }
     QTextStream _ts(&_qfile);
 
-    auto _ptr = cv::imgrec::createDlibWhalesRecognizer(_recmodelfilename.toUtf8().constData());
+    auto _ptr = cv::oirt::createDlibWhalesRecognizer(_recmodelfilename.toUtf8().constData());
     _ptr->ImageRecognizer::load(_labelsfilename.toUtf8().constData());
     if(_ptr->empty()) {
         qWarning("No labels has been loaded from %s! Abort...", _labelsfilename.toUtf8().constData());
@@ -78,26 +78,11 @@ int main(int argc, char *argv[])
     cv::RNG _cvrng(0);
     for(int i = 0; i < _fileslist.size(); ++i) {       
         _ts << "\n" << _fileslist.at(i) << ',';
-        cv::Mat _cvmat = std::move(cv::imread(_qdir.absoluteFilePath(_fileslist.at(i)).toUtf8().constData()));
-
-        /*double _distance = DBL_MAX;
-        int _lbl = -1;
-        int _attempts = 0, _maxattempts = 11;
-        while((_distance > 0.53) && (_attempts < _maxattempts)) {
-            _ptr->predict(jitterimage(_cvmat,_cvrng,cv::Size(0,0),0.5,0.05,11.0), _lbl, _distance);
-            _attempts++;
-        }
-        if(_attempts < _maxattempts) {
-            _ts << ' ' << _ptr->getLabelInfo(_lbl).c_str() << " new_whale";
-        } else {
-            _ts << " new_whale new_whale";
-            _ts.flush();
-        }*/
-
+        cv::Mat _cvmat = cv::imread(_qdir.absoluteFilePath(_fileslist.at(i)).toUtf8().constData());
         auto _vpredictions = _ptr->recognize(_cvmat,true);
         if(_vpredictions.size() > 4) {
             for(size_t j = 0; j < 5; j++) {
-                if(_vpredictions[j].second < 0.53) {
+                if(_vpredictions[j].second < 0.50) {
                     _ts << ' ' << _ptr->getLabelInfo(_vpredictions[j].first).c_str();
                 } else {
                     _ts << " new_whale";

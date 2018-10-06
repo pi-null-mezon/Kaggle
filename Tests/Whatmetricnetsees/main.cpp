@@ -13,8 +13,8 @@ const cv::String keys =  "{image i |    | filename of the image to be processed}
                          "{model m |    | filename of the model weights}"
                          "{irows   |    | input network rows}"
                          "{icols   |    | input network cols}"
-                         "{rows r  | 20 | target number of horizontal steps}"
-                         "{cols c  | 20 | target number of vertical steps}"
+                         "{rows r  | 30 | target number of horizontal steps}"
+                         "{cols c  | 60 | target number of vertical steps}"
                          "{help h  |    | this help}";
 
 int main(int argc, char ** argv) try
@@ -50,7 +50,7 @@ int main(int argc, char ** argv) try
         return 3;
     }
 
-    anet_type net;
+    dlib::anet_type net;
     dlib::deserialize(_cmd.get<string>("model")) >> net;
 
     // Let's make matrices for predictions
@@ -66,7 +66,7 @@ int main(int argc, char ** argv) try
         }
     }
     cout << "Inference..." << endl;
-    std::vector<matrix<float,0,1>> embedded = net(_dlibmatrices);
+    std::vector<dlib::matrix<float,0,1>> embedded = net(_dlibmatrices);
     _dlibmatrices.clear();
     _dlibmatrices.shrink_to_fit();
 
