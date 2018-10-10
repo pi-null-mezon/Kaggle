@@ -6,14 +6,6 @@
 using namespace std;
 using namespace dlib;
 //-----------------------------------------------------------------------------------------
-std::map<std::string,std::vector<std::string>> labels;
-
-loss_multimulticlass_log_ custom_multimulticlass_loss(labels);
-
-template <typename SUBNET>
-using loss_custom = add_loss_layer<custom_multimulticlass_loss, SUBNET>;
-
-//-----------------------------------------------------------------------------------------
 template <template <int,template<typename>class,int,typename> class block, int N, template<typename>class BN, typename SUBNET>
 using residual = add_prev1<block<N,BN,1,tag1<SUBNET>>>;
 
@@ -41,21 +33,21 @@ template <typename SUBNET> using alevel4 = ares_down<8*FNUM,SUBNET>;
 template <typename SUBNET> using alevel5 = ares<4*FNUM,ares_down<4*FNUM,SUBNET>>;
 template <typename SUBNET> using alevel6 = ares<2*FNUM,ares<2*FNUM,ares_down<2*FNUM,SUBNET>>>;
 // training network type
-using net_type = loss_custom<   fc_no_bias<32,avg_pool_everything<
-                                        level4<
-                                        level5<
-                                        level6<
-                                        max_pool<3,3,2,2,relu<bn_con<con<FNUM,7,7,2,2,
-                                        input_rgb_image
-                                        >>>>>>>>>>;
+using net_type =    loss_multimulticlass_log<fc<1,avg_pool_everything<
+                            level4<
+                            level5<
+                            level6<
+                            max_pool<3,3,2,2,relu<bn_con<con<FNUM,7,7,2,2,
+                            input<matrix<float>>
+                            >>>>>>>>>>;
 
 // testing network type (replaced batch normalization with fixed affine transforms)
-using anet_type = loss_custom<  fc_no_bias<32,avg_pool_everything<
-                                        alevel4<
-                                        alevel5<
-                                        alevel6<
-                                        max_pool<3,3,2,2,relu<affine<con<FNUM,7,7,2,2,
-                                        input_rgb_image
-                                        >>>>>>>>>>;
+using anet_type =   loss_multimulticlass_log<fc<1,avg_pool_everything<
+                            alevel4<
+                            alevel5<
+                            alevel6<
+                            max_pool<3,3,2,2,relu<affine<con<FNUM,7,7,2,2,
+                            input<matrix<float>>
+                            >>>>>>>>>>;
 
 #endif // CUSTOMNETWORK_H
