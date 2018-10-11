@@ -18,10 +18,10 @@ using namespace dlib;
 
 const cv::String keys =
    "{help h           |        | app help}"
-   "{classes          |   28   | number of classes (each class has two possible outcomes 'y', 'n')}"
+   "{classes          |   2    | number of classes (each class has two possible outcomes 'y', 'n')}"
    "{traindir t       |        | training directory location}"
    "{outputdir o      |        | output directory location}"
-   "{validportion v   |  0.25  | output directory location}"
+   "{validportion v   |  0.50  | output directory location}"
    "{number n         |   1    | number of classifiers to be trained}"
    "{swptrain         | 5000   | determines after how many steps without progress (training loss) decay should be applied to learning rate}"
    "{swpvalid         | 1000   | determines after how many steps without progress (test loss) decay should be applied to learning rate}"
@@ -109,15 +109,29 @@ int main(int argc, char** argv) try
         auto traindata_load = [&trainpipe,&_trainingset](time_t seed)
         {
             dlib::rand rnd(time(nullptr)+seed);
+            cv::RNG    cvrng(time(nullptr)+seed);
             std::pair<std::map<std::string,std::string>,dlib::matrix<float>> _sample;
             size_t _pos;
             bool _training_file_loaded = false;
+            cv::Mat _tmpmat;
             while(trainpipe.is_enabled())
             {
                 _pos = rnd.get_random_32bit_number() % _trainingset.size();
                 _sample.first = _trainingset[_pos].second;
-                _sample.second = load_grayscale_image_with_normalization(_trainingset[_pos].first,512,512,false,&_training_file_loaded);
+                _tmpmat = loadIgraymatWsizeCN(_trainingset[_pos].first,128,156,false,&_training_file_loaded);
                 assert(_training_file_loaded);
+                if(rnd.get_random_float() > 0.5) {
+                    cv::flip(_tmpmat,_tmpmat,0);
+                }
+                if(rnd.get_random_float() > 0.5) {
+                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.1,0.05,15.0,cv::BORDER_REPLICATE);
+                } else {
+                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.1,0.05,15.0,cv::BORDER_REFLECT);
+                }
+                if(rnd.get_random_float() > 0.1) {
+                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float());
+                }
+                _sample.second = cvmat2dlibmatrix<float>(_tmpmat);
                 trainpipe.enqueue(_sample);
             }
         };
@@ -136,7 +150,7 @@ int main(int argc, char** argv) try
             {
                 _pos = rnd.get_random_32bit_number() % _validationset.size();
                 _sample.first = _validationset[_pos].second;
-                _sample.second = load_grayscale_image_with_normalization(_validationset[_pos].first,512,512,false,&_validation_file_loaded);
+                _sample.second = load_grayscale_image_with_normalization(_validationset[_pos].first,128,156,false,&_validation_file_loaded);
                 assert(_validation_file_loaded);
                 validpipe.enqueue(_sample);
             }
@@ -153,7 +167,7 @@ int main(int argc, char** argv) try
             _timages.clear();
             _tlabels.clear();
             std::pair<std::map<std::string,std::string>,dlib::matrix<float>> _sample;
-            while(_timages.size() < 32) { // minibatch size
+            while(_timages.size() < 56) { // minibatch size
                 trainpipe.dequeue(_sample);
                 _tlabels.push_back(_sample.first);
                 _timages.push_back(std::move(_sample.second));
@@ -163,7 +177,7 @@ int main(int argc, char** argv) try
             if((_steps % 4) == 0) {
                 _vimages.clear();
                 _vlabels.clear();
-                while(_vimages.size() < 32) { // minibatch size
+                while(_vimages.size() < 56) { // minibatch size
                     validpipe.dequeue(_sample);
                     _vlabels.push_back(_sample.first);
                     _vimages.push_back(std::move(_sample.second));
@@ -190,7 +204,7 @@ int main(int argc, char** argv) try
         _subset.reserve(_validationset.size());
         // Let's load portion of validation data
         for(size_t i = 0; i < _validationset.size(); ++i) {
-            if(_rnd.get_random_float() < 0.01)
+            if(_rnd.get_random_float() < 1.0f)
                 _subset.push_back(_validationset[i]);
         }
         _vimages.clear();
@@ -198,7 +212,7 @@ int main(int argc, char** argv) try
         _vlabels.clear();
         _vlabels.reserve(_subset.size());
         for(size_t i = 0; i < _subset.size(); ++i) {
-            _vimages.push_back(load_grayscale_image_with_normalization(_subset[i].first,512,512,false));
+            _vimages.push_back(load_grayscale_image_with_normalization(_subset[i].first,128,156,false));
             _vlabels.push_back(_subset[i].second);
         }
         std::vector<std::map<std::string,dlib::loss_multimulticlass_log_::classifier_output>> _predictions = net(_vimages);
@@ -260,7 +274,7 @@ void loadData(unsigned int _classes, const QString &_trainfilename, const QStrin
     while(!_file.atEnd()) {
         QString _line = _file.readLine();
         if(_line.contains(',')) {
-            std::string _filename = QString("%1/%2_green.%3").arg(_traindirname,_line.section(',',0,0),_extension).toStdString();
+            std::string _filename = QString("%1/%2.%3").arg(_traindirname,_line.section(',',0,0),_extension).toStdString();
             //qInfo("filename: %s", _filename.c_str());
             std::map<std::string,std::string> _lbls;
             for(unsigned int i = 0; i < _classes; ++i) // https://www.kaggle.com/c/human-protein-atlas-image-classification/data

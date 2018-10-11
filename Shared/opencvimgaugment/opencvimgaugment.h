@@ -156,7 +156,7 @@ cv::Mat loadIbgrmatWsize(std::string _filename, int _tcols, int _trows, bool _cr
     return _originalimgmat;
 }
 
-cv::Mat loadGrayMatWsize(std::string _filename, int _tcols, int _trows, bool _crop, bool *_isloadded=nullptr)
+cv::Mat loadIgraymatWsizeCN(std::string _filename, int _tcols, int _trows, bool _crop, bool *_isloadded=nullptr)
 {
     cv::Mat _originalimgmat = cv::imread(_filename, cv::IMREAD_GRAYSCALE);
     if(_isloadded)
@@ -165,16 +165,21 @@ cv::Mat loadGrayMatWsize(std::string _filename, int _tcols, int _trows, bool _cr
     if(_originalimgmat.empty())
         return cv::Mat();
 
-    if(_crop == true)
-        return cropFromCenterAndResize(_originalimgmat,cv::Size(_tcols,_trows));
-
-    if((_originalimgmat.cols != _tcols) || (_originalimgmat.rows != _trows)) {
+    if(_crop == true) {
+        _originalimgmat = cropFromCenterAndResize(_originalimgmat,cv::Size(_tcols,_trows));
+    } else if((_originalimgmat.cols != _tcols) || (_originalimgmat.rows != _trows)) {
         int resizetype = CV_INTER_AREA;
         if(_originalimgmat.cols*_originalimgmat.rows < _tcols*_trows)
             resizetype = CV_INTER_LINEAR;
         cv::resize(_originalimgmat,_originalimgmat,cv::Size(_tcols,_trows),0,0,resizetype);
     }
-    return _originalimgmat;
+
+    _originalimgmat.convertTo(_originalimgmat,CV_32F);
+    cv::Mat _vchannelmean, _vchannelstdev;
+    cv::meanStdDev(_originalimgmat,_vchannelmean,_vchannelstdev);
+    cv::Mat _nmat = (_originalimgmat - _vchannelmean.at<const double>(0)) / (3.0*_vchannelstdev.at<const double>(0));
+
+    return _nmat;
 }
 
 #endif // OPENCVIMGAUGMENT_H

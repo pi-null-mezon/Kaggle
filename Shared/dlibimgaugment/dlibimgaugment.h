@@ -165,7 +165,7 @@ dlib::matrix<float> load_grayscale_image_with_normalization(const std::string& _
     _originalimgmat.convertTo(_originalimgmat,CV_32F);
     cv::Mat _vchannelmean, _vchannelstdev;
     cv::meanStdDev(_originalimgmat,_vchannelmean,_vchannelstdev);
-    cv::Mat _nmat = (_originalimgmat - _vchannelmean.at<const double>(0)) / _vchannelstdev.at<const double>(0);
+    cv::Mat _nmat = (_originalimgmat - _vchannelmean.at<const double>(0)) / (3.0*_vchannelstdev.at<const double>(0));
     return cvmat2dlibmatrix<float>(_nmat);
 }
 
