@@ -18,7 +18,7 @@ using namespace dlib;
 
 const cv::String keys =
    "{help h           |        | app help}"
-   "{classes          |   28   | number of classes (each one will be {'y', 'n'})}"
+   "{classes          |   28   | number of classes (each class has two possible outcomes 'y', 'n')}"
    "{traindir t       |        | training directory location}"
    "{outputdir o      |        | output directory location}"
    "{validportion v   |  0.25  | output directory location}"
@@ -33,6 +33,9 @@ void loadData(unsigned int _classes, const QString &_trainfilename, const QStrin
               dlib::rand &_rnd, float _validationportion,
               std::vector<std::pair<std::string,std::map<std::string,std::string>>> &_vtrainingset,
               std::vector<std::pair<std::string,std::map<std::string,std::string>>> &_vvalidationset);
+
+template<typename R, typename T>
+R computeMacroF1Score(const std::vector<T> &_truepos, const std::vector<T> &_falsepos, const std::vector<T> &_falseneg);
 
 int main(int argc, char** argv) try
 {
@@ -68,6 +71,11 @@ int main(int argc, char** argv) try
     if(!traindir.exists()) {
         qInfo("Training dir does not contain /train subdir! Abort...");
         return 6;
+    }
+    QStringList _filesnames = traindir.entryList(QDir::Files | QDir::NoDotAndDotDot);
+    if(_filesnames.size() == 0) {
+        qInfo("No files has been found in /train subdir! Abort...");
+        return 7;
     }
     // Let's fill our labels map
     auto labelsmap = fillLabelsMap(cmdparser.get<unsigned int>("classes"));
@@ -171,11 +179,9 @@ int main(int argc, char** argv) try
         trainer.get_net();
         net.clean();
         qInfo("Training has been accomplished");
-        // Save the network to disk
-        serialize(cmdparser.get<std::string>("outputdir") + "/dlib_resnet_mmc_" + std::to_string(n) + "_(VL_" + std::to_string(trainer.get_average_test_loss()) + ").dat") << net;
 
         // Now we need check score in terms of macro [F1-score](https://en.wikipedia.org/wiki/F1_score)
-        qInfo("Macro F1 test on validation subset set will be performed");
+        qInfo("Macro F1 test on validation subset set will be performed...");
         std::vector<std::pair<std::string,std::map<std::string,std::string>>> _subset;
         _subset.reserve(_validationset.size());
         // Let's load portion of validation data
@@ -193,20 +199,29 @@ int main(int argc, char** argv) try
         }
         std::vector<std::map<std::string,dlib::loss_multimulticlass_log_::classifier_output>> _predictions = net(_vimages);
 
-        std::vector<float> truepos(net.loss_details().number_of_classifiers(),0.0f);
-        std::vector<float> falsepos(net.loss_details().number_of_classifiers(),0.0f);
-        std::vector<float> falseneg(net.loss_details().number_of_classifiers(),0.0f);
+        std::vector<unsigned int> truepos(net.loss_details().number_of_classifiers(),0);
+        std::vector<unsigned int> falsepos(net.loss_details().number_of_classifiers(),0);
+        std::vector<unsigned int> falseneg(net.loss_details().number_of_classifiers(),0);
 
-        dlib::loss_multimulticlass_log_::classifier_output _output;
+        std::string _predictedlabel, _truelabel, _classname;
         for(size_t i = 0; i < _predictions.size(); ++i) {
             for(size_t j = 0; j < net.loss_details().number_of_classifiers(); ++j) {
-                _output = _predictions[i][std::to_string(j)];
-                if((_vlabels[i][std::to_string(j)]).compare(_output()) == 0 ) { // not equal
+                _classname = std::to_string(j);
+                _predictedlabel = _predictions[i][_classname];
+                _truelabel = _vlabels[i][_classname];
+                if((_truelabel.compare("y") == 0) && (_predictedlabel.compare("y") == 0)) {
                     truepos[j] += 1;
+                } else if((_truelabel.compare("n") == 0) && (_predictedlabel.compare("y") == 0)) {
+                    falsepos[j] += 1;
+                } else if((_truelabel.compare("y") == 0) && (_predictedlabel.compare("n") == 0)) {
+                    falseneg[j] += 1;
                 }
             }
         }
-
+        float _score = computeMacroF1Score<float>(truepos,falsepos,falseneg) ;
+        qInfo("Score: %f", _score);
+        // Save the network to disk
+        serialize(cmdparser.get<std::string>("outputdir") + "/dlib_resnet_mmc_" + std::to_string(n) + "_(Score_" + std::to_string(_score) + ").dat") << net;
     }
 
 	return 0;
@@ -243,7 +258,7 @@ void loadData(unsigned int _classes, const QString &_trainfilename, const QStrin
         std::string _filename = QString("%1/%2_green.%3").arg(_traindirname,_line.section(',',0,0),_extension).toStdString();
         //qInfo("filename: %s", _filename.c_str());
         std::map<std::string,std::string> _lbls;
-        for(int i = 0; i < _classes; ++i) // https://www.kaggle.com/c/human-protein-atlas-image-classification/data
+        for(unsigned int i = 0; i < _classes; ++i) // https://www.kaggle.com/c/human-protein-atlas-image-classification/data
             _lbls[std::to_string(i)] = "n";
         QStringList _lblslist = _line.section(',',1).simplified().split(' ');
         for(int i = 0; i < _lblslist.size(); ++i) {
@@ -264,3 +279,17 @@ void loadData(unsigned int _classes, const QString &_trainfilename, const QStrin
             _vvalidationset.push_back(make_pair(_filename,_lbls));
     }
 }
+
+template<typename R, typename T>
+R computeMacroF1Score(const std::vector<T> &_truepos, const std::vector<T> &_falsepos, const std::vector<T> &_falseneg)
+{
+    R _precision, _recall, _summ = 0;
+    for(size_t i = 0; i < _truepos.size(); ++i) {
+        _precision = static_cast<R>(_truepos[i]) / (_truepos[i] + _falsepos[i]);
+        _recall= static_cast<R>(_truepos[i]) / (_truepos[i] + _falseneg[i]);
+        _summ += (1. / _precision) + (1. / _recall);
+    }
+    return _truepos.size() / _summ;
+}
+
+
