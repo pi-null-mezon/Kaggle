@@ -105,17 +105,19 @@ int main(int argc, char** argv) try
         //set_all_bn_running_stats_window_sizes(net, 1000);
 
         // Load training data
-        dlib::pipe<std::pair<std::map<std::string,std::string>,dlib::matrix<float>>> trainpipe(320);
+        dlib::pipe<std::pair<std::map<std::string,std::string>,dlib::matrix<float>>> trainpipe(128);
         auto traindata_load = [&trainpipe,&_trainingset](time_t seed)
         {
             dlib::rand rnd(time(nullptr)+seed);
             std::pair<std::map<std::string,std::string>,dlib::matrix<float>> _sample;
             size_t _pos;
+            bool _training_file_loaded = false;
             while(trainpipe.is_enabled())
             {
                 _pos = rnd.get_random_32bit_number() % _trainingset.size();
                 _sample.first = _trainingset[_pos].second;
-                _sample.second = load_grayscale_image_with_normalization(_trainingset[_pos].first,512,512,false);
+                _sample.second = load_grayscale_image_with_normalization(_trainingset[_pos].first,512,512,false,&_training_file_loaded);
+                assert(_training_file_loaded);
                 trainpipe.enqueue(_sample);
             }
         };
@@ -123,17 +125,19 @@ int main(int argc, char** argv) try
         std::thread traindata_loader2([traindata_load](){ traindata_load(2); });
         std::thread traindata_loader3([traindata_load](){ traindata_load(3); });
         //Load validation data
-        dlib::pipe<std::pair<std::map<std::string,std::string>,dlib::matrix<float>>> validpipe(320);
+        dlib::pipe<std::pair<std::map<std::string,std::string>,dlib::matrix<float>>> validpipe(128);
         auto validdata_load = [&validpipe, &_validationset](time_t seed)
         {
             dlib::rand rnd(time(nullptr)+seed);
             std::pair<std::map<std::string,std::string>,dlib::matrix<float>> _sample;
             size_t _pos;
+            bool _validation_file_loaded = false;
             while(validpipe.is_enabled())
             {
                 _pos = rnd.get_random_32bit_number() % _validationset.size();
                 _sample.first = _validationset[_pos].second;
-                _sample.second = load_grayscale_image_with_normalization(_validationset[_pos].first,512,512,false);
+                _sample.second = load_grayscale_image_with_normalization(_validationset[_pos].first,512,512,false,&_validation_file_loaded);
+                assert(_validation_file_loaded);
                 validpipe.enqueue(_sample);
             }
         };
@@ -149,7 +153,7 @@ int main(int argc, char** argv) try
             _timages.clear();
             _tlabels.clear();
             std::pair<std::map<std::string,std::string>,dlib::matrix<float>> _sample;
-            while(_timages.size() < 32) { // minibatch size
+            while(_timages.size() < 56) { // minibatch size
                 trainpipe.dequeue(_sample);
                 _tlabels.push_back(_sample.first);
                 _timages.push_back(std::move(_sample.second));
@@ -159,7 +163,7 @@ int main(int argc, char** argv) try
             if((_steps % 4) == 0) {
                 _vimages.clear();
                 _vlabels.clear();
-                while(_timages.size() < 32) { // minibatch size
+                while(_vimages.size() < 56) { // minibatch size
                     validpipe.dequeue(_sample);
                     _vlabels.push_back(_sample.first);
                     _vimages.push_back(std::move(_sample.second));
@@ -186,7 +190,7 @@ int main(int argc, char** argv) try
         _subset.reserve(_validationset.size());
         // Let's load portion of validation data
         for(size_t i = 0; i < _validationset.size(); ++i) {
-            if(_rnd.get_random_float() < 0.05)
+            if(_rnd.get_random_float() < 0.01)
                 _subset.push_back(_validationset[i]);
         }
         _vimages.clear();
@@ -255,28 +259,30 @@ void loadData(unsigned int _classes, const QString &_trainfilename, const QStrin
     _file.readLine(); // skip header data    
     while(!_file.atEnd()) {
         QString _line = _file.readLine();
-        std::string _filename = QString("%1/%2_green.%3").arg(_traindirname,_line.section(',',0,0),_extension).toStdString();
-        //qInfo("filename: %s", _filename.c_str());
-        std::map<std::string,std::string> _lbls;
-        for(unsigned int i = 0; i < _classes; ++i) // https://www.kaggle.com/c/human-protein-atlas-image-classification/data
-            _lbls[std::to_string(i)] = "n";
-        QStringList _lblslist = _line.section(',',1).simplified().split(' ');
-        for(int i = 0; i < _lblslist.size(); ++i) {
-            _lbls[_lblslist.at(i).toStdString()] = "y";
+        if(_line.contains(',')) {
+            std::string _filename = QString("%1/%2_green.%3").arg(_traindirname,_line.section(',',0,0),_extension).toStdString();
+            //qInfo("filename: %s", _filename.c_str());
+            std::map<std::string,std::string> _lbls;
+            for(unsigned int i = 0; i < _classes; ++i) // https://www.kaggle.com/c/human-protein-atlas-image-classification/data
+                _lbls[std::to_string(i)] = "n";
+            QStringList _lblslist = _line.section(',',1).simplified().split(' ');
+            for(int i = 0; i < _lblslist.size(); ++i) {
+                _lbls[_lblslist.at(i).toStdString()] = "y";
+            }
+
+            // Let's check data by eyes
+            /*std::map<std::string,std::string>::const_iterator _it;
+            for(_it = _lbls.begin(); _it != _lbls.end(); ++_it) {
+                cout << "\tkey: " << _it->first << "; value: ";
+                auto _value = _it->second;
+                cout << _value << endl;
+            }*/
+
+            if(_rnd.get_random_float() > _validationportion)
+                _vtrainingset.push_back(make_pair(_filename,_lbls));
+            else
+                _vvalidationset.push_back(make_pair(_filename,_lbls));
         }
-
-        // Let's check data by eyes
-        /*std::map<std::string,std::string>::const_iterator _it;
-        for(_it = _lbls.begin(); _it != _lbls.end(); ++_it) {
-            cout << "\tkey: " << _it->first << "; value: ";
-            auto _value = _it->second;
-            cout << _value << endl;
-        }*/
-
-        if(_rnd.get_random_float() > _validationportion)
-            _vtrainingset.push_back(make_pair(_filename,_lbls));
-        else
-            _vvalidationset.push_back(make_pair(_filename,_lbls));
     }
 }
 
