@@ -34,7 +34,7 @@ template <typename SUBNET> using alevel5 = ares<4*FNUM,ares_down<4*FNUM,SUBNET>>
 template <typename SUBNET> using alevel6 = ares<2*FNUM,ares<2*FNUM,ares_down<2*FNUM,SUBNET>>>;
 // training network type
 using net_type = loss_metric<fc_no_bias<32,avg_pool_everything<
-			    level4<
+                            level4<
                             level5<
                             level6<
                             max_pool<3,3,2,2,relu<bn_con<con<FNUM,7,7,2,2,
@@ -43,7 +43,7 @@ using net_type = loss_metric<fc_no_bias<32,avg_pool_everything<
 
 // testing network type (replaced batch normalization with fixed affine transforms)
 using anet_type = loss_metric<fc_no_bias<32,avg_pool_everything<
-			    alevel4<
+                            alevel4<
                             alevel5<
                             alevel6<
                             max_pool<3,3,2,2,relu<affine<con<FNUM,7,7,2,2,

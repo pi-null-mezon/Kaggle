@@ -67,6 +67,11 @@ void load_mini_batch (
                 else
                     _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.13,0.07,13,cv::BORDER_REFLECT);
 
+                if(rnd.get_random_float() > 0.5) {
+                    _tmpmat = distortimage(_tmpmat,cvrng,0.2,CV_INTER_CUBIC,cv::BORDER_REPLICATE);
+                } else {
+                    _tmpmat = distortimage(_tmpmat,cvrng,0.2,CV_INTER_CUBIC,cv::BORDER_REFLECT);
+                }
                 if(rnd.get_random_float() > 0.1f) {
                     _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),0);
                     _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),1);
