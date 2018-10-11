@@ -266,8 +266,11 @@ void loadData(unsigned int _classes, const QString &_trainfilename, const QStrin
             for(unsigned int i = 0; i < _classes; ++i) // https://www.kaggle.com/c/human-protein-atlas-image-classification/data
                 _lbls[std::to_string(i)] = "n";
             QStringList _lblslist = _line.section(',',1).simplified().split(' ');
+            std::string _key;
             for(int i = 0; i < _lblslist.size(); ++i) {
-                _lbls[_lblslist.at(i).toStdString()] = "y";
+                _key = _lblslist.at(i).toStdString();
+                if(_lbls.count(_key) == 1)
+                    _lbls[_key] = "y";
             }
 
             // Let's check data by eyes

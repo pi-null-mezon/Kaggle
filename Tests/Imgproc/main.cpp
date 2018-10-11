@@ -24,14 +24,14 @@ int main(int argc, char *argv[])
 
     for(auto file : dir.get_files()) {
 
-        cv::Mat _mat = loadIbgrmatWsize(file.full_name(),360,270,true);
+        cv::Mat _mat = loadIgraymatWsizeCN(file.full_name(),512,512,true);
         cout << "---------------------------" << endl;
         cout << "Filename: " << file.full_name() << endl;
         cout << "Img depth (opencv enum 0 - CV_8U, ...): " << _mat.depth() << endl;
         cout << "Img channels: " << _mat.channels() << endl;
         if(_mat.empty() == false) {           
             for(int j = 0; j < 10; ++j) {
-                cv::Mat _tmpmat = jitterimage(_mat,cvrng,cv::Size(0,0),0.17,0.02,15,cv::BORDER_REPLICATE);
+                cv::Mat _tmpmat = jitterimage(_mat,cvrng,cv::Size(0,0),0.17,0.02,15,cv::BORDER_REFLECT101);
                 _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.15f,0.15f);
                 cv::imshow("Probe", _tmpmat);
                 cv::imshow("Original", _mat);

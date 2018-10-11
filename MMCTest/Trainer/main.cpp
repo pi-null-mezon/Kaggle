@@ -93,12 +93,12 @@ int main(int argc, char** argv) try
 
     for(int n = 0; n < cmdparser.get<int>("number"); ++n) {
         net_type net(labelsmap);
-        net.subnet().layer_details().set_num_outputs(net.loss_details().number_of_labels());
+        net.subnet().layer_details().set_num_outputs(static_cast<long>(net.loss_details().number_of_labels()));
 
-        dnn_trainer<net_type> trainer(net,sgd());
+        dnn_trainer<net_type> trainer(net,sgd(0.05f,0.9f));
         trainer.set_learning_rate(0.1);
         trainer.be_verbose();
-        trainer.set_synchronization_file(cmdparser.get<std::string>("outputdir") + std::string("/trainer_sync_") + std::to_string(n), std::chrono::minutes(4));
+        trainer.set_synchronization_file(cmdparser.get<std::string>("outputdir") + std::string("/trainer_sync_") + std::to_string(n), std::chrono::minutes(30));
         trainer.set_iterations_without_progress_threshold(cmdparser.get<unsigned int>("swptrain"));
         trainer.set_test_iterations_without_progress_threshold(cmdparser.get<unsigned int>("swpvalid"));
         // If training set very large then
@@ -109,7 +109,7 @@ int main(int argc, char** argv) try
         auto traindata_load = [&trainpipe,&_trainingset](time_t seed)
         {
             dlib::rand rnd(time(nullptr)+seed);
-            cv::RNG    cvrng(time(nullptr)+seed);
+            cv::RNG    cvrng(static_cast<unsigned long long>(time(nullptr)+seed));
             std::pair<std::map<std::string,std::string>,dlib::matrix<float>> _sample;
             size_t _pos;
             bool _training_file_loaded = false;
@@ -120,15 +120,15 @@ int main(int argc, char** argv) try
                 _sample.first = _trainingset[_pos].second;
                 _tmpmat = loadIgraymatWsizeCN(_trainingset[_pos].first,128,156,false,&_training_file_loaded);
                 assert(_training_file_loaded);
-                if(rnd.get_random_float() > 0.5) {
+                if(rnd.get_random_float() > 0.5f) {
                     cv::flip(_tmpmat,_tmpmat,0);
                 }
-                if(rnd.get_random_float() > 0.5) {
-                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.1,0.05,15.0,cv::BORDER_REPLICATE);
+                if(rnd.get_random_float() > 0.5f) {
+                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.15,0.07,25.0,cv::BORDER_REPLICATE);
                 } else {
-                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.1,0.05,15.0,cv::BORDER_REFLECT);
+                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.15,0.07,25.0,cv::BORDER_REFLECT);
                 }
-                if(rnd.get_random_float() > 0.1) {
+                if(rnd.get_random_float() > 0.1f) {
                     _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float());
                 }
                 _sample.second = cvmat2dlibmatrix<float>(_tmpmat);
@@ -167,7 +167,7 @@ int main(int argc, char** argv) try
             _timages.clear();
             _tlabels.clear();
             std::pair<std::map<std::string,std::string>,dlib::matrix<float>> _sample;
-            while(_timages.size() < 56) { // minibatch size
+            while(_timages.size() < 16) { // minibatch size
                 trainpipe.dequeue(_sample);
                 _tlabels.push_back(_sample.first);
                 _timages.push_back(std::move(_sample.second));
@@ -177,7 +177,7 @@ int main(int argc, char** argv) try
             if((_steps % 4) == 0) {
                 _vimages.clear();
                 _vlabels.clear();
-                while(_vimages.size() < 56) { // minibatch size
+                while(_vimages.size() < 16) { // minibatch size
                     validpipe.dequeue(_sample);
                     _vlabels.push_back(_sample.first);
                     _vimages.push_back(std::move(_sample.second));
@@ -236,8 +236,8 @@ int main(int argc, char** argv) try
                 }
             }
         }
-        float _score = computeMacroF1Score<float>(truepos,falsepos,falseneg) ;
-        qInfo("Score: %f", _score);
+        double _score = computeMacroF1Score<double>(truepos,falsepos,falseneg) ;
+        qInfo("Score: %f\n\n", _score);
         // Save the network to disk
         serialize(cmdparser.get<std::string>("outputdir") + "/dlib_resnet_mmc_" + std::to_string(n) + "_(Score_" + std::to_string(_score) + ").dat") << net;
     }
@@ -280,8 +280,11 @@ void loadData(unsigned int _classes, const QString &_trainfilename, const QStrin
             for(unsigned int i = 0; i < _classes; ++i) // https://www.kaggle.com/c/human-protein-atlas-image-classification/data
                 _lbls[std::to_string(i)] = "n";
             QStringList _lblslist = _line.section(',',1).simplified().split(' ');
+            std::string _key;
             for(int i = 0; i < _lblslist.size(); ++i) {
-                _lbls[_lblslist.at(i).toStdString()] = "y";
+                _key = _lblslist.at(i).toStdString();
+                if(_lbls.count(_key) == 1)
+                    _lbls[_key] = "y";
             }
 
             // Let's check data by eyes
@@ -303,13 +306,18 @@ void loadData(unsigned int _classes, const QString &_trainfilename, const QStrin
 template<typename R, typename T>
 R computeMacroF1Score(const std::vector<T> &_truepos, const std::vector<T> &_falsepos, const std::vector<T> &_falseneg)
 {
-    R _precision, _recall, _summ = 0;
+    R _precision = 0, _recall = 0;
+
     for(size_t i = 0; i < _truepos.size(); ++i) {
-        _precision = static_cast<R>(_truepos[i]) / (_truepos[i] + _falsepos[i]);
-        _recall= static_cast<R>(_truepos[i]) / (_truepos[i] + _falseneg[i]);
-        _summ += (1. / _precision) + (1. / _recall);
+        qInfo("TP[%u]: %u", static_cast<unsigned int>(i), static_cast<unsigned int>(_truepos[i]));
+        qInfo("FP[%u]: %u", static_cast<unsigned int>(i), static_cast<unsigned int>(_falsepos[i]));
+        qInfo("FN[%u]: %u", static_cast<unsigned int>(i), static_cast<unsigned int>(_falseneg[i]));
+        _precision += static_cast<R>(_truepos[i]) / (_truepos[i] + _falsepos[i]);
+        _recall += static_cast<R>(_truepos[i]) / (_truepos[i] + _falseneg[i]);
     }
-    return _truepos.size() / _summ;
+    _precision = _precision/_truepos.size();
+    _recall = _recall/_truepos.size();
+    return 2.0 / (1.0 / _precision + 1.0 / _recall);
 }
 
 
