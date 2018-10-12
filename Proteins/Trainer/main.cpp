@@ -21,7 +21,7 @@ const cv::String keys =
    "{classes          |   28   | number of classes (each class has two possible outcomes 'y', 'n')}"
    "{traindir t       |        | training directory location}"
    "{outputdir o      |        | output directory location}"
-   "{validportion v   |  0.25  | output directory location}"
+   "{validportion v   |  0.15  | output directory location}"
    "{number n         |   1    | number of classifiers to be trained}"
    "{swptrain         | 5000   | determines after how many steps without progress (training loss) decay should be applied to learning rate}"
    "{swpvalid         | 1000   | determines after how many steps without progress (test loss) decay should be applied to learning rate}"
@@ -91,6 +91,11 @@ int main(int argc, char** argv) try
     qInfo("Training set contains: %u", static_cast<unsigned int>(_trainingset.size()));
     qInfo("Validation set contains: %u", static_cast<unsigned int>(_validationset.size()));
 
+    if(_trainingset.size() == 0 || _validationset.size() == 0) {
+        qInfo("Insufficient data for training or validation. Abort...");
+        return 8;
+    }
+
     for(int n = 0; n < cmdparser.get<int>("number"); ++n) {
         net_type net(labelsmap);
         net.subnet().layer_details().set_num_outputs(net.loss_details().number_of_labels());
@@ -98,7 +103,7 @@ int main(int argc, char** argv) try
         dnn_trainer<net_type> trainer(net,sgd());
         trainer.set_learning_rate(0.1);
         trainer.be_verbose();
-        trainer.set_synchronization_file(cmdparser.get<std::string>("outputdir") + std::string("/trainer_sync_") + std::to_string(n), std::chrono::minutes(4));
+        trainer.set_synchronization_file(cmdparser.get<std::string>("outputdir") + std::string("/trainer_sync_") + std::to_string(n), std::chrono::minutes(10));
         trainer.set_iterations_without_progress_threshold(cmdparser.get<unsigned int>("swptrain"));
         trainer.set_test_iterations_without_progress_threshold(cmdparser.get<unsigned int>("swpvalid"));
         // If training set very large then
@@ -109,15 +114,21 @@ int main(int argc, char** argv) try
         auto traindata_load = [&trainpipe,&_trainingset](time_t seed)
         {
             dlib::rand rnd(time(nullptr)+seed);
+            cv::RNG    cvrng(static_cast<unsigned long long>(time(nullptr)+seed));
             std::pair<std::map<std::string,std::string>,dlib::matrix<float>> _sample;
             size_t _pos;
+            cv::Mat _tmpmat;
             bool _training_file_loaded = false;
             while(trainpipe.is_enabled())
             {
                 _pos = rnd.get_random_32bit_number() % _trainingset.size();
                 _sample.first = _trainingset[_pos].second;
-                _sample.second = load_grayscale_image_with_normalization(_trainingset[_pos].first,512,512,false,&_training_file_loaded);
+                _tmpmat = loadIgraymatWsizeCN(_trainingset[_pos].first,IMG_SIZE,IMG_SIZE,false,&_training_file_loaded);
                 assert(_training_file_loaded);
+                _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.1,0.1,45,cv::BORDER_REFLECT101);
+                if(rnd.get_random_float() > 0.1f)
+                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float());
+                _sample.second = cvmat2dlibmatrix<float>(_tmpmat);
                 trainpipe.enqueue(_sample);
             }
         };
@@ -136,7 +147,7 @@ int main(int argc, char** argv) try
             {
                 _pos = rnd.get_random_32bit_number() % _validationset.size();
                 _sample.first = _validationset[_pos].second;
-                _sample.second = load_grayscale_image_with_normalization(_validationset[_pos].first,512,512,false,&_validation_file_loaded);
+                _sample.second = load_grayscale_image_with_normalization(_validationset[_pos].first,IMG_SIZE,IMG_SIZE,false,&_validation_file_loaded);
                 assert(_validation_file_loaded);
                 validpipe.enqueue(_sample);
             }
@@ -185,12 +196,12 @@ int main(int argc, char** argv) try
         qInfo("Training has been accomplished");
 
         // Now we need check score in terms of macro [F1-score](https://en.wikipedia.org/wiki/F1_score)
-        qInfo("Macro F1 test on validation subset set will be performed...");
+        qInfo("Test on validation set will be performed. Please wait...");
         std::vector<std::pair<std::string,std::map<std::string,std::string>>> _subset;
         _subset.reserve(_validationset.size());
         // Let's load portion of validation data
         for(size_t i = 0; i < _validationset.size(); ++i) {
-            if(_rnd.get_random_float() < 0.01)
+            if(_rnd.get_random_float() < 0.5)
                 _subset.push_back(_validationset[i]);
         }
         _vimages.clear();
@@ -198,10 +209,16 @@ int main(int argc, char** argv) try
         _vlabels.clear();
         _vlabels.reserve(_subset.size());
         for(size_t i = 0; i < _subset.size(); ++i) {
-            _vimages.push_back(load_grayscale_image_with_normalization(_subset[i].first,512,512,false));
+            _vimages.push_back(load_grayscale_image_with_normalization(_subset[i].first,IMG_SIZE,IMG_SIZE,false));
             _vlabels.push_back(_subset[i].second);
         }
-        std::vector<std::map<std::string,dlib::loss_multimulticlass_log_::classifier_output>> _predictions = net(_vimages);
+
+        // We will predict by one because number of images could be big (so GPU RAM could be insufficient to handle all in one batch)
+        std::vector<std::map<std::string,dlib::loss_multimulticlass_log_::classifier_output>> _predictions;
+        _predictions.reserve(_subset.size());
+        for(size_t i = 0; i < _subset.size(); ++i) {
+            _predictions.push_back(net(_vimages[i]));
+        }
 
         std::vector<unsigned int> truepos(net.loss_details().number_of_classifiers(),0);
         std::vector<unsigned int> falsepos(net.loss_details().number_of_classifiers(),0);
@@ -223,9 +240,10 @@ int main(int argc, char** argv) try
             }
         }
         float _score = computeMacroF1Score<float>(truepos,falsepos,falseneg) ;
-        qInfo("Score: %f", _score);
+        qInfo("Macro F-score: %f", _score);
         // Save the network to disk
-        serialize(cmdparser.get<std::string>("outputdir") + "/dlib_resnet_mmc_" + std::to_string(n) + "_(Score_" + std::to_string(_score) + ").dat") << net;
+        serialize(cmdparser.get<std::string>("outputdir") + "/dlib_resnet_mmc_" + std::to_string(n) + "_(MFs_" + std::to_string(_score) + ").dat") << net;
+        qInfo("Model has been saved on disk\n\n========\n", _score);
     }
 
 	return 0;
@@ -292,13 +310,14 @@ void loadData(unsigned int _classes, const QString &_trainfilename, const QStrin
 template<typename R, typename T>
 R computeMacroF1Score(const std::vector<T> &_truepos, const std::vector<T> &_falsepos, const std::vector<T> &_falseneg)
 {
-    R _precision, _recall, _summ = 0;
+    R _precision = 0, _recall = 0;
     for(size_t i = 0; i < _truepos.size(); ++i) {
-        _precision = static_cast<R>(_truepos[i]) / (_truepos[i] + _falsepos[i]);
-        _recall= static_cast<R>(_truepos[i]) / (_truepos[i] + _falseneg[i]);
-        _summ += (1. / _precision) + (1. / _recall);
+        _precision += static_cast<R>(_truepos[i]) / (_truepos[i] + _falsepos[i]);
+        _recall += static_cast<R>(_truepos[i]) / (_truepos[i] + _falseneg[i]);
     }
-    return _truepos.size() / _summ;
+    _precision /= _truepos.size();
+    _recall /= _truepos.size();
+    return 2.0 / ((1. / _precision) + (1. / _recall));
 }
 
 
