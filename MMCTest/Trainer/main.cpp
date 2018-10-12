@@ -118,7 +118,7 @@ int main(int argc, char** argv) try
             {
                 _pos = rnd.get_random_32bit_number() % _trainingset.size();
                 _sample.first = _trainingset[_pos].second;
-                _tmpmat = loadIgraymatWsizeCN(_trainingset[_pos].first,128,156,false,&_training_file_loaded);
+                _tmpmat = loadIgraymatWsizeCN(_trainingset[_pos].first,IMG_WIDTH,IMG_HEIGHT,false,&_training_file_loaded);
                 assert(_training_file_loaded);
                 if(rnd.get_random_float() > 0.5f) {
                     cv::flip(_tmpmat,_tmpmat,0);
@@ -129,7 +129,8 @@ int main(int argc, char** argv) try
                     _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.15,0.07,25.0,cv::BORDER_REFLECT);
                 }
                 if(rnd.get_random_float() > 0.1f) {
-                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float());
+                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),0);
+                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),1);
                 }
                 _sample.second = cvmat2dlibmatrix<float>(_tmpmat);
                 trainpipe.enqueue(_sample);
@@ -150,7 +151,7 @@ int main(int argc, char** argv) try
             {
                 _pos = rnd.get_random_32bit_number() % _validationset.size();
                 _sample.first = _validationset[_pos].second;
-                _sample.second = load_grayscale_image_with_normalization(_validationset[_pos].first,128,156,false,&_validation_file_loaded);
+                _sample.second = load_grayscale_image_with_normalization(_validationset[_pos].first,IMG_WIDTH,IMG_HEIGHT,false,&_validation_file_loaded);
                 assert(_validation_file_loaded);
                 validpipe.enqueue(_sample);
             }
@@ -198,6 +199,9 @@ int main(int argc, char** argv) try
         net.clean();
         qInfo("Training has been accomplished");
 
+        // Let's make testing net
+        anet_type _testnet = net;
+
         // Now we need check score in terms of macro [F1-score](https://en.wikipedia.org/wiki/F1_score)
         qInfo("Macro F1 test on validation subset set will be performed...");
         std::vector<std::pair<std::string,std::map<std::string,std::string>>> _subset;
@@ -212,10 +216,15 @@ int main(int argc, char** argv) try
         _vlabels.clear();
         _vlabels.reserve(_subset.size());
         for(size_t i = 0; i < _subset.size(); ++i) {
-            _vimages.push_back(load_grayscale_image_with_normalization(_subset[i].first,128,156,false));
+            _vimages.push_back(load_grayscale_image_with_normalization(_subset[i].first,IMG_WIDTH,IMG_HEIGHT,false));
             _vlabels.push_back(_subset[i].second);
         }
-        std::vector<std::map<std::string,dlib::loss_multimulticlass_log_::classifier_output>> _predictions = net(_vimages);
+
+        std::vector<std::map<std::string,dlib::loss_multimulticlass_log_::classifier_output>> _predictions;
+        _predictions.reserve(_subset.size());
+        for(size_t i = 0; i < _predictions.size(); ++i) {
+            _predictions.push_back(_testnet(_vimages[i]));
+        }
 
         std::vector<unsigned int> truepos(net.loss_details().number_of_classifiers(),0);
         std::vector<unsigned int> falsepos(net.loss_details().number_of_classifiers(),0);

@@ -21,6 +21,9 @@ template <int N, typename SUBNET> using res_down  = relu<residual_down<block,N,b
 template <int N, typename SUBNET> using ares_down = relu<residual_down<block,N,affine,SUBNET>>;
 // ----------------------------------------------------------------------------------------
 #define FNUM 32
+#define IMG_WIDTH 128
+#define IMG_HEIGHT 156
+
 template <typename SUBNET> using level2 = res_down<FNUM*5,SUBNET>;
 template <typename SUBNET> using level3 = res<FNUM*4,res_down<FNUM*4,SUBNET>>;
 template <typename SUBNET> using level4 = res_down<8*FNUM,SUBNET>;

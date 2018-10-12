@@ -125,7 +125,7 @@ int main(int argc, char** argv) try
                 _sample.first = _trainingset[_pos].second;
                 _tmpmat = loadIgraymatWsizeCN(_trainingset[_pos].first,IMG_SIZE,IMG_SIZE,false,&_training_file_loaded);
                 assert(_training_file_loaded);
-                _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.1,0.1,45,cv::BORDER_REFLECT101);
+                _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.02,0.1,45,cv::BORDER_REFLECT101);
                 if(rnd.get_random_float() > 0.1f)
                     _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float());
                 _sample.second = cvmat2dlibmatrix<float>(_tmpmat);
@@ -195,6 +195,9 @@ int main(int argc, char** argv) try
         net.clean();
         qInfo("Training has been accomplished");
 
+        //Let's make testing net
+        anet_type _testnet = net;
+
         // Now we need check score in terms of macro [F1-score](https://en.wikipedia.org/wiki/F1_score)
         qInfo("Test on validation set will be performed. Please wait...");
         std::vector<std::pair<std::string,std::map<std::string,std::string>>> _subset;
@@ -217,7 +220,7 @@ int main(int argc, char** argv) try
         std::vector<std::map<std::string,dlib::loss_multimulticlass_log_::classifier_output>> _predictions;
         _predictions.reserve(_subset.size());
         for(size_t i = 0; i < _subset.size(); ++i) {
-            _predictions.push_back(net(_vimages[i]));
+            _predictions.push_back(_testnet(_vimages[i]));
         }
 
         std::vector<unsigned int> truepos(net.loss_details().number_of_classifiers(),0);
