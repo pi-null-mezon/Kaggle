@@ -243,7 +243,7 @@ int main(int argc, char** argv) try
         qInfo("Macro F-score: %f", _score);
         // Save the network to disk
         serialize(cmdparser.get<std::string>("outputdir") + "/dlib_resnet_mmc_" + std::to_string(n) + "_(MFs_" + std::to_string(_score) + ").dat") << net;
-        qInfo("Model has been saved on disk\n\n========\n", _score);
+        qInfo("Model has been saved on disk\n\n========\n");
     }
 
 	return 0;
