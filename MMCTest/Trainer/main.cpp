@@ -35,7 +35,7 @@ void loadData(unsigned int _classes, const QString &_trainfilename, const QStrin
               std::vector<std::pair<std::string,std::map<std::string,std::string>>> &_vvalidationset);
 
 template<typename R, typename T>
-R computeMacroF1Score(const std::vector<T> &_truepos, const std::vector<T> &_falsepos, const std::vector<T> &_falseneg);
+R computeMacroF1Score(const std::vector<T> &_truepos, const std::vector<T> &_falsepos, const std::vector<T> &_falseneg, R _epsilon=0.00001);
 
 int main(int argc, char** argv) try
 {
@@ -313,7 +313,7 @@ void loadData(unsigned int _classes, const QString &_trainfilename, const QStrin
 }
 
 template<typename R, typename T>
-R computeMacroF1Score(const std::vector<T> &_truepos, const std::vector<T> &_falsepos, const std::vector<T> &_falseneg)
+R computeMacroF1Score(const std::vector<T> &_truepos, const std::vector<T> &_falsepos, const std::vector<T> &_falseneg, R _epsilon)
 {
     R _precision = 0, _recall = 0;
 
@@ -321,12 +321,12 @@ R computeMacroF1Score(const std::vector<T> &_truepos, const std::vector<T> &_fal
         qInfo("TP[%u]: %u", static_cast<unsigned int>(i), static_cast<unsigned int>(_truepos[i]));
         qInfo("FP[%u]: %u", static_cast<unsigned int>(i), static_cast<unsigned int>(_falsepos[i]));
         qInfo("FN[%u]: %u", static_cast<unsigned int>(i), static_cast<unsigned int>(_falseneg[i]));
-        _precision += static_cast<R>(_truepos[i]) / (_truepos[i] + _falsepos[i]);
-        _recall += static_cast<R>(_truepos[i]) / (_truepos[i] + _falseneg[i]);
+        _precision += static_cast<R>(_truepos[i]) / (_truepos[i] + _falsepos[i] + _epsilon);
+        _recall += static_cast<R>(_truepos[i]) / (_truepos[i] + _falseneg[i] + _epsilon);
     }
     _precision = _precision/_truepos.size();
     _recall = _recall/_truepos.size();
-    return 2.0 / (1.0 / _precision + 1.0 / _recall);
+    return 2.0 / (1.0 / (_precision + _epsilon) + 1.0 / (_recall + _epsilon));
 }
 
 

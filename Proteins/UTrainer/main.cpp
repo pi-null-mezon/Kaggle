@@ -21,7 +21,7 @@ const cv::String keys =
    "{classes          |   28   | number of classes (each class has two possible outcomes 'y', 'n')}"
    "{traindir t       |        | training directory location}"
    "{outputdir o      |        | output directory location}"
-   "{validportion v   |  0.2   | output directory location}"
+   "{validportion v   |  0.15  | output directory location}"
    "{number n         |   1    | number of classifiers to be trained}"
    "{swptrain         | 5000   | determines after how many steps without progress (training loss) decay should be applied to learning rate}"
    "{swpvalid         | 1000   | determines after how many steps without progress (test loss) decay should be applied to learning rate}"
@@ -48,10 +48,13 @@ void load_unskewed_minibatch( const std::map<std::string,std::vector<std::pair<s
     _vlabels.reserve(_numofclasses);
     std::string _classname;
     for(size_t i = 0; i < _numofclasses; ++i) {
+
         _classname = std::to_string(i);
+
         if(_map.at(_classname).size() > 0) {
             size_t _pos = _rnd.get_random_32bit_number() % _map.at(_classname).size();
             bool _file_loaded = false;
+
             if(_enableaugmentation == true) {
                 //--------------------------
                 cv::Mat _tmpmat = loadIgraymatWsizeCN(_map.at(_classname)[_pos].first,IMG_SIZE,IMG_SIZE,false,&_file_loaded);;
@@ -65,15 +68,17 @@ void load_unskewed_minibatch( const std::map<std::string,std::vector<std::pair<s
                 _vsamples.push_back(load_grayscale_image_with_normalization(_map.at(_classname)[_pos].first,IMG_SIZE,IMG_SIZE,false,&_file_loaded));
                 assert(_file_loaded);
             }
+
             _vlabels.push_back(_map.at(_classname)[_pos].second);
         }
+
     }
 }
 
 void showMatStat(const std::map<std::string,std::vector<std::pair<std::string,std::map<std::string,std::string>>>> &_mat);
 
 template<typename R, typename T>
-R computeMacroF1Score(const std::vector<T> &_truepos, const std::vector<T> &_falsepos, const std::vector<T> &_falseneg);
+R computeMacroF1Score(const std::vector<T> &_truepos, const std::vector<T> &_falsepos, const std::vector<T> &_falseneg, R _epsilon=0.0001);
 
 int main(int argc, char** argv) try
 {
@@ -135,7 +140,7 @@ int main(int argc, char** argv) try
 
     for(int n = 0; n < cmdparser.get<int>("number"); ++n) {
         net_type net(labelsmap);
-        net.subnet().layer_details().set_num_outputs(net.loss_details().number_of_labels());
+        net.subnet().layer_details().set_num_outputs(static_cast<long>(net.loss_details().number_of_labels()));
 
         dnn_trainer<net_type> trainer(net,sgd());
         trainer.set_learning_rate(0.1);
@@ -227,13 +232,15 @@ int main(int argc, char** argv) try
         for(size_t i = 0; i < _validmap.size(); ++i) {
             _classname = std::to_string(i);
             for(size_t j = 0; j < _validmap.at(_classname).size(); ++j)
-                if(_rnd.get_random_float() < 0.5)
+                if(_rnd.get_random_float() < 0.9f)
                     _subset.push_back(_validmap.at(_classname)[j]);
         }
+
         _vimages.clear();
         _vimages.reserve(_subset.size());
         _vlabels.clear();
         _vlabels.reserve(_subset.size());
+
         for(size_t i = 0; i < _subset.size(); ++i) {
             _vimages.push_back(load_grayscale_image_with_normalization(_subset[i].first,IMG_SIZE,IMG_SIZE,false));
             _vlabels.push_back(_subset[i].second);
@@ -254,8 +261,8 @@ int main(int argc, char** argv) try
         for(size_t i = 0; i < _predictions.size(); ++i) {
             for(size_t j = 0; j < net.loss_details().number_of_classifiers(); ++j) {
                 _classname = std::to_string(j);
-                _predictedlabel = _predictions[i][_classname];
-                _truelabel = _vlabels[i][_classname];
+                _predictedlabel = _predictions[i].at(_classname);
+                _truelabel = _vlabels[i].at(_classname);
                 if((_truelabel.compare("y") == 0) && (_predictedlabel.compare("y") == 0)) {
                     truepos[j] += 1;
                 } else if((_truelabel.compare("n") == 0) && (_predictedlabel.compare("y") == 0)) {
@@ -265,7 +272,7 @@ int main(int argc, char** argv) try
                 }
             }
         }
-        float _score = computeMacroF1Score<float>(truepos,falsepos,falseneg) ;
+        double _score = computeMacroF1Score<double>(truepos,falsepos,falseneg) ;
         qInfo("Macro F-score: %f", _score);
         // Save the network to disk
         serialize(cmdparser.get<std::string>("outputdir") + "/dlib_resnet_mmc_" + std::to_string(n) + "_(MFs_" + std::to_string(_score) + ").dat") << net;
@@ -333,16 +340,20 @@ void loadData(unsigned int _classes, const QString &_trainfilename, const QStrin
 }
 
 template<typename R, typename T>
-R computeMacroF1Score(const std::vector<T> &_truepos, const std::vector<T> &_falsepos, const std::vector<T> &_falseneg)
+R computeMacroF1Score(const std::vector<T> &_truepos, const std::vector<T> &_falsepos, const std::vector<T> &_falseneg, R _epsilon)
 {
     R _precision = 0, _recall = 0;
+
     for(size_t i = 0; i < _truepos.size(); ++i) {
-        _precision += static_cast<R>(_truepos[i]) / (_truepos[i] + _falsepos[i]);
-        _recall += static_cast<R>(_truepos[i]) / (_truepos[i] + _falseneg[i]);
+        /*qInfo("TP[%u]: %u", static_cast<unsigned int>(i), static_cast<unsigned int>(_truepos[i]));
+        qInfo("FP[%u]: %u", static_cast<unsigned int>(i), static_cast<unsigned int>(_falsepos[i]));
+        qInfo("FN[%u]: %u", static_cast<unsigned int>(i), static_cast<unsigned int>(_falseneg[i]));*/
+        _precision += static_cast<R>(_truepos[i]) / (_truepos[i] + _falsepos[i] + _epsilon);
+        _recall += static_cast<R>(_truepos[i]) / (_truepos[i] + _falseneg[i] + _epsilon);
     }
-    _precision /= _truepos.size();
-    _recall /= _truepos.size();
-    return 2.0 / ((1. / _precision) + (1. / _recall));
+    _precision = _precision/_truepos.size();
+    _recall = _recall/_truepos.size();
+    return 2.0 / (1.0 / (_precision + _epsilon) + 1.0 / (_recall + _epsilon));
 }
 
 void showMatStat(const std::map<std::string,std::vector<std::pair<std::string,std::map<std::string,std::string>>>> &_mat)

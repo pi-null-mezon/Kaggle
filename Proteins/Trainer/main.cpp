@@ -35,7 +35,7 @@ void loadData(unsigned int _classes, const QString &_trainfilename, const QStrin
               std::vector<std::pair<std::string,std::map<std::string,std::string>>> &_vvalidationset);
 
 template<typename R, typename T>
-R computeMacroF1Score(const std::vector<T> &_truepos, const std::vector<T> &_falsepos, const std::vector<T> &_falseneg);
+R computeMacroF1Score(const std::vector<T> &_truepos, const std::vector<T> &_falsepos, const std::vector<T> &_falseneg, R _epsilon = 0.0001);
 
 int main(int argc, char** argv) try
 {
@@ -88,8 +88,9 @@ int main(int argc, char** argv) try
              trainfi.absoluteFilePath(),traindir.absolutePath(),"png",
              _rnd,cmdparser.get<float>("validportion"),
              _trainingset,_validationset);
-    qInfo("Training set contains: %u", static_cast<unsigned int>(_trainingset.size()));
-    qInfo("Validation set contains: %u", static_cast<unsigned int>(_validationset.size()));
+
+    qInfo("Training set size: %u", static_cast<unsigned int>(_trainingset.size()));
+    qInfo("Validation set size: %u", static_cast<unsigned int>(_validationset.size()));
 
     if(_trainingset.size() == 0 || _validationset.size() == 0) {
         qInfo("Insufficient data for training or validation. Abort...");
@@ -98,7 +99,7 @@ int main(int argc, char** argv) try
 
     for(int n = 0; n < cmdparser.get<int>("number"); ++n) {
         net_type net(labelsmap);
-        net.subnet().layer_details().set_num_outputs(net.loss_details().number_of_labels());
+        net.subnet().layer_details().set_num_outputs(static_cast<long>(net.loss_details().number_of_labels()));
 
         dnn_trainer<net_type> trainer(net,sgd());
         trainer.set_learning_rate(0.1);
@@ -204,7 +205,7 @@ int main(int argc, char** argv) try
         _subset.reserve(_validationset.size());
         // Let's load portion of validation data
         for(size_t i = 0; i < _validationset.size(); ++i) {
-            if(_rnd.get_random_float() < 0.5)
+            if(_rnd.get_random_float() < 0.9f)
                 _subset.push_back(_validationset[i]);
         }
         _vimages.clear();
@@ -231,8 +232,8 @@ int main(int argc, char** argv) try
         for(size_t i = 0; i < _predictions.size(); ++i) {
             for(size_t j = 0; j < net.loss_details().number_of_classifiers(); ++j) {
                 _classname = std::to_string(j);
-                _predictedlabel = _predictions[i][_classname];
-                _truelabel = _vlabels[i][_classname];
+                _predictedlabel = _predictions[i].at(_classname);
+                _truelabel = _vlabels[i].at(_classname);
                 if((_truelabel.compare("y") == 0) && (_predictedlabel.compare("y") == 0)) {
                     truepos[j] += 1;
                 } else if((_truelabel.compare("n") == 0) && (_predictedlabel.compare("y") == 0)) {
@@ -242,7 +243,7 @@ int main(int argc, char** argv) try
                 }
             }
         }
-        float _score = computeMacroF1Score<float>(truepos,falsepos,falseneg) ;
+        double _score = computeMacroF1Score<double>(truepos,falsepos,falseneg) ;
         qInfo("Macro F-score: %f", _score);
         // Save the network to disk
         serialize(cmdparser.get<std::string>("outputdir") + "/dlib_resnet_mmc_" + std::to_string(n) + "_(MFs_" + std::to_string(_score) + ").dat") << net;
@@ -311,16 +312,20 @@ void loadData(unsigned int _classes, const QString &_trainfilename, const QStrin
 }
 
 template<typename R, typename T>
-R computeMacroF1Score(const std::vector<T> &_truepos, const std::vector<T> &_falsepos, const std::vector<T> &_falseneg)
+R computeMacroF1Score(const std::vector<T> &_truepos, const std::vector<T> &_falsepos, const std::vector<T> &_falseneg, R _epsilon)
 {
     R _precision = 0, _recall = 0;
+
     for(size_t i = 0; i < _truepos.size(); ++i) {
-        _precision += static_cast<R>(_truepos[i]) / (_truepos[i] + _falsepos[i]);
-        _recall += static_cast<R>(_truepos[i]) / (_truepos[i] + _falseneg[i]);
+        /*qInfo("TP[%u]: %u", static_cast<unsigned int>(i), static_cast<unsigned int>(_truepos[i]));
+        qInfo("FP[%u]: %u", static_cast<unsigned int>(i), static_cast<unsigned int>(_falsepos[i]));
+        qInfo("FN[%u]: %u", static_cast<unsigned int>(i), static_cast<unsigned int>(_falseneg[i]));*/
+        _precision += static_cast<R>(_truepos[i]) / (_truepos[i] + _falsepos[i] + _epsilon);
+        _recall += static_cast<R>(_truepos[i]) / (_truepos[i] + _falseneg[i] + _epsilon);
     }
-    _precision /= _truepos.size();
-    _recall /= _truepos.size();
-    return 2.0 / ((1. / _precision) + (1. / _recall));
+    _precision = _precision/_truepos.size();
+    _recall = _recall/_truepos.size();
+    return 2.0 / (1.0 / (_precision + _epsilon) + 1.0 / (_recall + _epsilon));
 }
 
 

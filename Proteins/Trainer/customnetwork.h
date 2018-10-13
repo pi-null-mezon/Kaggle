@@ -10,7 +10,7 @@ template <template <int,template<typename>class,int,typename> class block, int N
 using residual = add_prev1<block<N,BN,1,tag1<SUBNET>>>;
 
 template <template <int,template<typename>class,int,typename> class block, int N, template<typename>class BN, typename SUBNET>
-using residual_down = add_prev2<avg_pool<2,2,2,2,skip1<tag2<block<N,BN,2,tag1<SUBNET>>>>>>;
+using residual_down = add_prev2<max_pool<2,2,2,2,skip1<tag2<block<N,BN,2,tag1<SUBNET>>>>>>;
 
 template <int N, template <typename> class BN, int stride, typename SUBNET>
 using block  = BN<con<N,3,3,1,1,relu<BN<con<N,3,3,stride,stride,SUBNET>>>>>;
@@ -38,7 +38,7 @@ using net_type =    loss_multimulticlass_log<fc<56,avg_pool_everything<
                             level4<
                             level5<
                             level6<
-                            avg_pool<2,2,2,2,relu<bn_con<con<FNUM,5,5,1,1,
+                            max_pool<2,2,2,2,relu<bn_con<con<FNUM,5,5,1,1,
                             input<matrix<float>>
                             >>>>>>>>>>;
 
@@ -47,7 +47,7 @@ using anet_type =   loss_multimulticlass_log<fc<56,avg_pool_everything<
                             alevel4<
                             alevel5<
                             alevel6<
-                            avg_pool<2,2,2,2,relu<affine<con<FNUM,5,5,1,1,
+                            max_pool<2,2,2,2,relu<affine<con<FNUM,5,5,1,1,
                             input<matrix<float>>
                             >>>>>>>>>>;
 
