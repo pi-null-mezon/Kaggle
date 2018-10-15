@@ -21,7 +21,7 @@ const cv::String keys =
    "{classes          |   2    | number of classes (each class has two possible outcomes 'y', 'n')}"
    "{traindir t       |        | training directory location}"
    "{outputdir o      |        | output directory location}"
-   "{validportion v   |  0.50  | output directory location}"
+   "{validportion v   |  0.30  | output directory location}"
    "{number n         |   1    | number of classifiers to be trained}"
    "{swptrain         | 5000   | determines after how many steps without progress (training loss) decay should be applied to learning rate}"
    "{swpvalid         | 1000   | determines after how many steps without progress (test loss) decay should be applied to learning rate}"
@@ -124,9 +124,9 @@ int main(int argc, char** argv) try
                     cv::flip(_tmpmat,_tmpmat,0);
                 }
                 if(rnd.get_random_float() > 0.5f) {
-                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.15,0.07,25.0,cv::BORDER_REPLICATE);
+                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.1,0.05,10.0,cv::BORDER_REPLICATE);
                 } else {
-                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.15,0.07,25.0,cv::BORDER_REFLECT);
+                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.1,0.05,10.0,cv::BORDER_REFLECT);
                 }
                 if(rnd.get_random_float() > 0.1f) {
                     _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),0);
@@ -222,7 +222,7 @@ int main(int argc, char** argv) try
 
         std::vector<std::map<std::string,dlib::loss_multimulticlass_log_::classifier_output>> _predictions;
         _predictions.reserve(_subset.size());
-        for(size_t i = 0; i < _predictions.size(); ++i) {
+        for(size_t i = 0; i < _vimages.size(); ++i) {
             _predictions.push_back(_testnet(_vimages[i]));
         }
 
@@ -231,7 +231,7 @@ int main(int argc, char** argv) try
         std::vector<unsigned int> falseneg(net.loss_details().number_of_classifiers(),0);
 
         std::string _predictedlabel, _truelabel, _classname;
-        for(size_t i = 0; i < _predictions.size(); ++i) {
+        for(size_t i = 0; i < _predictions.size(); ++i) {           
             for(size_t j = 0; j < net.loss_details().number_of_classifiers(); ++j) {
                 _classname = std::to_string(j);
                 _predictedlabel = _predictions[i][_classname];

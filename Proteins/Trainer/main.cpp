@@ -23,8 +23,8 @@ const cv::String keys =
    "{outputdir o      |        | output directory location}"
    "{validportion v   |  0.15  | output directory location}"
    "{number n         |   1    | number of classifiers to be trained}"
-   "{swptrain         | 5000   | determines after how many steps without progress (training loss) decay should be applied to learning rate}"
-   "{swpvalid         | 1000   | determines after how many steps without progress (test loss) decay should be applied to learning rate}"
+   "{swptrain         | 10000  | determines after how many steps without progress (training loss) decay should be applied to learning rate}"
+   "{swpvalid         | 500    | determines after how many steps without progress (test loss) decay should be applied to learning rate}"
    "{minlrthresh      | 1.0e-5 | minimum learning rate, determines when training should be stopped}";
 
 std::map<std::string,std::vector<std::string>> fillLabelsMap(unsigned int _classes);
@@ -45,6 +45,8 @@ int main(int argc, char** argv) try
         cmdparser.printMessage();
         return 0;
     }
+
+
     if(!cmdparser.has("traindir")) {
         qInfo("You have not provide path to training directory! Abort...");
         return 1;
@@ -108,7 +110,7 @@ int main(int argc, char** argv) try
         trainer.set_iterations_without_progress_threshold(cmdparser.get<unsigned int>("swptrain"));
         trainer.set_test_iterations_without_progress_threshold(cmdparser.get<unsigned int>("swpvalid"));
         // If training set very large then
-        //set_all_bn_running_stats_window_sizes(net, 1000);
+        set_all_bn_running_stats_window_sizes(net, 1000);
 
         // Load training data
         dlib::pipe<std::pair<std::map<std::string,std::string>,dlib::matrix<float>>> trainpipe(128);
@@ -126,9 +128,10 @@ int main(int argc, char** argv) try
                 _sample.first = _trainingset[_pos].second;
                 _tmpmat = loadIgraymatWsizeCN(_trainingset[_pos].first,IMG_SIZE,IMG_SIZE,false,&_training_file_loaded);
                 assert(_training_file_loaded);
-                _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.02,0.1,45,cv::BORDER_REFLECT101);
-                if(rnd.get_random_float() > 0.1f)
+                //_tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.03,0.1,180,cv::BORDER_REFLECT101);
+                /*if(rnd.get_random_float() > 0.1f) {
                     _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float());
+                }*/
                 _sample.second = cvmat2dlibmatrix<float>(_tmpmat);
                 trainpipe.enqueue(_sample);
             }
@@ -165,17 +168,17 @@ int main(int argc, char** argv) try
             _timages.clear();
             _tlabels.clear();
             std::pair<std::map<std::string,std::string>,dlib::matrix<float>> _sample;
-            while(_timages.size() < 32) { // minibatch size
+            while(_timages.size() < 64) { // minibatch size
                 trainpipe.dequeue(_sample);
                 _tlabels.push_back(_sample.first);
                 _timages.push_back(std::move(_sample.second));
             }
             trainer.train_one_step(_timages, _tlabels);
             _steps++;
-            if((_steps % 4) == 0) {
+            if((_steps % 10) == 0) {
                 _vimages.clear();
                 _vlabels.clear();
-                while(_vimages.size() < 32) { // minibatch size
+                while(_vimages.size() < 64) { // minibatch size
                     validpipe.dequeue(_sample);
                     _vlabels.push_back(_sample.first);
                     _vimages.push_back(std::move(_sample.second));
@@ -205,7 +208,7 @@ int main(int argc, char** argv) try
         _subset.reserve(_validationset.size());
         // Let's load portion of validation data
         for(size_t i = 0; i < _validationset.size(); ++i) {
-            if(_rnd.get_random_float() < 0.9f)
+            if(_rnd.get_random_float() < 0.5f)
                 _subset.push_back(_validationset[i]);
         }
         _vimages.clear();
