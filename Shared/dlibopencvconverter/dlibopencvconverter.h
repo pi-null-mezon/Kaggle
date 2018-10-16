@@ -70,7 +70,6 @@ template <long C>
 std::array<dlib::matrix<float>,C> cvmatF2arrayofFdlibmatrix(const cv::Mat &_cvmat)
 {
     assert(_cvmat.channels() == C);
-    assert(_cvmat.type() == CV_32F);
     cv::Mat _mat = _cvmat;
     if(_cvmat.isContinuous() == false)
         _mat = _cvmat.clone();
