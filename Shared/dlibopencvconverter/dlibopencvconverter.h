@@ -1,6 +1,8 @@
 #ifndef DLIBOPENCVCONVERTER_H
 #define DLIBOPENCVCONVERTER_H
 
+#include <assert.h>
+
 #include <opencv2/core.hpp>
 #include <opencv2/imgproc.hpp>
 
@@ -19,6 +21,7 @@ template <>
 dlib::matrix<dlib::rgb_pixel> cvmat2dlibmatrix(const cv::Mat &_cvmat)
 {
     assert(_cvmat.channels() == 3);
+    assert(_cvmat.depth() == CV_8U);
     cv::Mat _mat = _cvmat;
     if(_cvmat.isContinuous() == false)
         _mat = _cvmat.clone();
@@ -55,6 +58,7 @@ template <>
 dlib::matrix<float> cvmat2dlibmatrix(const cv::Mat &_cvmat)
 {
     assert(_cvmat.channels() == 1);
+    assert(_cvmat.depth() == CV_32F);
     cv::Mat _mat = _cvmat;
     if(_cvmat.isContinuous() == false)
         _mat = _cvmat.clone();
@@ -70,6 +74,7 @@ template <long C>
 std::array<dlib::matrix<float>,C> cvmatF2arrayofFdlibmatrix(const cv::Mat &_cvmat)
 {
     assert(_cvmat.channels() == C);
+    assert(_cvmat.depth() == CV_32F);
     cv::Mat _mat = _cvmat;
     if(_cvmat.isContinuous() == false)
         _mat = _cvmat.clone();
@@ -96,7 +101,7 @@ cv::Mat dlibmatrix2cvmat(const dlib::matrix<image_type> &_img);
 template <>
 cv::Mat dlibmatrix2cvmat(const dlib::matrix<dlib::rgb_pixel> &_img)
 {   
-    cv::Mat _tmpmat(dlib::num_rows(_img), dlib::num_columns(_img), CV_8UC3, (void*)dlib::image_data(_img));
+    cv::Mat _tmpmat(dlib::num_rows(_img), dlib::num_columns(_img), CV_8UC3, const_cast<void*>(dlib::image_data(_img)));
     cv::Mat _outmat;
     cv::cvtColor(_tmpmat,_outmat,CV_BGR2RGB);
     return _outmat;
@@ -106,7 +111,7 @@ cv::Mat dlibmatrix2cvmat(const dlib::matrix<dlib::rgb_pixel> &_img)
 template <>
 cv::Mat dlibmatrix2cvmat(const dlib::matrix<uchar> &_img)
 {
-    cv::Mat _tmpmat(dlib::num_rows(_img), dlib::num_columns(_img), CV_8UC1, (void*)dlib::image_data(_img));
+    cv::Mat _tmpmat(dlib::num_rows(_img), dlib::num_columns(_img), CV_8UC1, const_cast<void*>(dlib::image_data(_img)));
     return _tmpmat.clone();
 }
 
@@ -114,7 +119,7 @@ cv::Mat dlibmatrix2cvmat(const dlib::matrix<uchar> &_img)
 template <>
 cv::Mat dlibmatrix2cvmat(const dlib::matrix<float> &_img)
 {
-    cv::Mat _tmpmat(dlib::num_rows(_img), dlib::num_columns(_img), CV_32FC1, (void*)dlib::image_data(_img));
+    cv::Mat _tmpmat(dlib::num_rows(_img), dlib::num_columns(_img), CV_32FC1, const_cast<void*>(dlib::image_data(_img)));
     return _tmpmat.clone();
 }
 

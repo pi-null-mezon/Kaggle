@@ -5,6 +5,18 @@
 
 #include "customnetwork.h"
 
+cv::Mat __loadImage(const std::string &_filenameprefix,int _tcols, int _trows, bool _crop, bool _center, bool _normalize, bool *_isloadded)
+{
+    cv::Mat _channelsmat[4];
+    std::string _postfix[4] = {"_green.png", "_blue.png", "_red.png", "_yellow.png"};
+    for(uint8_t i = 0; i < 4; ++i) {
+        _channelsmat[i] = loadIFgraymatWsize(_filenameprefix+_postfix[i],_tcols,_trows,_crop,_center,_normalize,_isloadded);
+    }
+    cv::Mat _outmat;
+    cv::merge(_channelsmat,4,_outmat);
+    return _outmat;
+}
+
 int main(int argc, char *argv[])
 {
     QString _indirname, _outfilename, _modelfilename;
@@ -73,10 +85,18 @@ int main(int argc, char *argv[])
     _filesfilter << "*.png" << "*.tiff";
     QStringList _fileslist = indir.entryList(_filesfilter, QDir::Files | QDir::NoDotAndDotDot);
     qInfo("%d files has been found. Wait untill processing will be accomplished...", _fileslist.size());
+    std::string _filenameprefix;
     for(int i = 0; i < _fileslist.size(); ++i) {
         if(_fileslist.at(i).contains("_green")) {
             bool _is_file_loaded = false;
-            std::map<std::string,dlib::loss_multimulticlass_log_::classifier_output> _pmap = _net(load_grayscale_image_with_fixed_size(indir.absoluteFilePath(_fileslist.at(i)).toStdString(),IMG_SIZE,IMG_SIZE,false,true,false,&_is_file_loaded));
+            _filenameprefix = indir.absoluteFilePath(_fileslist.at(i)).section("_green",0,0).toStdString();
+            std::map<std::string,dlib::loss_multimulticlass_log_::classifier_output> _pmap = _net(cvmatF2arrayofFdlibmatrix<4>(__loadImage(_filenameprefix,
+                                                                                                                                        IMG_SIZE,
+                                                                                                                                        IMG_SIZE,
+                                                                                                                                        false,
+                                                                                                                                        true,
+                                                                                                                                        false,
+                                                                                                                                        &_is_file_loaded)));
             assert(_is_file_loaded);
             _ots << _fileslist.at(i).section("_green",0,0) << ',';
             std::map<std::string,dlib::loss_multimulticlass_log_::classifier_output>::const_iterator _it;
