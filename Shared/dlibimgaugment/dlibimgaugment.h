@@ -143,7 +143,7 @@ dlib::matrix<uchar> load_grayscale_image_with_fixed_size(std::string _filename, 
     return cvmat2dlibmatrix<uchar>(_originalimgmat);
 }
 
-dlib::matrix<float> load_grayscale_image_with_normalization(const std::string& _filename, int _tcols, int _trows, bool _crop, bool *_isloadded=0)
+dlib::matrix<float> load_grayscale_image_with_fixed_size(const std::string& _filename, int _tcols, int _trows, bool _crop, bool _center, bool _normalize, bool *_isloadded=0)
 {
     cv::Mat _originalimgmat = cv::imread(_filename, CV_LOAD_IMAGE_GRAYSCALE);
 
@@ -163,10 +163,17 @@ dlib::matrix<float> load_grayscale_image_with_normalization(const std::string& _
     }
 
     _originalimgmat.convertTo(_originalimgmat,CV_32F);
-    cv::Mat _vchannelmean, _vchannelstdev;
-    cv::meanStdDev(_originalimgmat,_vchannelmean,_vchannelstdev);
-    cv::Mat _nmat = (_originalimgmat - _vchannelmean.at<const double>(0)) / (3.0*_vchannelstdev.at<const double>(0));
-    return cvmat2dlibmatrix<float>(_nmat);
+    if(_center) {
+        if(_normalize) {
+            cv::Mat _vchannelmean, _vchannelstdev;
+            cv::meanStdDev(_originalimgmat,_vchannelmean,_vchannelstdev);
+            _originalimgmat = (_originalimgmat - _vchannelmean.at<const double>(0)) / (3.0*_vchannelstdev.at<const double>(0));
+        } else {
+            cv::Scalar _mean = cv::mean(_originalimgmat);
+            _originalimgmat = (_originalimgmat - _mean[0]) / 256;
+        }
+    }
+    return cvmat2dlibmatrix<float>(_originalimgmat);
 }
 
 } // end of dlib namespace

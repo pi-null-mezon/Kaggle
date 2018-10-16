@@ -126,12 +126,12 @@ int main(int argc, char** argv) try
             {
                 _pos = rnd.get_random_32bit_number() % _trainingset.size();
                 _sample.first = _trainingset[_pos].second;
-                _tmpmat = loadIgraymatWsizeCN(_trainingset[_pos].first,IMG_SIZE,IMG_SIZE,false,&_training_file_loaded);
+                _tmpmat = loadIFgraymatWsize(_trainingset[_pos].first,IMG_SIZE,IMG_SIZE,false,true,false,&_training_file_loaded);
                 assert(_training_file_loaded);
-                //_tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.03,0.1,180,cv::BORDER_REFLECT101);
-                /*if(rnd.get_random_float() > 0.1f) {
+                _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.02,0.1,180,cv::BORDER_REFLECT101);
+                if(rnd.get_random_float() > 0.1f) {
                     _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float());
-                }*/
+                }
                 _sample.second = cvmat2dlibmatrix<float>(_tmpmat);
                 trainpipe.enqueue(_sample);
             }
@@ -151,7 +151,7 @@ int main(int argc, char** argv) try
             {
                 _pos = rnd.get_random_32bit_number() % _validationset.size();
                 _sample.first = _validationset[_pos].second;
-                _sample.second = load_grayscale_image_with_normalization(_validationset[_pos].first,IMG_SIZE,IMG_SIZE,false,&_validation_file_loaded);
+                _sample.second = load_grayscale_image_with_fixed_size(_validationset[_pos].first,IMG_SIZE,IMG_SIZE,false,true,false,&_validation_file_loaded);
                 assert(_validation_file_loaded);
                 validpipe.enqueue(_sample);
             }
@@ -216,7 +216,7 @@ int main(int argc, char** argv) try
         _vlabels.clear();
         _vlabels.reserve(_subset.size());
         for(size_t i = 0; i < _subset.size(); ++i) {
-            _vimages.push_back(load_grayscale_image_with_normalization(_subset[i].first,IMG_SIZE,IMG_SIZE,false));
+            _vimages.push_back(load_grayscale_image_with_fixed_size(_subset[i].first,IMG_SIZE,IMG_SIZE,false,true,false));
             _vlabels.push_back(_subset[i].second);
         }
 

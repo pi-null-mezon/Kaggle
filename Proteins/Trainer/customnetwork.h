@@ -13,40 +13,42 @@ template <template <int,template<typename>class,int,typename> class block, int N
 using residual_down = add_prev2<avg_pool<2,2,2,2,skip1<tag2<block<N,BN,2,tag1<SUBNET>>>>>>;
 
 template <int N, template <typename> class BN, int stride, typename SUBNET>
-using block  = BN<con<N,3,3,1,1,relu<BN<con<N,3,3,stride,stride,SUBNET>>>>>;
+using block  = BN<con<N,3,3,1,1,prelu<BN<con<N,3,3,stride,stride,SUBNET>>>>>;
 
-template <int N, typename SUBNET> using res       = relu<residual<block,N,bn_con,SUBNET>>;
-template <int N, typename SUBNET> using ares      = relu<residual<block,N,affine,SUBNET>>;
-template <int N, typename SUBNET> using res_down  = relu<residual_down<block,N,bn_con,SUBNET>>;
-template <int N, typename SUBNET> using ares_down = relu<residual_down<block,N,affine,SUBNET>>;
+template <int N, typename SUBNET> using res       = prelu<residual<block,N,bn_con,SUBNET>>;
+template <int N, typename SUBNET> using ares      = prelu<residual<block,N,affine,SUBNET>>;
+template <int N, typename SUBNET> using res_down  = prelu<residual_down<block,N,bn_con,SUBNET>>;
+template <int N, typename SUBNET> using ares_down = prelu<residual_down<block,N,affine,SUBNET>>;
 // ----------------------------------------------------------------------------------------
-#define FNUM 48
-#define IMG_SIZE 512
-template <typename SUBNET> using level2 = res_down<FNUM*32,SUBNET>;
+#define FNUM 32
+#define IMG_SIZE 256
 template <typename SUBNET> using level3 = res<FNUM*16,res_down<FNUM*16,SUBNET>>;
-template <typename SUBNET> using level4 = res_down<8*FNUM,SUBNET>;
+template <typename SUBNET> using level4 = res<FNUM*8,res_down<8*FNUM,SUBNET>>;
 template <typename SUBNET> using level5 = res<4*FNUM,res_down<4*FNUM,SUBNET>>;
 template <typename SUBNET> using level6 = res<2*FNUM,res_down<2*FNUM,SUBNET>>;
 
-template <typename SUBNET> using alevel2 = ares_down<FNUM*32,SUBNET>;
 template <typename SUBNET> using alevel3 = ares<FNUM*16,ares_down<FNUM*16,SUBNET>>;
-template <typename SUBNET> using alevel4 = ares_down<8*FNUM,SUBNET>;
+template <typename SUBNET> using alevel4 = ares<FNUM*8,ares_down<8*FNUM,SUBNET>>;
 template <typename SUBNET> using alevel5 = ares<4*FNUM,ares_down<4*FNUM,SUBNET>>;
 template <typename SUBNET> using alevel6 = ares<2*FNUM,ares_down<2*FNUM,SUBNET>>;
 // training network type
-using net_type =    loss_multimulticlass_log<fc<56,avg_pool_everything<
+using net_type =    loss_multimulticlass_log<fc<56,prelu<bn_fc<fc<64,avg_pool_everything<
+                            level3<
+                            level4<
                             level5<
                             level6<
-                            avg_pool<2,2,2,2,relu<bn_con<con<FNUM,5,5,2,2,
+                            avg_pool<2,2,2,2,prelu<bn_con<con<FNUM,5,5,2,2,
                             input<matrix<float>>
-                            >>>>>>>>>;
+                            >>>>>>>>>>>>>>;
 
 // testing network type (replaced batch normalization with fixed affine transforms)
-using anet_type =   loss_multimulticlass_log<fc<56,avg_pool_everything<
+using anet_type =   loss_multimulticlass_log<fc<56,prelu<affine<fc<64,avg_pool_everything<
+                            alevel3<
+                            alevel4<
                             alevel5<
                             alevel6<
-                            avg_pool<2,2,2,2,relu<affine<con<FNUM,5,5,2,2,
+                            avg_pool<2,2,2,2,prelu<affine<con<FNUM,5,5,2,2,
                             input<matrix<float>>
-                            >>>>>>>>>;
+                            >>>>>>>>>>>>>>;
 
 #endif // CUSTOMNETWORK_H
