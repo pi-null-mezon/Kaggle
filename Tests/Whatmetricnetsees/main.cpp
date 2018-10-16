@@ -9,13 +9,14 @@
 
 using namespace std;
 
-const cv::String keys =  "{image i |    | filename of the image to be processed}"
-                         "{model m |    | filename of the model weights}"
-                         "{irows   |    | input network rows}"
-                         "{icols   |    | input network cols}"
-                         "{rows r  | 30 | target number of horizontal steps}"
-                         "{cols c  | 60 | target number of vertical steps}"
-                         "{help h  |    | this help}";
+const cv::String keys =  "{image i    |    | filename of the image to be processed}"
+                         "{reference  |    | filename of the reference image, if not provided the image itself will be used}"
+                         "{model m    |    | filename of the model weights}"
+                         "{irows      |    | input network rows}"
+                         "{icols      |    | input network cols}"
+                         "{rows r     | 20 | target number of horizontal steps}"
+                         "{cols c     | 20 | target number of vertical steps}"
+                         "{help h     |    | this help}";
 
 int main(int argc, char ** argv) try
 {
@@ -42,12 +43,21 @@ int main(int argc, char ** argv) try
     }
 
     cv::Size _imgsize(_cmd.get<int>("icols"),_cmd.get<int>("irows"));
-    bool _loaded = false;
+    bool _loaded = false;    
     // Ok, here we need to load image with network's input size
     cv::Mat _cvmat = loadIbgrmatWsize(_cmd.get<string>("image"),_imgsize.width,_imgsize.height,true,&_loaded);
     if(_loaded == false) {
         cout << "Can not load image. Please, check that file exists. Abort..." << endl;
         return 3;
+    }
+    // Ok, here we need to load reference image
+    cv::Mat _cvrefmat = _cvmat;
+    if(_cmd.has("reference")) {
+        _cvrefmat = loadIbgrmatWsize(_cmd.get<string>("reference"),_imgsize.width,_imgsize.height,true,&_loaded);
+        if(_loaded == false) {
+            cout << "Can not load reference image. Please, check that file exists. Abort..." << endl;
+            return 4;
+        }
     }
 
     dlib::anet_type net;
@@ -59,7 +69,7 @@ int main(int argc, char ** argv) try
     float _xstep = 1.0f / _cmd.get<unsigned int>("cols"),
           _ystep = 1.0f / _cmd.get<unsigned int>("rows");
     cout << "Prepare images..." << endl;
-    _dlibmatrices.push_back(cvmat2dlibmatrix<dlib::rgb_pixel>(_cvmat)); // original image
+    _dlibmatrices.push_back(cvmat2dlibmatrix<dlib::rgb_pixel>(_cvrefmat)); // reference image
     for(unsigned int i = 0; i < _cmd.get<unsigned int>("rows"); ++i) {
         for(unsigned int j = 0; j < _cmd.get<unsigned int>("cols"); ++j) {
             _dlibmatrices.push_back(cvmat2dlibmatrix<dlib::rgb_pixel>(cutoutRect(_cvmat,j*_xstep,i*_ystep,0.1f,0.1f)));

@@ -13,4 +13,4 @@ INCLUDEPATH += $${PWD}/../../Shared/dlibopencvconverter \
                $${PWD}/../../Shared/opencvimgaugment
 
 # Here we need to point where network defined, directory shoud contain file named customnetwork.h
-INCLUDEPATH += $${PWD}/../../Whales/Dlib/Learner
+INCLUDEPATH += $${PWD}/../../../Tests

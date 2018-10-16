@@ -28,7 +28,7 @@ dlib::matrix<dlib::rgb_pixel> cvmat2dlibmatrix(const cv::Mat &_cvmat)
         _img(i) = dlib::rgb_pixel(_p[3*i+2],_p[3*i+1],_p[3*i]); // BGR to RGB
     return _img;
 
-    // Alternative way
+    // Alternative way (works little bit slower)
     /*dlib::matrix<dlib::rgb_pixel> _om;
     dlib::cv_image<dlib::rgb_pixel> _iimg(_cvmat);
     dlib::assign_image(_om,_iimg);
@@ -62,6 +62,28 @@ dlib::matrix<float> cvmat2dlibmatrix(const cv::Mat &_cvmat)
     dlib::matrix<float> _img(_cvmat.rows,_cvmat.cols);
     for(long i = 0; i < _cvmat.cols*_cvmat.rows; ++i)
         _img(i) = _p[i];
+    return _img;
+}
+
+// function template specialization
+template <long C>
+std::array<dlib::matrix<float>,C> cvmatF2arrayofFdlibmatrix(const cv::Mat &_cvmat)
+{
+    assert(_cvmat.channels() == C);
+    assert(_cvmat.type() == CV_32F);
+    cv::Mat _mat = _cvmat;
+    if(_cvmat.isContinuous() == false)
+        _mat = _cvmat.clone();
+
+    std::array<dlib::matrix<float>,C> _img;
+    for(size_t _channel = 0; _channel < _img.size(); ++_channel) {
+        float *_p = _mat.ptr<float>(0);
+        dlib::matrix<float> _chimg(_cvmat.rows,_cvmat.cols);
+        for(long i = 0; i < _mat.rows*_mat.cols; ++i) {
+            _chimg(i) = _p[C*i+_channel];
+        }
+        _img[_channel] = std::move(_chimg);
+    }
     return _img;
 }
 
