@@ -112,10 +112,10 @@ int main(int argc, char** argv) try
         trainer.set_iterations_without_progress_threshold(cmdparser.get<unsigned int>("swptrain"));
         trainer.set_test_iterations_without_progress_threshold(cmdparser.get<unsigned int>("swpvalid"));
         // If training set very large then
-        set_all_bn_running_stats_window_sizes(net, 1000);
+        set_all_bn_running_stats_window_sizes(net, 512);
 
         // Load training data
-        dlib::pipe<std::pair<std::map<std::string,std::string>,std::array<dlib::matrix<float>,4>>> trainpipe(128);
+        dlib::pipe<std::pair<std::map<std::string,std::string>,std::array<dlib::matrix<float>,4>>> trainpipe(256);
         auto traindata_load = [&trainpipe,&_trainingset](time_t seed)
         {
             dlib::rand rnd(time(nullptr)+seed);
@@ -130,7 +130,7 @@ int main(int argc, char** argv) try
                 _sample.first = _trainingset[_pos].second;
                 _tmpmat = __loadImage(_trainingset[_pos].first,IMG_SIZE,IMG_SIZE,false,true,false,&_training_file_loaded);
                 assert(_training_file_loaded);
-                _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.02,0.1,45,cv::BORDER_REFLECT101);
+                _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.04,0.15,90,cv::BORDER_REFLECT101);
                 if(rnd.get_random_float() > 0.1f) {
                     _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float());
                 }
@@ -142,7 +142,7 @@ int main(int argc, char** argv) try
         std::thread traindata_loader2([traindata_load](){ traindata_load(2); });
         std::thread traindata_loader3([traindata_load](){ traindata_load(3); });
         //Load validation data
-        dlib::pipe<std::pair<std::map<std::string,std::string>,std::array<dlib::matrix<float>,4>>> validpipe(128);
+        dlib::pipe<std::pair<std::map<std::string,std::string>,std::array<dlib::matrix<float>,4>>> validpipe(256);
         auto validdata_load = [&validpipe, &_validationset](time_t seed)
         {
             dlib::rand rnd(time(nullptr)+seed);
@@ -172,7 +172,7 @@ int main(int argc, char** argv) try
             _timages.clear();
             _tlabels.clear();
             std::pair<std::map<std::string,std::string>,std::array<dlib::matrix<float>,4>> _sample;
-            while(_timages.size() < 64) { // minibatch size
+            while(_timages.size() < 128) { // minibatch size
                 trainpipe.dequeue(_sample);
                 _tlabels.push_back(_sample.first);
                 _timages.push_back(std::move(_sample.second));
@@ -182,7 +182,7 @@ int main(int argc, char** argv) try
             if((_steps % 10) == 0) {
                 _vimages.clear();
                 _vlabels.clear();
-                while(_vimages.size() < 64) { // minibatch size
+                while(_vimages.size() < 128) { // minibatch size
                     validpipe.dequeue(_sample);
                     _vlabels.push_back(_sample.first);
                     _vimages.push_back(std::move(_sample.second));
