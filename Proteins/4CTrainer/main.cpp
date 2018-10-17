@@ -19,6 +19,7 @@ using namespace dlib;
 const cv::String keys =
    "{help h           |        | app help}"
    "{classes          |   28   | number of classes (each class has two possible outcomes 'y', 'n')}"
+   "{minibatchsize    |   128  | minibatch size}"
    "{traindir t       |        | training directory location}"
    "{outputdir o      |        | output directory location}"
    "{validportion v   |  0.15  | output directory location}"
@@ -47,8 +48,6 @@ int main(int argc, char** argv) try
         cmdparser.printMessage();
         return 0;
     }
-
-
     if(!cmdparser.has("traindir")) {
         qInfo("You have not provide path to training directory! Abort...");
         return 1;
@@ -84,6 +83,7 @@ int main(int argc, char** argv) try
     // Let's fill our labels map
     auto labelsmap = fillLabelsMap(cmdparser.get<unsigned int>("classes"));
 
+    const unsigned int minibatchsize = cmdparser.get<unsigned int>("minibatchsize");
     // Ok, seems we have check everithing, now we can parse files
     std::vector<std::pair<std::string,std::map<std::string,std::string>>> _trainingset;
     std::vector<std::pair<std::string,std::map<std::string,std::string>>> _validationset;
@@ -112,10 +112,10 @@ int main(int argc, char** argv) try
         trainer.set_iterations_without_progress_threshold(cmdparser.get<unsigned int>("swptrain"));
         trainer.set_test_iterations_without_progress_threshold(cmdparser.get<unsigned int>("swpvalid"));
         // If training set very large then
-        set_all_bn_running_stats_window_sizes(net, 512);
+        set_all_bn_running_stats_window_sizes(net, minibatchsize*4);
 
         // Load training data
-        dlib::pipe<std::pair<std::map<std::string,std::string>,std::array<dlib::matrix<float>,4>>> trainpipe(256);
+        dlib::pipe<std::pair<std::map<std::string,std::string>,std::array<dlib::matrix<float>,4>>> trainpipe(minibatchsize*2);
         auto traindata_load = [&trainpipe,&_trainingset](time_t seed)
         {
             dlib::rand rnd(time(nullptr)+seed);
@@ -142,7 +142,7 @@ int main(int argc, char** argv) try
         std::thread traindata_loader2([traindata_load](){ traindata_load(2); });
         std::thread traindata_loader3([traindata_load](){ traindata_load(3); });
         //Load validation data
-        dlib::pipe<std::pair<std::map<std::string,std::string>,std::array<dlib::matrix<float>,4>>> validpipe(256);
+        dlib::pipe<std::pair<std::map<std::string,std::string>,std::array<dlib::matrix<float>,4>>> validpipe(minibatchsize*2);
         auto validdata_load = [&validpipe, &_validationset](time_t seed)
         {
             dlib::rand rnd(time(nullptr)+seed);
@@ -172,7 +172,7 @@ int main(int argc, char** argv) try
             _timages.clear();
             _tlabels.clear();
             std::pair<std::map<std::string,std::string>,std::array<dlib::matrix<float>,4>> _sample;
-            while(_timages.size() < 128) { // minibatch size
+            while(_timages.size() < minibatchsize) { // minibatch size
                 trainpipe.dequeue(_sample);
                 _tlabels.push_back(_sample.first);
                 _timages.push_back(std::move(_sample.second));
@@ -182,7 +182,7 @@ int main(int argc, char** argv) try
             if((_steps % 10) == 0) {
                 _vimages.clear();
                 _vlabels.clear();
-                while(_vimages.size() < 128) { // minibatch size
+                while(_vimages.size() < minibatchsize) { // minibatch size
                     validpipe.dequeue(_sample);
                     _vlabels.push_back(_sample.first);
                     _vimages.push_back(std::move(_sample.second));
@@ -235,12 +235,11 @@ int main(int argc, char** argv) try
         std::vector<unsigned int> falsepos(net.loss_details().number_of_classifiers(),0);
         std::vector<unsigned int> falseneg(net.loss_details().number_of_classifiers(),0);
 
-        std::string _predictedlabel, _truelabel, _classname;
         for(size_t i = 0; i < _predictions.size(); ++i) {
             for(size_t j = 0; j < net.loss_details().number_of_classifiers(); ++j) {
-                _classname = std::to_string(j);
-                _predictedlabel = _predictions[i].at(_classname);
-                _truelabel = _vlabels[i].at(_classname);
+                const std::string &_classname = std::to_string(j);
+                const std::string &_predictedlabel = _predictions[i].at(_classname);
+                const std::string &_truelabel = _vlabels[i].at(_classname);
                 if((_truelabel.compare("y") == 0) && (_predictedlabel.compare("y") == 0)) {
                     truepos[j] += 1;
                 } else if((_truelabel.compare("n") == 0) && (_predictedlabel.compare("y") == 0)) {
@@ -292,12 +291,11 @@ void loadData(unsigned int _classes, const QString &_trainfilename, const QStrin
             std::string _filename = QString("%1/%2").arg(_traindirname,_line.section(',',0,0)).toStdString();
             //qInfo("filename: %s", _filename.c_str());
             std::map<std::string,std::string> _lbls;
-            for(unsigned int i = 0; i < _classes; ++i) // https://www.kaggle.com/c/human-protein-atlas-image-classification/data
+            for(unsigned int i = 0; i < _classes; ++i)
                 _lbls[std::to_string(i)] = "n";
             QStringList _lblslist = _line.section(',',1).simplified().split(' ');
-            std::string _key;
             for(int i = 0; i < _lblslist.size(); ++i) {
-                _key = _lblslist.at(i).toStdString();
+                const std::string &_key = _lblslist.at(i).toStdString();
                 if(_lbls.count(_key) == 1)
                     _lbls[_key] = "y";
             }
