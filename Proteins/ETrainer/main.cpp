@@ -52,6 +52,10 @@ void load_minibatch(  const std::string &_classname, size_t _batchsize,
     if(_map.at(_classname).size() > 0) {
         bool _file_loaded;
         size_t _pos;
+        double anglevariation = 90.0;
+        if(_map.at(_classname).size() < 200) {
+            anglevariation = 180.0;
+        }
 
         for(size_t i = 0; i < _batchsize; ++i) {
              _pos = _rnd.get_random_32bit_number() % _map.at(_classname).size();
@@ -60,7 +64,7 @@ void load_minibatch(  const std::string &_classname, size_t _batchsize,
                 //--------------------------
                 cv::Mat _tmpmat = __loadImage(_map.at(_classname)[_pos].first,IMG_SIZE,IMG_SIZE,false,true,false,&_file_loaded);;
                 assert(_file_loaded);
-                _tmpmat = jitterimage(_tmpmat,_cvrng,cv::Size(0,0),0.02,0.1,90,cv::BORDER_REFLECT101);
+                _tmpmat = jitterimage(_tmpmat,_cvrng,cv::Size(0,0),0.02,0.1,anglevariation,cv::BORDER_REFLECT101);
                 if(_rnd.get_random_float() > 0.1f)
                     _tmpmat = cutoutRect(_tmpmat,_rnd.get_random_float(),_rnd.get_random_float());
                 //--------------------------
