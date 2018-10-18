@@ -19,7 +19,7 @@ using namespace dlib;
 const cv::String keys =
    "{help h           |        | app help}"
    "{classes          |   28   | number of classes (each class has two possible outcomes 'y', 'n')}"
-   "{minibatchsize    |   128  | minibatch size}"
+   "{minibatchsize    |   64   | minibatch size}"
    "{traindir t       |        | training directory location}"
    "{outputdir o      |        | output directory location}"
    "{validportion v   |  0.15  | output directory location}"
@@ -130,7 +130,7 @@ int main(int argc, char** argv) try
                 _sample.first = _trainingset[_pos].second;
                 _tmpmat = __loadImage(_trainingset[_pos].first,IMG_SIZE,IMG_SIZE,false,true,false,&_training_file_loaded);
                 assert(_training_file_loaded);
-                _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.04,0.15,90,cv::BORDER_REFLECT101);
+                _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.02,0.1,90,cv::BORDER_REFLECT101);
                 if(rnd.get_random_float() > 0.1f) {
                     _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float());
                 }

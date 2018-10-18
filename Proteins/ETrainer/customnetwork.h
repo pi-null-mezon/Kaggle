@@ -20,19 +20,20 @@ template <int N, typename SUBNET> using ares      = prelu<residual<block,N,affin
 template <int N, typename SUBNET> using res_down  = prelu<residual_down<block,N,bn_con,SUBNET>>;
 template <int N, typename SUBNET> using ares_down = prelu<residual_down<block,N,affine,SUBNET>>;
 // ----------------------------------------------------------------------------------------
-#define FNUM 16
+#define FNUM 8
 #define IMG_SIZE 256
-template <typename SUBNET> using level3 = res<FNUM*16,res_down<FNUM*16,SUBNET>>;
+template <typename SUBNET> using level3 = res_down<FNUM*16,SUBNET>;
 template <typename SUBNET> using level4 = res_down<8*FNUM,SUBNET>;
 template <typename SUBNET> using level5 = res<4*FNUM,res_down<4*FNUM,SUBNET>>;
 template <typename SUBNET> using level6 = res<2*FNUM,res_down<2*FNUM,SUBNET>>;
 
-template <typename SUBNET> using alevel3 = ares<FNUM*16,ares_down<FNUM*16,SUBNET>>;
+template <typename SUBNET> using alevel3 = ares_down<FNUM*16,SUBNET>;
 template <typename SUBNET> using alevel4 = ares_down<8*FNUM,SUBNET>;
 template <typename SUBNET> using alevel5 = ares<4*FNUM,ares_down<4*FNUM,SUBNET>>;
 template <typename SUBNET> using alevel6 = ares<2*FNUM,ares_down<2*FNUM,SUBNET>>;
 // training network type
 using net_type =    loss_multimulticlass_log<fc<56,avg_pool_everything<
+                            //level3<
                             level4<
                             level5<
                             level6<
@@ -42,6 +43,7 @@ using net_type =    loss_multimulticlass_log<fc<56,avg_pool_everything<
 
 // testing network type (replaced batch normalization with fixed affine transforms)
 using anet_type =   loss_multimulticlass_log<fc<56,avg_pool_everything<
+                            //alevel3<
                             alevel4<
                             alevel5<
                             alevel6<

@@ -19,7 +19,7 @@ using namespace dlib;
 const cv::String keys =
    "{help h           |        | app help}"
    "{classes          |   28   | number of classes (each class has two possible outcomes 'y', 'n')}"
-   "{minibatchsize    |   32   | size of minibatch"
+   "{minibatchsize    |   32   | size of minibatch}"
    "{traindir t       |        | training directory location}"
    "{outputdir o      |        | output directory location}"
    "{validportion v   |  0.15  | output directory location}"
@@ -60,7 +60,7 @@ void load_minibatch(  const std::string &_classname, size_t _batchsize,
                 //--------------------------
                 cv::Mat _tmpmat = __loadImage(_map.at(_classname)[_pos].first,IMG_SIZE,IMG_SIZE,false,true,false,&_file_loaded);;
                 assert(_file_loaded);
-                _tmpmat = jitterimage(_tmpmat,_cvrng,cv::Size(0,0),0.04,0.15,90,cv::BORDER_REFLECT101);
+                _tmpmat = jitterimage(_tmpmat,_cvrng,cv::Size(0,0),0.02,0.1,90,cv::BORDER_REFLECT101);
                 if(_rnd.get_random_float() > 0.1f)
                     _tmpmat = cutoutRect(_tmpmat,_rnd.get_random_float(),_rnd.get_random_float());
                 //--------------------------
@@ -140,9 +140,9 @@ int main(int argc, char** argv) try
     showMatStat(_trainmap);
     qInfo("\n--------------\nValidation set:\n--------------\n");
     showMatStat(_validmap);
-    qInfo("\nStart training process...");
 
     for(int n = 0; n < cmdparser.get<int>("classes"); ++n) {
+        qInfo("Model for class %d will be trained", n);
         net_type net(labelsmap);
         net.subnet().layer_details().set_num_outputs(static_cast<long>(net.loss_details().number_of_labels()));
 
@@ -156,8 +156,8 @@ int main(int argc, char** argv) try
         //set_all_bn_running_stats_window_sizes(net, 1000);
 
         // Load training data
-        dlib::pipe<std::vector<std::array<dlib::matrix<float>,4>>> trainpipeimg(5);
-        dlib::pipe<std::vector<std::map<std::string,std::string>>> trainpipelbl(5);
+        dlib::pipe<std::vector<std::array<dlib::matrix<float>,4>>> trainpipeimg(15);
+        dlib::pipe<std::vector<std::map<std::string,std::string>>> trainpipelbl(15);
         auto traindata_load = [&_minibatchsize,&n,&trainpipeimg,&trainpipelbl,&_trainmap](time_t seed)
         {
             dlib::rand rnd(time(nullptr)+seed);
@@ -174,8 +174,8 @@ int main(int argc, char** argv) try
         std::thread traindata_loader2([traindata_load](){ traindata_load(2); });
         std::thread traindata_loader3([traindata_load](){ traindata_load(3); });
         //Load validation data
-        dlib::pipe<std::vector<std::array<dlib::matrix<float>,4>>> validpipeimg(2);
-        dlib::pipe<std::vector<std::map<std::string,std::string>>> validpipelbl(2);
+        dlib::pipe<std::vector<std::array<dlib::matrix<float>,4>>> validpipeimg(5);
+        dlib::pipe<std::vector<std::map<std::string,std::string>>> validpipelbl(5);
         auto validdata_load = [&_minibatchsize,&n,&validpipeimg,&validpipelbl,&_validmap](time_t seed)
         {
             dlib::rand rnd(time(nullptr)+seed);

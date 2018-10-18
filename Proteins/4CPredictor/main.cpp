@@ -102,7 +102,7 @@ int main(int argc, char *argv[])
             std::map<std::string,dlib::loss_multimulticlass_log_::classifier_output>::const_iterator _it;
             bool _first_prediction = true;
             for(_it = _pmap.begin(); _it != _pmap.end(); ++_it) {
-                std::string _predictedlbl = _it->second.probability_of_class(0) > 0.25 ? "y" : "n";
+                std::string _predictedlbl = _it->second.probability_of_class(0) > 0.3 ? "y" : "n";
                 if(_predictedlbl.compare("y") == 0) {
                     if(_first_prediction) {
                         _first_prediction = false;
