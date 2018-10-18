@@ -228,32 +228,23 @@ int main(int argc, char** argv) try
         anet_type _testnet = net;
 
         // Now we need check score in terms of macro [F1-score](https://en.wikipedia.org/wiki/F1_score)
-        qInfo("Test on validation set will be performed. Please wait...");
-        std::vector<std::pair<std::string,std::map<std::string,std::string>>> _subset;
-        _subset.reserve(31072);
-        // Let's load portion of validation data
-        std::string _classname;
-        for(size_t i = 0; i < _validmap.size(); ++i) {
-            _classname = std::to_string(i);
-            for(size_t j = 0; j < _validmap.at(_classname).size(); ++j)
-                if(_rnd.get_random_float() < 0.9f)
-                    _subset.push_back(_validmap.at(_classname)[j]);
-        }
-
+        const std::string _classname = std::to_string(n);
         _vimages.clear();
-        _vimages.reserve(_subset.size());
+        _vimages.reserve(_validmap.at(_classname).size());
         _vlabels.clear();
-        _vlabels.reserve(_subset.size());
+        _vlabels.reserve(_validmap.at(_classname).size());
 
-        for(size_t i = 0; i < _subset.size(); ++i) {
-            _vimages.push_back( cvmatF2arrayofFdlibmatrix<4>(__loadImage(_subset[i].first,IMG_SIZE,IMG_SIZE,false,true,false)));
-            _vlabels.push_back(_subset[i].second);
+        for(size_t i = 0; i < _validmap.at(_classname).size(); ++i) {
+            _vimages.push_back( cvmatF2arrayofFdlibmatrix<4>(__loadImage( _validmap.at(_classname)[i].first,IMG_SIZE,IMG_SIZE,false,true,false)));
+            std::map<std::string,std::string> _lbls;
+            _lbls["0"] = _validmap.at(_classname)[i].second.at(_classname);
+            _vlabels.push_back(_lbls);
         }
 
         // We will predict by one because number of images could be big (so GPU RAM could be insufficient to handle all in one batch)
         std::vector<std::map<std::string,dlib::loss_multimulticlass_log_::classifier_output>> _predictions;
-        _predictions.reserve(_subset.size());
-        for(size_t i = 0; i < _subset.size(); ++i) {
+        _predictions.reserve(_vimages.size());
+        for(size_t i = 0; i < _vimages.size(); ++i) {
             _predictions.push_back(_testnet(_vimages[i]));
         }
 
@@ -261,12 +252,10 @@ int main(int argc, char** argv) try
         std::vector<unsigned int> falsepos(net.loss_details().number_of_classifiers(),0);
         std::vector<unsigned int> falseneg(net.loss_details().number_of_classifiers(),0);
 
-        std::string _predictedlabel, _truelabel;
         for(size_t i = 0; i < _predictions.size(); ++i) {
             for(size_t j = 0; j < net.loss_details().number_of_classifiers(); ++j) {
-                _classname = std::to_string(j);
-                _predictedlabel = _predictions[i].at(_classname);
-                _truelabel = _vlabels[i].at(std::to_string(n));
+                const std::string &_predictedlabel = _predictions[i].at(std::to_string(j));
+                const std::string &_truelabel = _vlabels[i].at(std::to_string(j));
                 if((_truelabel.compare("y") == 0) && (_predictedlabel.compare("y") == 0)) {
                     truepos[j] += 1;
                 } else if((_truelabel.compare("n") == 0) && (_predictedlabel.compare("y") == 0)) {
