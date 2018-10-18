@@ -147,6 +147,8 @@ int main(int argc, char** argv) try
 
     for(int n = 0; n < cmdparser.get<int>("classes"); ++n) {
         qInfo("Model for class %d will be trained", n);
+        qInfo("Train samples: %u", static_cast<unsigned int>(_trainmap.at(std::to_string(n)).size()));
+        qInfo("Validation samples: %u", static_cast<unsigned int>(_validmap.at(std::to_string(n)).size()));
         net_type net(labelsmap);
         net.subnet().layer_details().set_num_outputs(static_cast<long>(net.loss_details().number_of_labels()));
 
@@ -233,23 +235,16 @@ int main(int argc, char** argv) try
 
         // Now we need check score in terms of macro [F1-score](https://en.wikipedia.org/wiki/F1_score)
         const std::string _classname = std::to_string(n);
-        _vimages.clear();
-        _vimages.reserve(_validmap.at(_classname).size());
         _vlabels.clear();
         _vlabels.reserve(_validmap.at(_classname).size());
-
+        // We will predict by one because number of images could be big (so GPU RAM could be insufficient to handle all in one batch)
+        std::vector<std::map<std::string,dlib::loss_multimulticlass_log_::classifier_output>> _predictions;
+        _predictions.reserve(_validmap.at(_classname).size());
         for(size_t i = 0; i < _validmap.at(_classname).size(); ++i) {
-            _vimages.push_back( cvmatF2arrayofFdlibmatrix<4>(__loadImage( _validmap.at(_classname)[i].first,IMG_SIZE,IMG_SIZE,false,true,false)));
+            _predictions.push_back(_testnet(cvmatF2arrayofFdlibmatrix<4>(__loadImage( _validmap.at(_classname)[i].first,IMG_SIZE,IMG_SIZE,false,true,false))));
             std::map<std::string,std::string> _lbls;
             _lbls["0"] = _validmap.at(_classname)[i].second.at(_classname);
             _vlabels.push_back(_lbls);
-        }
-
-        // We will predict by one because number of images could be big (so GPU RAM could be insufficient to handle all in one batch)
-        std::vector<std::map<std::string,dlib::loss_multimulticlass_log_::classifier_output>> _predictions;
-        _predictions.reserve(_vimages.size());
-        for(size_t i = 0; i < _vimages.size(); ++i) {
-            _predictions.push_back(_testnet(_vimages[i]));
         }
 
         std::vector<unsigned int> truepos(net.loss_details().number_of_classifiers(),0);
@@ -270,7 +265,7 @@ int main(int argc, char** argv) try
             }
         }
         double _score = computeMacroF1Score<double>(truepos,falsepos,falseneg) ;
-        qInfo("Macro F-score: %f", _score);
+        qInfo("F-score: %f", _score);
         // Save the network to disk
         serialize(cmdparser.get<std::string>("outputdir") + "/proteins_class_" + std::to_string(n) + "_(MFs_" + std::to_string(_score) + ").dat") << net;
         qInfo("Model has been saved on disk\n\n========\n");
@@ -371,9 +366,9 @@ R computeMacroF1Score(const std::vector<T> &_truepos, const std::vector<T> &_fal
     R _precision = 0, _recall = 0;
 
     for(size_t i = 0; i < _truepos.size(); ++i) {
-        /*qInfo("TP[%u]: %u", static_cast<unsigned int>(i), static_cast<unsigned int>(_truepos[i]));
+        qInfo("TP[%u]: %u", static_cast<unsigned int>(i), static_cast<unsigned int>(_truepos[i]));
         qInfo("FP[%u]: %u", static_cast<unsigned int>(i), static_cast<unsigned int>(_falsepos[i]));
-        qInfo("FN[%u]: %u", static_cast<unsigned int>(i), static_cast<unsigned int>(_falseneg[i]));*/
+        qInfo("FN[%u]: %u", static_cast<unsigned int>(i), static_cast<unsigned int>(_falseneg[i]));
         _precision += static_cast<R>(_truepos[i]) / (_truepos[i] + _falsepos[i] + _epsilon);
         _recall += static_cast<R>(_truepos[i]) / (_truepos[i] + _falseneg[i] + _epsilon);
     }

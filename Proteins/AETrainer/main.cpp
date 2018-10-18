@@ -128,12 +128,15 @@ int main(int argc, char** argv) try
             cv::Mat _sample;
             size_t  _pos;
             bool _is_training_file_loaded;
+            double _anglevar = 90.0;
+            if(_trainfiles.size() < 200)
+                _anglevar = 180.0;
             while(trainpipeimg.is_enabled()) {
                 _is_training_file_loaded = false;
                 _pos = rnd.get_random_32bit_number() % _trainfiles.size();
                 _sample = __loadImage(_trainfiles[_pos],IMG_SIZE,IMG_SIZE,false,true,false,&_is_training_file_loaded);
                 assert(_is_training_file_loaded);
-                _sample = jitterimage(_sample,cvrng,cv::Size(0,0),0.02,0.1,90.0,cv::BORDER_REFLECT101);
+                _sample = jitterimage(_sample,cvrng,cv::Size(0,0),0.02,0.1,_anglevar,cv::BORDER_REFLECT101);
                 if(rnd.get_random_float() > 0.1f) {
                     _sample = cutoutRect(_sample,rnd.get_random_float(),rnd.get_random_float());
                 }
@@ -227,7 +230,7 @@ int main(int argc, char** argv) try
             }
         }
         double _score = computeMacroF1Score<double>(truepos,falsepos,falseneg) ;
-        qInfo("Macro F-score: %f", _score);
+        qInfo("Macro F: %f", _score);
         // Save the network to disk
         serialize(cmdparser.get<std::string>("outputdir") + "/proteins_class_" + std::to_string(n) + "_(MFs_" + std::to_string(_score) + ").dat") << net;
         qInfo("Model has been saved on disk\n========================\n");
@@ -317,6 +320,9 @@ void loadData(unsigned int _classes, const QString &_trainfilename, const QStrin
 template<typename R, typename T>
 R computeMacroF1Score(T _truepos, T _falsepos, T _falseneg, R _epsilon)
 {
+    qInfo("TP: %u", static_cast<unsigned int>(_truepos));
+    qInfo("FP: %u", static_cast<unsigned int>(_falsepos));
+    qInfo("FN: %u", static_cast<unsigned int>(_falseneg));
     R _precision = static_cast<R>(_truepos) / (_truepos + _falsepos + _epsilon);
     R _recall = static_cast<R>(_truepos) / (_truepos + _falseneg + _epsilon);
     return 2.0 / (1.0 / (_precision + _epsilon) + 1.0 / (_recall + _epsilon));
