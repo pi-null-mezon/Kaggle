@@ -29,49 +29,51 @@ const cv::String keys =
 
 std::map<std::string,std::vector<std::string>> fillLabelsMap(unsigned int _classes);
 
-void loadData(unsigned int _classes, const QString &_trainfilename, const QString &_traindirname, const QString &_extension,
+void loadData(unsigned int _classes, const QString &_trainfilename, const QString &_traindirname,
               dlib::rand &_rnd, float _validationportion,
               std::map<std::string,std::vector<std::pair<std::string,std::map<std::string,std::string>>>> &_trainmap,
               std::map<std::string,std::vector<std::pair<std::string,std::map<std::string,std::string>>>> &_validmap);
+
+cv::Mat __loadImage(const std::string &_filenameprefix,int _tcols, int _trows, bool _crop, bool _center, bool _normalize, bool *_isloadded=nullptr);
 
 void load_unskewed_minibatch( const std::map<std::string,std::vector<std::pair<std::string,std::map<std::string,std::string>>>> &_map,
                               dlib::rand &_rnd,
                               cv::RNG    &_cvrng,
                               std::vector<std::map<std::string,std::string>> &_vlabels,
-                              std::vector<dlib::matrix<float>> &_vsamples,
+                              std::vector<std::array<dlib::matrix<float>,4>> &_vsamples,
                               bool _enableaugmentation)
 {
     _vsamples.clear();
     _vlabels.clear();
     size_t _numofclasses = _map.size();
-    _vsamples.reserve(_numofclasses);
-    _vlabels.reserve(_numofclasses);
+    _vsamples.reserve(4*_numofclasses);
+    _vlabels.reserve(4*_numofclasses);
     std::string _classname;
+    size_t _pos;
+    bool _file_loaded;
     for(size_t i = 0; i < _numofclasses; ++i) {
-
         _classname = std::to_string(i);
+        for(int j = 0; j < 4; ++j) {
+            if(_map.at(_classname).size() > 0) {
+                _pos = _rnd.get_random_32bit_number() % _map.at(_classname).size();
+                _file_loaded = false;
 
-        if(_map.at(_classname).size() > 0) {
-            size_t _pos = _rnd.get_random_32bit_number() % _map.at(_classname).size();
-            bool _file_loaded = false;
-
-            if(_enableaugmentation == true) {
-                //--------------------------
-                cv::Mat _tmpmat = loadIgraymatWsizeCN(_map.at(_classname)[_pos].first,IMG_SIZE,IMG_SIZE,false,&_file_loaded);;
-                assert(_file_loaded);
-                _tmpmat = jitterimage(_tmpmat,_cvrng,cv::Size(0,0),0.02,0.1,90,cv::BORDER_REFLECT101);
-                if(_rnd.get_random_float() > 0.1f)
-                    _tmpmat = cutoutRect(_tmpmat,_rnd.get_random_float(),_rnd.get_random_float());
-                //--------------------------
-                _vsamples.push_back(cvmat2dlibmatrix<float>(_tmpmat));
-            } else {
-                _vsamples.push_back(load_grayscale_image_with_normalization(_map.at(_classname)[_pos].first,IMG_SIZE,IMG_SIZE,false,&_file_loaded));
-                assert(_file_loaded);
+                if(_enableaugmentation == true) {
+                    //--------------------------
+                    cv::Mat _tmpmat = __loadImage(_map.at(_classname)[_pos].first,IMG_SIZE,IMG_SIZE,false,true,false,&_file_loaded);
+                    assert(_file_loaded);
+                    _tmpmat = jitterimage(_tmpmat,_cvrng,cv::Size(0,0),0.02,0.1,90,cv::BORDER_REFLECT101);
+                    if(_rnd.get_random_float() > 0.1f)
+                        _tmpmat = cutoutRect(_tmpmat,_rnd.get_random_float(),_rnd.get_random_float());
+                    //--------------------------
+                    _vsamples.push_back(cvmatF2arrayofFdlibmatrix<4>(_tmpmat));
+                } else {
+                    _vsamples.push_back(cvmatF2arrayofFdlibmatrix<4>( __loadImage(_map.at(_classname)[_pos].first,IMG_SIZE,IMG_SIZE,false,true,false,&_file_loaded)));
+                    assert(_file_loaded);
+                }
+                _vlabels.push_back(_map.at(_classname)[_pos].second);
             }
-
-            _vlabels.push_back(_map.at(_classname)[_pos].second);
         }
-
     }
 }
 
@@ -128,7 +130,7 @@ int main(int argc, char** argv) try
     std::map<std::string,std::vector<std::pair<std::string,std::map<std::string,std::string>>>> _validmap;
     dlib::rand _rnd(31072); // magic number ;)
     loadData(cmdparser.get<unsigned int>("classes"),
-             trainfi.absoluteFilePath(),traindir.absolutePath(),"png",
+             trainfi.absoluteFilePath(),traindir.absolutePath(),
              _rnd,cmdparser.get<float>("validportion"),
              _trainmap,_validmap);
 
@@ -136,7 +138,7 @@ int main(int argc, char** argv) try
     showMatStat(_trainmap);
     qInfo("\n--------------\nValidation set:\n--------------\n");
     showMatStat(_validmap);
-    qInfo("\nStart training process...");
+    qInfo("\nStart training");
 
     for(int n = 0; n < cmdparser.get<int>("number"); ++n) {
         net_type net(labelsmap);
@@ -152,13 +154,13 @@ int main(int argc, char** argv) try
         //set_all_bn_running_stats_window_sizes(net, 1000);
 
         // Load training data
-        dlib::pipe<std::vector<dlib::matrix<float>>> trainpipeimg(5);
+        dlib::pipe<std::vector<std::array<dlib::matrix<float>,4>>> trainpipeimg(5);
         dlib::pipe<std::vector<std::map<std::string,std::string>>> trainpipelbl(5);
         auto traindata_load = [&trainpipeimg,&trainpipelbl,&_trainmap](time_t seed)
         {
             dlib::rand rnd(time(nullptr)+seed);
             cv::RNG    cvrng(static_cast<unsigned long long>(time(nullptr)+seed));
-            std::vector<dlib::matrix<float>> _vimg;
+            std::vector<std::array<dlib::matrix<float>,4>> _vimg;
             std::vector<std::map<std::string,std::string>> _vlbl;
             while(trainpipeimg.is_enabled()) {
                 load_unskewed_minibatch(_trainmap,rnd,cvrng,_vlbl,_vimg,true);
@@ -170,13 +172,13 @@ int main(int argc, char** argv) try
         std::thread traindata_loader2([traindata_load](){ traindata_load(2); });
         std::thread traindata_loader3([traindata_load](){ traindata_load(3); });
         //Load validation data
-        dlib::pipe<std::vector<dlib::matrix<float>>> validpipeimg(2);
+        dlib::pipe<std::vector<std::array<dlib::matrix<float>,4>>> validpipeimg(2);
         dlib::pipe<std::vector<std::map<std::string,std::string>>> validpipelbl(2);
         auto validdata_load = [&validpipeimg,&validpipelbl,&_validmap](time_t seed)
         {
             dlib::rand rnd(time(nullptr)+seed);
             cv::RNG    cvrng(static_cast<unsigned long long>(time(nullptr)+seed));
-            std::vector<dlib::matrix<float>> _vimg;
+            std::vector<std::array<dlib::matrix<float>,4>> _vimg;
             std::vector<std::map<std::string,std::string>> _vlbl;
             while(validpipeimg.is_enabled()) {
                 load_unskewed_minibatch(_validmap,rnd,cvrng,_vlbl,_vimg,false);
@@ -186,9 +188,9 @@ int main(int argc, char** argv) try
         };
         std::thread validdata_loader1([validdata_load](){ validdata_load(4); });
 
-        std::vector<dlib::matrix<float>> _timages;
+        std::vector<std::array<dlib::matrix<float>,4>> _timages;
         std::vector<std::map<std::string,std::string>> _tlabels;
-        std::vector<dlib::matrix<float>> _vimages;
+        std::vector<std::array<dlib::matrix<float>,4>> _vimages;
         std::vector<std::map<std::string,std::string>> _vlabels;
 
         size_t _steps = 0;
@@ -228,41 +230,34 @@ int main(int argc, char** argv) try
         std::vector<std::pair<std::string,std::map<std::string,std::string>>> _subset;
         _subset.reserve(31072);
         // Let's load portion of validation data
-        std::string _classname;
         for(size_t i = 0; i < _validmap.size(); ++i) {
-            _classname = std::to_string(i);
+            const std::string &_classname = std::to_string(i);
             for(size_t j = 0; j < _validmap.at(_classname).size(); ++j)
-                if(_rnd.get_random_float() < 0.9f)
+                if(_rnd.get_random_float() < 0.5f)
                     _subset.push_back(_validmap.at(_classname)[j]);
         }
 
-        _vimages.clear();
-        _vimages.reserve(_subset.size());
         _vlabels.clear();
         _vlabels.reserve(_subset.size());
-
-        for(size_t i = 0; i < _subset.size(); ++i) {
-            _vimages.push_back(load_grayscale_image_with_normalization(_subset[i].first,IMG_SIZE,IMG_SIZE,false));
+        for(size_t i = 0; i < _subset.size(); ++i)
             _vlabels.push_back(_subset[i].second);
-        }
 
         // We will predict by one because number of images could be big (so GPU RAM could be insufficient to handle all in one batch)
         std::vector<std::map<std::string,dlib::loss_multimulticlass_log_::classifier_output>> _predictions;
         _predictions.reserve(_subset.size());
         for(size_t i = 0; i < _subset.size(); ++i) {
-            _predictions.push_back(_testnet(_vimages[i]));
+            _predictions.push_back(_testnet( cvmatF2arrayofFdlibmatrix<4>(__loadImage(_subset[i].first,IMG_SIZE,IMG_SIZE,false,true,false))));
         }
 
         std::vector<unsigned int> truepos(net.loss_details().number_of_classifiers(),0);
         std::vector<unsigned int> falsepos(net.loss_details().number_of_classifiers(),0);
         std::vector<unsigned int> falseneg(net.loss_details().number_of_classifiers(),0);
 
-        std::string _predictedlabel, _truelabel;
         for(size_t i = 0; i < _predictions.size(); ++i) {
             for(size_t j = 0; j < net.loss_details().number_of_classifiers(); ++j) {
-                _classname = std::to_string(j);
-                _predictedlabel = _predictions[i].at(_classname);
-                _truelabel = _vlabels[i].at(_classname);
+                const std:: string &_classname = std::to_string(j);
+                const std:: string &_predictedlabel = _predictions[i].at(_classname);
+                const std:: string &_truelabel = _vlabels[i].at(_classname);
                 if((_truelabel.compare("y") == 0) && (_predictedlabel.compare("y") == 0)) {
                     truepos[j] += 1;
                 } else if((_truelabel.compare("n") == 0) && (_predictedlabel.compare("y") == 0)) {
@@ -294,7 +289,7 @@ std::map<std::string,std::vector<std::string>> fillLabelsMap(unsigned int _class
     return _labelsmap;
 }
 
-void loadData(unsigned int _classes, const QString &_trainfilename, const QString &_traindirname, const QString &_extension,
+void loadData(unsigned int _classes, const QString &_trainfilename, const QString &_traindirname,
               dlib::rand &_rnd, float _validationportion,
               std::map<std::string,std::vector<std::pair<std::string,std::map<std::string,std::string>>>> &_trainmap,
               std::map<std::string,std::vector<std::pair<std::string,std::map<std::string,std::string>>>> &_validmap)
@@ -309,27 +304,56 @@ void loadData(unsigned int _classes, const QString &_trainfilename, const QStrin
 
     QFile _file(_trainfilename);
     _file.open(QFile::ReadOnly);
-    _file.readLine(); // skip header data    
+    _file.readLine(); // skip header data
+
+    std::map<std::string,std::pair<size_t,size_t>> _texamples; // key -> num positive samples, num negative samples
+    std::map<std::string,std::pair<size_t,size_t>> _vexamples; // key -> num positive samples, num negative samples
+    for(unsigned int i = 0; i < _classes; ++i) {
+        _texamples[std::to_string(i)] = std::make_pair(0,0);
+        _vexamples[std::to_string(i)] = std::make_pair(0,0);
+    }
+
     while(!_file.atEnd()) {
         QString _line = _file.readLine();
         if(_line.contains(',')) {
-            std::string _filename = QString("%1/%2_green.%3").arg(_traindirname,_line.section(',',0,0),_extension).toStdString();
+            std::string _filename = QString("%1/%2").arg(_traindirname,_line.section(',',0,0)).toStdString();
             //qInfo("filename: %s", _filename.c_str());
             std::map<std::string,std::string> _lbls;
             for(unsigned int i = 0; i < _classes; ++i) // https://www.kaggle.com/c/human-protein-atlas-image-classification/data
                 _lbls[std::to_string(i)] = "n";
+
+            // Let's find positive examples first
             QStringList _lblslist = _line.section(',',1).simplified().split(' ');
-            std::string _key;
             for(int i = 0; i < _lblslist.size(); ++i) {
-                _key = _lblslist.at(i).toStdString();
+                const std::string &_key = _lblslist.at(i).toStdString();
                 if(_lbls.count(_key) == 1) {
                     _lbls[_key] = "y";
-                    if(_rnd.get_random_float() > _validationportion)
+                    if(_rnd.get_random_float() > _validationportion) {
                         _trainmap[_key].push_back(make_pair(_filename,_lbls));
-                    else
+                        _texamples[_key].first += 1;
+                    } else {
                         _validmap[_key].push_back(make_pair(_filename,_lbls));
+                        _vexamples[_key].first += 1;
+                    }
                 }
             }
+
+            // Now we need add negative samples
+            for(std::map<std::string,std::pair<size_t,size_t>>::const_iterator _it = _texamples.begin(); _it != _texamples.end(); ++_it) {
+                if(_it->second.first > _it->second.second) { // positive samples more than negative
+                    const std::string &_key = _it->first;
+                    if(_lbls.at(_key).compare("n") == 0) {
+                        if(_rnd.get_random_float() > _validationportion) {
+                            _trainmap[_key].push_back(make_pair(_filename,_lbls));
+                            _texamples[_key].second += 1;
+                        } else {
+                            _validmap[_key].push_back(make_pair(_filename,_lbls));
+                            _vexamples[_key].second += 1;
+                        }
+                    }
+                }
+            }
+
             // Let's check data by eyes
             /*std::map<std::string,std::string>::const_iterator _it;
             for(_it = _lbls.begin(); _it != _lbls.end(); ++_it) {
@@ -337,6 +361,18 @@ void loadData(unsigned int _classes, const QString &_trainfilename, const QStrin
             }*/
         }
     }
+}
+
+cv::Mat __loadImage(const std::string &_filenameprefix,int _tcols, int _trows, bool _crop, bool _center, bool _normalize, bool *_isloadded)
+{
+    cv::Mat _channelsmat[4];
+    std::string _postfix[4] = {"_green.png", "_blue.png", "_red.png", "_yellow.png"};
+    for(uint8_t i = 0; i < 4; ++i) {
+        _channelsmat[i] = loadIFgraymatWsize(_filenameprefix+_postfix[i],_tcols,_trows,_crop,_center,_normalize,_isloadded);
+    }
+    cv::Mat _outmat;
+    cv::merge(_channelsmat,4,_outmat);
+    return _outmat;
 }
 
 template<typename R, typename T>

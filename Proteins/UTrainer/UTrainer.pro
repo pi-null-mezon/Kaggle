@@ -13,6 +13,5 @@ INCLUDEPATH += $${PWD}/../../Shared/dlibimgaugment \
 include($${PWD}/../../Shared/dlib.pri)
 include($${PWD}/../../Shared/opencv.pri)
 
-HEADERS += $${PWD}/../Trainer/customnetwork.h
 
-INCLUDEPATH += $${PWD}/../Trainer
+INCLUDEPATH += $${PWD}/../4CTrainer
