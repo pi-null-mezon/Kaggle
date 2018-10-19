@@ -83,11 +83,11 @@ int main(int argc, char *argv[])
     _ots << "Id,Predicted\n";
 
     std::vector<anet_type> _vnets;
-    _vnets.resize(_modelfiles.size());
+    _vnets.resize(static_cast<size_t>(_modelfiles.size()));
     for(int i = 0; i < _modelfiles.size(); ++i) {
         unsigned int _classid = _modelfiles.at(i).section("_(MFs",0,0).section("proteins_class_",1).toUInt();
         try {
-            dlib::deserialize(_modeldir.absoluteFilePath(_modelfiles.at(i))) >> _vnets[_classid];
+            dlib::deserialize(_modeldir.absoluteFilePath(_modelfiles.at(i)).toStdString()) >> _vnets[_classid];
         } catch(std::exception& e) {
             cout << e.what() << endl;
         }

@@ -83,11 +83,11 @@ int main(int argc, char *argv[])
     _ots << "Id,Predicted\n";
 
     std::vector<anet_type> _vnets;
-    _vnets.resize(_modelfiles.size());
+    _vnets.resize(static_cast<size_t>(_modelfiles.size()));
     for(int i = 0; i < _modelfiles.size(); ++i) {
         unsigned int _classid = _modelfiles.at(i).section("_(MFs",0,0).section("proteins_class_",1).toUInt();
         try {
-            dlib::deserialize(_modeldir.absoluteFilePath(_modelfiles.at(i))) >> _vnets[_classid];
+            dlib::deserialize(_modeldir.absoluteFilePath(_modelfiles.at(i)).toStdString()) >> _vnets[_classid];
         } catch(std::exception& e) {
             cout << e.what() << endl;
         }
@@ -115,7 +115,7 @@ int main(int argc, char *argv[])
             bool _first_prediction = true;
             for(size_t n = 0; n < _vnets.size(); ++n) {
                 std::map<std::string,dlib::loss_multimulticlass_log_::classifier_output> _output = _vnets[n](_img);
-                const unsigned long _predictedlbl = _output.at("0").probability_of_class(0) > 0.3 ? 1 : 0;
+                const unsigned long _predictedlbl = _output.at("0").probability_of_class(0) > 0.5 ? 1 : 0;
                 if(_predictedlbl == 1) {
                     if(_first_prediction) {
                         _first_prediction = false;
