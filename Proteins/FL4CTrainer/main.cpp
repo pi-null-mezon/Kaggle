@@ -19,10 +19,10 @@ using namespace dlib;
 const cv::String keys =
    "{help h           |        | app help}"
    "{classes          |   28   | number of classes (each class has two possible outcomes 'y', 'n')}"
-   "{minibatchsize    |   33   | minibatch size}"
+   "{minibatchsize    |   64   | minibatch size}"
    "{traindir t       |        | training directory location}"
    "{outputdir o      |        | output directory location}"
-   "{validportion v   |  0.20  | output directory location}"
+   "{validportion v   |  0.2   | output directory location}"
    "{number n         |   1    | number of classifiers to be trained}"
    "{swptrain         | 10000  | determines after how many steps without progress (training loss) decay should be applied to learning rate}"
    "{swpvalid         |  500   | determines after how many steps without progress (test loss) decay should be applied to learning rate}"
@@ -104,7 +104,9 @@ int main(int argc, char** argv) try
 
     for(int n = 0; n < cmdparser.get<int>("number"); ++n) {
         net_type net(labelsmap);
+        net.loss_details().set_gamma(1.5f);
         net.subnet().layer_details().set_num_outputs(static_cast<long>(net.loss_details().number_of_labels()));
+        std::cout << net << std::endl;
 
         dnn_trainer<net_type> trainer(net,sgd());
         trainer.set_learning_rate(0.1);
@@ -113,8 +115,7 @@ int main(int argc, char** argv) try
         trainer.set_iterations_without_progress_threshold(cmdparser.get<unsigned int>("swptrain"));
         trainer.set_test_iterations_without_progress_threshold(cmdparser.get<unsigned int>("swpvalid"));
         // If training set very large then
-        set_all_bn_running_stats_window_sizes(net, 256);
-        std::cout << net;
+        set_all_bn_running_stats_window_sizes(net, minibatchsize*4);
 
         // Load training data
         dlib::pipe<std::pair<std::map<std::string,std::string>,std::array<dlib::matrix<float>,4>>> trainpipe(minibatchsize*2);
@@ -130,23 +131,18 @@ int main(int argc, char** argv) try
             {
                 _pos = rnd.get_random_32bit_number() % _trainingset.size();
                 _sample.first = _trainingset[_pos].second;
-                _tmpmat = __loadImage(_trainingset[_pos].first,512,512,false,true,true,&_training_file_loaded);
-                /*if(rnd.get_random_float() > 0.11f)
-                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.015,0,180,cv::BORDER_REFLECT101);*/
-                _tmpmat = cropimage(_tmpmat,cv::Size(400,400),&cvrng);
+                _tmpmat = __loadImage(_trainingset[_pos].first,IMG_SIZE,IMG_SIZE,false,true,false,&_training_file_loaded);                                
                 assert(_training_file_loaded);
                 if(rnd.get_random_float() > 0.5f)
                     cv::flip(_tmpmat,_tmpmat,0);
                 if(rnd.get_random_float() > 0.5f)
                     cv::flip(_tmpmat,_tmpmat,1);
-                /*if(rnd.get_random_float() > 0.27f)
-                    _tmpmat = distortimage(_tmpmat,cvrng,0.015,cv::INTER_LANCZOS4,cv::BORDER_REFLECT);*/
-
-                /*cv::resize(_tmpmat,_tmpmat,cv::Size(IMG_SIZE,IMG_SIZE),0,0,cv::INTER_AREA);*/
-
-                /*if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.4f,0.4f,45.0f*rnd.get_random_float());*/
-
+                if(rnd.get_random_float() > 0.2f)
+                    _tmpmat = distortimage(_tmpmat,cvrng,0.015,cv::INTER_LANCZOS4,cv::BORDER_REFLECT_101);
+                if(rnd.get_random_float() > 0.0f)
+                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.015,0,180,cv::BORDER_REFLECT101);
+                if(rnd.get_random_float() > 0.1f)
+                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float());
                 _sample.second = cvmatF2arrayofFdlibmatrix<4>(_tmpmat);
                 trainpipe.enqueue(_sample);
             }
@@ -159,7 +155,6 @@ int main(int argc, char** argv) try
         auto validdata_load = [&validpipe, &_validationset](time_t seed)
         {
             dlib::rand rnd(time(nullptr)+seed);
-            cv::RNG    cvrng(static_cast<unsigned long long>(time(nullptr)+seed));
             std::pair<std::map<std::string,std::string>,std::array<dlib::matrix<float>,4>> _sample;
             cv::Mat _tmpmat;
             size_t _pos;
@@ -168,15 +163,7 @@ int main(int argc, char** argv) try
             {
                 _pos = rnd.get_random_32bit_number() % _validationset.size();
                 _sample.first = _validationset[_pos].second;
-                _tmpmat = __loadImage(_validationset[_pos].first,512,512,false,true,true,&_validation_file_loaded);                
-                _tmpmat = cropimage(_tmpmat,cv::Size(400,400),&cvrng);
-                if(rnd.get_random_float() > 0.5f)
-                    cv::flip(_tmpmat,_tmpmat,0);
-                if(rnd.get_random_float() > 0.5f)
-                    cv::flip(_tmpmat,_tmpmat,1);
-
-                //cv::resize(_tmpmat,_tmpmat,cv::Size(IMG_SIZE,IMG_SIZE),0,0,cv::INTER_AREA);
-
+                _tmpmat = __loadImage(_validationset[_pos].first,IMG_SIZE,IMG_SIZE,false,true,false,&_validation_file_loaded);
                 _sample.second = cvmatF2arrayofFdlibmatrix<4>(_tmpmat);
                 assert(_validation_file_loaded);
                 validpipe.enqueue(_sample);
@@ -234,7 +221,7 @@ int main(int argc, char** argv) try
         _subset.reserve(_validationset.size());
         // Let's load portion of validation data
         for(size_t i = 0; i < _validationset.size(); ++i) {
-            if(_rnd.get_random_float() < 1.0f)
+            if(_rnd.get_random_float() < 0.5f)
                 _subset.push_back(_validationset[i]);
         }
 
@@ -246,14 +233,10 @@ int main(int argc, char** argv) try
         }
 
         // We will predict by one because number of images could be big (so GPU RAM could be insufficient to handle all in one batch)
-        std::vector<std::map<std::string,dlib::loss_multimulticlass_log_::classifier_output>> _predictions;
+        std::vector<std::map<std::string,dlib::loss_multimulticlass_focal_::classifier_output>> _predictions;
         _predictions.reserve(_subset.size());
-        cv::Mat _tmpmat;
         for(size_t i = 0; i < _subset.size(); ++i) {
-            _tmpmat = __loadImage(_subset[i].first,512,512,false,true,true);
-            _tmpmat = cropimage(_tmpmat,cv::Size(400,400));
-            //cv::resize(_tmpmat,_tmpmat,cv::Size(IMG_SIZE,IMG_SIZE),0,0,cv::INTER_AREA);
-            _predictions.push_back(_testnet(cvmatF2arrayofFdlibmatrix<4>(_tmpmat)));
+            _predictions.push_back(_testnet(cvmatF2arrayofFdlibmatrix<4>(__loadImage(_subset[i].first,IMG_SIZE,IMG_SIZE,false,true,false))));
         }
 
         std::vector<unsigned int> truepos(net.loss_details().number_of_classifiers(),0);

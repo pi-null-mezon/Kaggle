@@ -30,6 +30,24 @@ cv::Mat cutoutRect(const cv::Mat &_mat, float _cx=0.5f, float _cy=0.5f, float _p
 }
 
 /**
+ * @brief Makes fixed size random (if _rng is not nullptr, if null crops from center) crop of the input image
+ * @param _inmat - input image
+ * @param _cropsize - crop size (should be less than input image size)
+ * @param _rng - random number generator
+ * @return random crop with fixed size
+ */
+cv::Mat cropimage(const cv::Mat &_inmat, const cv::Size &_cropsize, cv::RNG *_rng=nullptr)
+{
+    int _dw = _inmat.cols - _cropsize.width;
+    int _dh = _inmat.rows - _cropsize.height;
+    cv::Rect _rect(cv::Point(_dw/2,_dh/2),_cropsize);
+    if(_rng != nullptr)
+        _rect = cv::Rect(cv::Point(_dw*_rng->uniform(0.f,1.f),_dh*_rng->uniform(0.f,1.f)),_cropsize);
+    return cv::Mat(_inmat,_rect).clone();
+}
+
+
+/**
  * @brief Produces random crops of the input image. All crops represents fixed sizes regions of the original image
  * @param _inmat - input image
  * @param _cropsnum - number of the crops
@@ -49,7 +67,7 @@ void getImageFSCrops(const cv::Mat &_inmat, const size_t _cropsnum, std::vector<
 }
 
 /**
- * @brief Makes crop with defined size from the image center
+ * @brief Makes crop with defined size from the image center (first makes crop with defined size proportion only then makes resize)
  * @param input - self explained
  * @param size - target size
  * @return cropped patch of the image
@@ -120,8 +138,8 @@ cv::Mat jitterimage(const cv::Mat &_inmat, cv::RNG &_cvrng, const cv::Size &_tar
  * @param _cvrng - random number generator
  * @return transformed image
  */
-cv::Mat distortimage(const cv::Mat&_inmat, cv::RNG &_cvrng, double _maxportion=0.09, int _interp_method=CV_INTER_LINEAR, int _bordertype=cv::BORDER_DEFAULT)
-{
+cv::Mat distortimage(const cv::Mat&_inmat, cv::RNG &_cvrng, double _maxportion=0.05, int _interp_method=CV_INTER_LINEAR, int _bordertype=cv::BORDER_DEFAULT)
+{   
     cv::Point2f pts1[]={cv::Point2f(0,0),
     cv::Point2f(_inmat.cols,0),
     cv::Point2f(_inmat.cols,_inmat.rows),

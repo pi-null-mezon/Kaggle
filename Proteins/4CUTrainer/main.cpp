@@ -21,11 +21,11 @@ const cv::String keys =
    "{classes          |   28   | number of classes (each class has two possible outcomes 'y', 'n')}"
    "{traindir t       |        | training directory location}"
    "{outputdir o      |        | output directory location}"
-   "{validportion v   |  0.15  | output directory location}"
+   "{validportion v   |  0.5   | output directory location}"
    "{number n         |   1    | number of classifiers to be trained}"
-   "{swptrain         | 5000   | determines after how many steps without progress (training loss) decay should be applied to learning rate}"
-   "{swpvalid         | 1000   | determines after how many steps without progress (test loss) decay should be applied to learning rate}"
-   "{minlrthresh      | 1.0e-5 | minimum learning rate, determines when training should be stopped}";
+   "{swptrain         | 10000  | determines after how many steps without progress (training loss) decay should be applied to learning rate}"
+   "{swpvalid         | 500    | determines after how many steps without progress (test loss) decay should be applied to learning rate}"
+   "{minlrthresh      | 1.0e-3 | minimum learning rate, determines when training should be stopped}";
 
 std::map<std::string,std::vector<std::string>> fillLabelsMap(unsigned int _classes);
 
@@ -53,27 +53,35 @@ void load_unskewed_minibatch( const std::map<std::string,std::vector<std::pair<s
     bool _file_loaded;
     for(size_t i = 0; i < _numofclasses; ++i) {
         _classname = std::to_string(i);
-        for(int j = 0; j < 4; ++j) {
-            if(_map.at(_classname).size() > 0) {
-                _pos = _rnd.get_random_32bit_number() % _map.at(_classname).size();
-                _file_loaded = false;
+        if(_map.at(_classname).size() > 200)
+            for(int j = 0; j < 4; ++j) {
+                if(_map.at(_classname).size() > 0) {
+                    _pos = _rnd.get_random_32bit_number() % _map.at(_classname).size();
+                    _file_loaded = false;
 
-                if(_enableaugmentation == true) {
-                    //--------------------------
-                    cv::Mat _tmpmat = __loadImage(_map.at(_classname)[_pos].first,IMG_SIZE,IMG_SIZE,false,true,false,&_file_loaded);
-                    assert(_file_loaded);
-                    _tmpmat = jitterimage(_tmpmat,_cvrng,cv::Size(0,0),0.02,0.1,90,cv::BORDER_REFLECT101);
-                    if(_rnd.get_random_float() > 0.1f)
-                        _tmpmat = cutoutRect(_tmpmat,_rnd.get_random_float(),_rnd.get_random_float());
-                    //--------------------------
-                    _vsamples.push_back(cvmatF2arrayofFdlibmatrix<4>(_tmpmat));
-                } else {
-                    _vsamples.push_back(cvmatF2arrayofFdlibmatrix<4>( __loadImage(_map.at(_classname)[_pos].first,IMG_SIZE,IMG_SIZE,false,true,false,&_file_loaded)));
-                    assert(_file_loaded);
+                    if(_enableaugmentation == true) {
+                        //--------------------------
+                        cv::Mat _tmpmat = __loadImage(_map.at(_classname)[_pos].first,IMG_SIZE,IMG_SIZE,false,true,false,&_file_loaded);
+                        assert(_file_loaded);
+                        if(_rnd.get_random_float() > 0.5f)
+                            cv::flip(_tmpmat,_tmpmat,0);
+                        if(_rnd.get_random_float() > 0.5f)
+                            cv::flip(_tmpmat,_tmpmat,1);
+                        if(_rnd.get_random_float() > 0.27f)
+                            _tmpmat = distortimage(_tmpmat,_cvrng,0.015,cv::INTER_LANCZOS4,cv::BORDER_REFLECT_101);
+                        if(_rnd.get_random_float() > 0.11f)
+                            _tmpmat = jitterimage(_tmpmat,_cvrng,cv::Size(0,0),0.015,0,180,cv::BORDER_REFLECT101);
+                        if(_rnd.get_random_float() > 0.1f)
+                            _tmpmat = cutoutRect(_tmpmat,_rnd.get_random_float(),_rnd.get_random_float(),0.5f,0.5f,45.0f*_rnd.get_random_float());
+                        //--------------------------
+                        _vsamples.push_back(cvmatF2arrayofFdlibmatrix<4>(_tmpmat));
+                    } else {
+                        _vsamples.push_back(cvmatF2arrayofFdlibmatrix<4>( __loadImage(_map.at(_classname)[_pos].first,IMG_SIZE,IMG_SIZE,false,true,false,&_file_loaded)));
+                        assert(_file_loaded);
+                    }
+                    _vlabels.push_back(_map.at(_classname)[_pos].second);
                 }
-                _vlabels.push_back(_map.at(_classname)[_pos].second);
             }
-        }
     }
 }
 
@@ -201,7 +209,7 @@ int main(int argc, char** argv) try
             trainer.train_one_step(_timages, _tlabels);
             _steps++;
 
-            if((_steps % 4) == 0) {
+            if((_steps % 10) == 0) {
                 validpipeimg.dequeue(_vimages);
                 validpipelbl.dequeue(_vlabels);
                 trainer.test_one_step(_vimages, _vlabels);
@@ -298,19 +306,17 @@ void loadData(unsigned int _classes, const QString &_trainfilename, const QStrin
     std::string _classname;
     for(unsigned int i = 0; i < _classes; ++i) {
         _classname = std::to_string(i);
-        _trainmap[_classname].reserve(12885); // I know that at most it will be 12885
-        _validmap[_classname].reserve(12885);
+        _trainmap[_classname].reserve(31072);
+        _validmap[_classname].reserve(31072);
     }
 
     QFile _file(_trainfilename);
     _file.open(QFile::ReadOnly);
     _file.readLine(); // skip header data
 
-    std::map<std::string,std::pair<size_t,size_t>> _texamples; // key -> num positive samples, num negative samples
-    std::map<std::string,std::pair<size_t,size_t>> _vexamples; // key -> num positive samples, num negative samples
+    std::map<std::string,std::pair<size_t,size_t>> _examples; // key -> num positive samples, num negative samples
     for(unsigned int i = 0; i < _classes; ++i) {
-        _texamples[std::to_string(i)] = std::make_pair(0,0);
-        _vexamples[std::to_string(i)] = std::make_pair(0,0);
+        _examples[std::to_string(i)] = std::make_pair(0,0);
     }
 
     while(!_file.atEnd()) {
@@ -327,29 +333,31 @@ void loadData(unsigned int _classes, const QString &_trainfilename, const QStrin
             for(int i = 0; i < _lblslist.size(); ++i) {
                 const std::string &_key = _lblslist.at(i).toStdString();
                 if(_lbls.count(_key) == 1) {
-                    _lbls[_key] = "y";
-                    if(_rnd.get_random_float() > _validationportion) {
-                        _trainmap[_key].push_back(make_pair(_filename,_lbls));
-                        _texamples[_key].first += 1;
-                    } else {
-                        _validmap[_key].push_back(make_pair(_filename,_lbls));
-                        _vexamples[_key].first += 1;
-                    }
+                    _lbls[_key] = "y";                   
                 }
             }
 
-            // Now we need add negative samples
-            for(std::map<std::string,std::pair<size_t,size_t>>::const_iterator _it = _texamples.begin(); _it != _texamples.end(); ++_it) {
-                if(_it->second.first > _it->second.second) { // positive samples more than negative
-                    const std::string &_key = _it->first;
+            for(std::map<std::string,std::pair<size_t,size_t>>::const_iterator _it = _examples.begin(); _it != _examples.end(); ++_it) {
+                const std::string &_key = _it->first;
+                if(_it->second.first == _it->second.second) {
+                    if(_lbls.at(_key).compare("y") == 0) {
+                        if(_rnd.get_random_float() > _validationportion) {
+                            _trainmap[_key].push_back(make_pair(_filename,_lbls));
+                        } else {
+                            _validmap[_key].push_back(make_pair(_filename,_lbls));
+                        }
+                        _examples[_key].first += 1;
+                        break;
+                    }
+                } else { // positive samples more than negative
                     if(_lbls.at(_key).compare("n") == 0) {
                         if(_rnd.get_random_float() > _validationportion) {
                             _trainmap[_key].push_back(make_pair(_filename,_lbls));
-                            _texamples[_key].second += 1;
                         } else {
                             _validmap[_key].push_back(make_pair(_filename,_lbls));
-                            _vexamples[_key].second += 1;
                         }
+                        _examples[_key].second += 1;
+                        break;
                     }
                 }
             }
@@ -381,9 +389,9 @@ R computeMacroF1Score(const std::vector<T> &_truepos, const std::vector<T> &_fal
     R _precision = 0, _recall = 0;
 
     for(size_t i = 0; i < _truepos.size(); ++i) {
-        /*qInfo("TP[%u]: %u", static_cast<unsigned int>(i), static_cast<unsigned int>(_truepos[i]));
+        qInfo("TP[%u]: %u", static_cast<unsigned int>(i), static_cast<unsigned int>(_truepos[i]));
         qInfo("FP[%u]: %u", static_cast<unsigned int>(i), static_cast<unsigned int>(_falsepos[i]));
-        qInfo("FN[%u]: %u", static_cast<unsigned int>(i), static_cast<unsigned int>(_falseneg[i]));*/
+        qInfo("FN[%u]: %u", static_cast<unsigned int>(i), static_cast<unsigned int>(_falseneg[i]));
         _precision += static_cast<R>(_truepos[i]) / (_truepos[i] + _falsepos[i] + _epsilon);
         _recall += static_cast<R>(_truepos[i]) / (_truepos[i] + _falseneg[i] + _epsilon);
     }

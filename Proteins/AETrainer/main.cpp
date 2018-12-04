@@ -19,10 +19,10 @@ using namespace dlib;
 const cv::String keys =
    "{help h           |        | app help}"
    "{classes          |   28   | number of classes (each class has two possible outcomes 'y', 'n')}"
-   "{minibatchsize    |   32   | size of minibatch}"
+   "{minibatchsize    |   64   | size of minibatch}"
    "{traindir t       |        | training directory location}"
    "{outputdir o      |        | output directory location}"
-   "{validportion v   |  0.15  | output directory location}"
+   "{validportion v   |  0.2   | output directory location}"
    "{swptrain         | 10000  | determines after how many steps without progress (training loss) decay should be applied to learning rate}"
    "{swpvalid         | 500    | determines after how many steps without progress (test loss) decay should be applied to learning rate}"
    "{minlrthresh      | 1.0e-3 | minimum learning rate, determines when training should be stopped}";
@@ -128,7 +128,7 @@ int main(int argc, char** argv) try
             cv::Mat _sample;
             size_t  _pos;
             bool _is_training_file_loaded;
-            double _anglevar = 90.0;
+            double _anglevar = 180.0;
             if(_trainfiles.size() < 200)
                 _anglevar = 180.0;
             while(trainpipeimg.is_enabled()) {
@@ -136,10 +136,14 @@ int main(int argc, char** argv) try
                 _pos = rnd.get_random_32bit_number() % _trainfiles.size();
                 _sample = __loadImage(_trainfiles[_pos],IMG_SIZE,IMG_SIZE,false,true,false,&_is_training_file_loaded);
                 assert(_is_training_file_loaded);
-                _sample = jitterimage(_sample,cvrng,cv::Size(0,0),0.02,0.1,_anglevar,cv::BORDER_REFLECT101);
-                if(rnd.get_random_float() > 0.1f) {
-                    _sample = cutoutRect(_sample,rnd.get_random_float(),rnd.get_random_float());
-                }
+                if(rnd.get_random_float() > 0.5f)
+                    cv::flip(_sample,_sample,0);
+                if(rnd.get_random_float() > 0.5f)
+                    cv::flip(_sample,_sample,1);
+                if(rnd.get_random_float() > 0.1f)
+                    _sample = jitterimage(_sample,cvrng,cv::Size(0,0),0.015,0.1,_anglevar,cv::BORDER_REFLECT101);
+                if(rnd.get_random_float() > 0.1f)
+                    _sample = cutoutRect(_sample,rnd.get_random_float(),rnd.get_random_float(),0.45f,0.45f,rnd.get_random_float()*45.0f);
                 trainpipeimg.enqueue(std::make_pair(_trainlabels[_pos],cvmatF2arrayofFdlibmatrix<4>(_sample)));
             }
         };
@@ -159,6 +163,12 @@ int main(int argc, char** argv) try
                 _is_validation_file_loaded = false;
                 _pos = rnd.get_random_32bit_number() % _validfiles.size();
                 _sample = __loadImage(_validfiles[_pos],IMG_SIZE,IMG_SIZE,false,true,false,&_is_validation_file_loaded);
+                if(rnd.get_random_float() > 0.5f)
+                    cv::flip(_sample,_sample,0);
+                if(rnd.get_random_float() > 0.5f)
+                    cv::flip(_sample,_sample,1);
+                if(rnd.get_random_float() > 0.1f)
+                    _sample = jitterimage(_sample,cvrng,cv::Size(0,0),0.015,0.1,180.0,cv::BORDER_REFLECT101);
                 assert(_is_validation_file_loaded);
                 validpipeimg.enqueue(std::make_pair(_validlabels[_pos],cvmatF2arrayofFdlibmatrix<4>(_sample)));
             }

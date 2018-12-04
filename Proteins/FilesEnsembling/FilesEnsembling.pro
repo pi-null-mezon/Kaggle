@@ -17,13 +17,7 @@ DEFINES += QT_DEPRECATED_WARNINGS
 SOURCES += \
         main.cpp
 
-INCLUDEPATH += \
-               $${PWD}/../../Shared/dlibopencvconverter \
-               $${PWD}/../../Shared/dlibimgaugment \
-               $${PWD}/../../Shared/opencvimgaugment
-
-include($${PWD}/../../Shared/opencv.pri)
-include($${PWD}/../../Shared/dlib.pri)
-
-
-INCLUDEPATH += $${PWD}/../4CTrainer
+# Default rules for deployment.
+qnx: target.path = /tmp/$${TARGET}/bin
+else: unix:!android: target.path = /opt/$${TARGET}/bin
+!isEmpty(target.path): INSTALLS += target

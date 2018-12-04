@@ -115,7 +115,7 @@ int main(int argc, char *argv[])
             bool _first_prediction = true;
             for(size_t n = 0; n < _vnets.size(); ++n) {
                 std::map<std::string,dlib::loss_multimulticlass_log_::classifier_output> _output = _vnets[n](_img);
-                const unsigned long _predictedlbl = _output.at("0").probability_of_class(0) > 0.5 ? 1 : 0;
+                const unsigned long _predictedlbl = _output.at("0").probability_of_class(0) > 0.975 ? 1 : 0;
                 if(_predictedlbl == 1) {
                     if(_first_prediction) {
                         _first_prediction = false;
