@@ -238,39 +238,45 @@ int main(int argc, char** argv)
 
     dlib::rand rnd(0);
     cv::RNG cvrng(0);
-    load_mini_batch(40, 4, rnd, cvrng, validobjs, vimages, vlabels, false);
-    std::vector<matrix<float,0,1>> embedded = anet(vimages);
+    const int testsnum = 11;
+    float _valaccuracy = 0;
+    for(int i = 0; i < testsnum; ++i) {
+        load_mini_batch(40, 4, rnd, cvrng, validobjs, vimages, vlabels, false);
+        std::vector<matrix<float,0,1>> embedded = anet(vimages);
 
-    // Now, check if the embedding puts images with the same labels near each other and
-    // images with different labels far apart.
-    int num_right = 0;
-    int num_wrong = 0;
-    const float _distancethresh = anet.loss_details().get_distance_threshold();
-    for (size_t i = 0; i < embedded.size(); ++i) {
-        for (size_t j = i+1; j < embedded.size(); ++j)  {
-            if (vlabels[i] == vlabels[j])  {
-                // The loss_metric layer will cause images with the same label to be less
-                // than net.loss_details().get_distance_threshold() distance from each
-                // other.  So we can use that distance value as our testing threshold.
-                if (length(embedded[i] - embedded[j]) < _distancethresh)
-                    ++num_right;
-                else
-                    ++num_wrong;
-            } else {
-                if (length(embedded[i]-embedded[j]) >= _distancethresh)
-                    ++num_right;
-                else
-                    ++num_wrong;
+        // Now, check if the embedding puts images with the same labels near each other and
+        // images with different labels far apart.
+        int num_right = 0;
+        int num_wrong = 0;
+        const float _distancethresh = anet.loss_details().get_distance_threshold();
+        for (size_t i = 0; i < embedded.size(); ++i) {
+            for (size_t j = i+1; j < embedded.size(); ++j)  {
+                if (vlabels[i] == vlabels[j])  {
+                    // The loss_metric layer will cause images with the same label to be less
+                    // than net.loss_details().get_distance_threshold() distance from each
+                    // other.  So we can use that distance value as our testing threshold.
+                    if (length(embedded[i] - embedded[j]) < _distancethresh)
+                        ++num_right;
+                    else
+                        ++num_wrong;
+                } else {
+                    if (length(embedded[i]-embedded[j]) >= _distancethresh)
+                        ++num_right;
+                    else
+                        ++num_wrong;
+                }
             }
         }
+        const float _acc = static_cast<float>(num_right) / (num_right + num_wrong);
+        cout << "Test iteration # " << i << endl;
+        cout << "accuracy:  " << _acc << endl;
+        cout << "num_right: "<< num_right << endl;
+        cout << "num_wrong: "<< num_wrong << endl;
+        _valaccuracy += _acc;
     }
-    const float _valacc = static_cast<float>(num_right) / (num_right + num_wrong);
-    cout << "Validation accuracy: " << _valacc << endl;
-    cout << "num_right: "<< num_right << endl;
-    cout << "num_wrong: "<< num_wrong << endl;
 
     cout << "Wait untill weights will be serialized to " << sessionguid << ".dat" << endl;
-    serialize(cmdparser.get<string>("outputdir") + string("/whales_") + sessionguid + string("_VA") + std::to_string(_valacc)  + string(".dat")) << net;
+    serialize(cmdparser.get<string>("outputdir") + string("/whales_") + sessionguid + string("_VA") + std::to_string(_valaccuracy/testsnum)  + string(".dat")) << net;
     cout << "Done" << endl;
     return 0;
 }
