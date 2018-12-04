@@ -17,7 +17,7 @@ int main(int argc, char *argv[])
 
     QFile _file(_filename);
     if(_file.open(QFile::ReadOnly) == false) {
-        qWarning() << "Can not open file with labels mapping! Abort...";
+        qWarning() << "Can not open file with labels (" << _filename << ")! Abort...";
         return 1;
     } else {
         _file.readLine(); // Drop first line with header
@@ -32,6 +32,8 @@ int main(int argc, char *argv[])
     }
 
     QDir _outputdir(_outputdirname);
+    if(!_outputdir.exists())
+        _outputdir.mkpath(_outputdirname);
     QDir _inputdir(_inputdirname);
     QStringList _labels = _labelsmap.uniqueKeys();
     for(int i = 0; i < _labels.size(); ++i) {

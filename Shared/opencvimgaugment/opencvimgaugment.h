@@ -188,7 +188,7 @@ cv::Mat loadIFgraymatWsize(std::string _filename, int _tcols, int _trows, bool _
     } else if((_originalimgmat.cols != _tcols) || (_originalimgmat.rows != _trows)) {
         int resizetype = CV_INTER_AREA;
         if(_originalimgmat.cols*_originalimgmat.rows < _tcols*_trows)
-            resizetype = CV_INTER_LINEAR;
+            resizetype = CV_INTER_CUBIC;
         cv::resize(_originalimgmat,_originalimgmat,cv::Size(_tcols,_trows),0,0,resizetype);
     }
 
@@ -203,7 +203,6 @@ cv::Mat loadIFgraymatWsize(std::string _filename, int _tcols, int _trows, bool _
             _originalimgmat = (_originalimgmat - _mean[0]) / 256;
         }
     }
-
     return _originalimgmat;
 }
 

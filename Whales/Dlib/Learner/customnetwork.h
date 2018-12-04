@@ -3,6 +3,10 @@
 
 #include <dlib/dnn.h>
 
+#define FNUM       32
+#define IMG_WIDTH  500
+#define IMG_HEIGHT 200
+
 namespace dlib {
 template <template <int,template<typename>class,int,typename> class block, int N, template<typename>class BN, typename SUBNET>
 using residual = add_prev1<block<N,BN,1,tag1<SUBNET>>>;
@@ -19,7 +23,7 @@ template <int N, typename SUBNET> using res_down  = relu<residual_down<block,N,b
 template <int N, typename SUBNET> using ares_down = relu<residual_down<block,N,affine,SUBNET>>;
 
 // ----------------------------------------------------------------------------------------
-#define FNUM 32
+
 template <typename SUBNET> using level0 = res<32*FNUM,res_down<32*FNUM,SUBNET>>;
 template <typename SUBNET> using level1 = res_down<16*FNUM,SUBNET>;
 template <typename SUBNET> using level2 = res<8*FNUM,res_down<8*FNUM,SUBNET>>;
@@ -38,7 +42,7 @@ using net_type = loss_metric<fc_no_bias<64,avg_pool_everything<
                             level3<
                             level4<
                             max_pool<3,3,2,2,relu<bn_con<con<FNUM,7,7,2,2,
-                            input_rgb_image
+                            input<matrix<float>>
                             >>>>>>>>>>>;
 
 // testing network type (replaced batch normalization with fixed affine transforms)
@@ -48,7 +52,7 @@ using anet_type = loss_metric<fc_no_bias<64,avg_pool_everything<
                             alevel3<
                             alevel4<
                             max_pool<3,3,2,2,relu<affine<con<FNUM,7,7,2,2,
-                            input_rgb_image
+                            input<matrix<float>>
                             >>>>>>>>>>>;
 }
 
