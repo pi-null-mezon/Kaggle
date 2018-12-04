@@ -240,7 +240,7 @@ int main(int argc, char** argv)
     cv::RNG cvrng(0);
     const int testsnum = 11;
     float _valaccuracy = 0;
-    for(int i = 0; i < testsnum; ++i) {
+    for(int n = 0; n < testsnum; ++n) {
         load_mini_batch(40, 4, rnd, cvrng, validobjs, vimages, vlabels, false);
         std::vector<matrix<float,0,1>> embedded = anet(vimages);
 
@@ -268,7 +268,7 @@ int main(int argc, char** argv)
             }
         }
         const float _acc = static_cast<float>(num_right) / (num_right + num_wrong);
-        cout << "Test iteration # " << i << endl;
+        cout << "Test iteration # " << n << endl;
         cout << "accuracy:  " << _acc << endl;
         cout << "num_right: "<< num_right << endl;
         cout << "num_wrong: "<< num_wrong << endl;
