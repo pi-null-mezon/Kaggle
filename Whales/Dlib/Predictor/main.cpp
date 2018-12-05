@@ -11,12 +11,12 @@
 #include "opencvimgaugment.h"
 #include "dlibopencvconverter.h"
 
-const cv::String _options = "{help h       |     | this help}"
-			    "{dstthresh t  | 0.5 | distance threshold}"
-                            "{inputdir i   |     | directory name where images are stored}"
-                            "{recmodel r   |     | filename of the recognitiotn model}"
-                            "{labels   l   |     | filename of the labels to recognize}"
-                            "{outputfile o |     | output filename with the results}";
+const cv::String _options = "{help h       |      | this help}"
+                            "{dstthresh t  | 0.55 | distance threshold}"
+                            "{inputdir i   |      | directory name where images are stored}"
+                            "{recmodel r   |      | filename of the recognitiotn model}"
+                            "{labels   l   |      | filename of the labels to recognize}"
+                            "{outputfile o |      | output filename with the results}";
 
 int main(int argc, char *argv[])
 {
@@ -35,31 +35,37 @@ int main(int argc, char *argv[])
     QDir _qdir(_inputdirname);
     if(_qdir.exists() == false) {
         qWarning("Directory with the name %s is not existed! Abort...", _inputdirname.toUtf8().constData());
-        return 1;
+        return 2;
     }
 
     if(_cmdparser.has("recmodel") == false) {
         qWarning("You have not provide recognition model file name! Abort...");
-        return 1;
+        return 3;
+    } else {
+        QFileInfo _fi(_cmdparser.get<cv::String>("recmodel").c_str());
+        if(!_fi.exists()) {
+            qWarning("Model file name you have provided does not exist! Abort...");
+            return 4;
+        }
     }
     QString _recmodelfilename = _cmdparser.get<cv::String>("recmodel").c_str();
 
     if(_cmdparser.has("labels") == false) {
         qWarning("You have not provide labels file name! Abort...");
-        return 1;
+        return 5;
     }
     QString _labelsfilename = _cmdparser.get<cv::String>("labels").c_str();
 
     if(_cmdparser.has("outputfile") == false) {
         qWarning("You have not provide output file name! Abort...");
-        return 1;
+        return 6;
     }
     QString _outputfilename = _cmdparser.get<cv::String>("outputfile").c_str();
 
     QFile _qfile(_outputfilename);
     if(_qfile.open(QFile::WriteOnly) == false) {
         qWarning("Can not open %s! Abort...", _outputfilename.toUtf8().constData());
-        return 1;
+        return 7;
     }
     QTextStream _ts(&_qfile);
 
@@ -67,7 +73,7 @@ int main(int argc, char *argv[])
     _ptr->ImageRecognizer::load(_labelsfilename.toUtf8().constData());
     if(_ptr->empty()) {
         qWarning("No labels has been loaded from %s! Abort...", _labelsfilename.toUtf8().constData());
-        return 1;
+        return 8;
     }
 
     // Now we can predict labels
