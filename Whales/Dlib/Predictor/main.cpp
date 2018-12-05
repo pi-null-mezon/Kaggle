@@ -11,11 +11,12 @@
 #include "opencvimgaugment.h"
 #include "dlibopencvconverter.h"
 
-const cv::String _options = "{help h       | | this help}"
-                            "{inputdir i   | | directory name where images are stored}"
-                            "{recmodel r   | | filename of the recognitiotn model}"
-                            "{labels   l   | | filename of the labels to recognize}"
-                            "{outputfile o | | output filename with the results}";
+const cv::String _options = "{help h       |     | this help}"
+			    "{dstthresh t  | 0.5 | distance threshold}"
+                            "{inputdir i   |     | directory name where images are stored}"
+                            "{recmodel r   |     | filename of the recognitiotn model}"
+                            "{labels   l   |     | filename of the labels to recognize}"
+                            "{outputfile o |     | output filename with the results}";
 
 int main(int argc, char *argv[])
 {
@@ -75,14 +76,14 @@ int main(int argc, char *argv[])
     QStringList _fileslist = _qdir.entryList(_filters, QDir::Files | QDir::NoDotAndDotDot, QDir::Name);
 
     _ts << "Image,Id"; // header
-    cv::RNG _cvrng(0);
+    const double _dstthresh = _cmdparser.get<double>("dstthresh");
     for(int i = 0; i < _fileslist.size(); ++i) {       
         _ts << "\n" << _fileslist.at(i) << ',';
         cv::Mat _cvmat = cv::imread(_qdir.absoluteFilePath(_fileslist.at(i)).toUtf8().constData());
         auto _vpredictions = _ptr->recognize(_cvmat,true);
         if(_vpredictions.size() > 4) {
             for(size_t j = 0; j < 5; j++) {
-                if(_vpredictions[j].second < 0.50) {
+                if((_vpredictions[j].second < _dstthresh) && (j < 4)) {
                     _ts << ' ' << _ptr->getLabelInfo(_vpredictions[j].first).c_str();
                 } else {
                     _ts << " new_whale";

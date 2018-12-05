@@ -238,10 +238,10 @@ int main(int argc, char** argv)
 
     dlib::rand rnd(0);
     cv::RNG cvrng(0);
-    const int testsnum = 11;
-    float _valaccuracy = 0;
+    const int testsnum = 50;
+    float _valaccuracy = 1;
     for(int n = 0; n < testsnum; ++n) {
-        load_mini_batch(40, 4, rnd, cvrng, validobjs, vimages, vlabels, false);
+        load_mini_batch(80, 2, rnd, cvrng, validobjs, vimages, vlabels, true);
         std::vector<matrix<float,0,1>> embedded = anet(vimages);
 
         // Now, check if the embedding puts images with the same labels near each other and
@@ -272,11 +272,13 @@ int main(int argc, char** argv)
         cout << "accuracy:  " << _acc << endl;
         cout << "num_right: "<< num_right << endl;
         cout << "num_wrong: "<< num_wrong << endl;
-        _valaccuracy += _acc;
+        if(_acc < _valaccuracy)
+        	_valaccuracy = _acc;
     }
 
-    cout << "Wait untill weights will be serialized to " << sessionguid << ".dat" << endl;
-    serialize(cmdparser.get<string>("outputdir") + string("/whales_") + sessionguid + string("_VA") + std::to_string(_valaccuracy/testsnum)  + string(".dat")) << net;
+    string _outputfilename = string("whales_") + sessionguid + string("_VA") + std::to_string(_valaccuracy)  + string(".dat"); 
+    cout << "Wait untill weights will be serialized to " << _outputfilename << endl;
+    serialize(cmdparser.get<string>("outputdir") + string("/") + _outputfilename) << net;
     cout << "Done" << endl;
     return 0;
 }
