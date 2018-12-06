@@ -68,22 +68,28 @@ void load_mini_batch (
                 _tmpmat = loadIFgraymatWsize(obj,IMG_WIDTH,IMG_HEIGHT,false,true,true,&_isloaded);
                 assert(_isloaded);
 
-                if(rnd.get_random_float() > 0.2f)
-                    _tmpmat = distortimage(_tmpmat,cvrng,0.05,cv::INTER_CUBIC,cv::BORDER_REFLECT101);
                 if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.05,0.05,11,cv::BORDER_REFLECT101);
+                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.11,0.02,11,cv::BORDER_REFLECT101,true);
+                if(rnd.get_random_float() > 0.2f)
+                    _tmpmat = distortimage(_tmpmat,cvrng,0.075,cv::INTER_CUBIC,cv::BORDER_REFLECT101);
 
                 if(rnd.get_random_float() > 0.2f)
-                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),0,0.2f,0.4f,rnd.get_random_float()*180.0f);
+                    _tmpmat = cutoutRect(_tmpmat,0.25f + 0.5f*rnd.get_random_float(),0,0.2f,0.4f,rnd.get_random_float()*180.0f);
                 if(rnd.get_random_float() > 0.2f)
                     _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),1,0.2f,0.4f,rnd.get_random_float()*180.0f);
                 if(rnd.get_random_float() > 0.2f)
-                    _tmpmat = cutoutRect(_tmpmat,0,rnd.get_random_float(),0.2f,0.4f,rnd.get_random_float()*180.0f);
+                    _tmpmat = cutoutRect(_tmpmat,0,0.75f + 0.25f*rnd.get_random_float(),0.2f,0.4f,rnd.get_random_float()*180.0f);
                 if(rnd.get_random_float() > 0.2f)
-                    _tmpmat = cutoutRect(_tmpmat,1,rnd.get_random_float(),0.2f,0.4f,rnd.get_random_float()*180.0f);
+                    _tmpmat = cutoutRect(_tmpmat,1,0.75f + 0.25f*rnd.get_random_float(),0.2f,0.4f,rnd.get_random_float()*180.0f);                               
 
-                if(rnd.get_random_float() > 0.2f)
+                if(rnd.get_random_float() > 0.4f)
                     _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.1f,0.3f,rnd.get_random_float()*180.0f);
+
+                if(rnd.get_random_float() > 0.5f)
+                    cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
+
+                if(rnd.get_random_float() > 0.5f)
+                    _tmpmat = addNoise(_tmpmat,cvrng,0,0.05);
 
                 images.push_back(cvmat2dlibmatrix<float>(_tmpmat));
             } else {

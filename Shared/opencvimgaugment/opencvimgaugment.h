@@ -206,4 +206,11 @@ cv::Mat loadIFgraymatWsize(std::string _filename, int _tcols, int _trows, bool _
     return _originalimgmat;
 }
 
+cv::Mat addNoise(const cv::Mat &_inmat, cv::RNG &_cvrng, double _a=0, double _b=0.1, int _distributiontype=cv::RNG::NORMAL)
+{
+    cv::Mat _tmpmat = cv::Mat::zeros(_inmat.rows,_inmat.cols,_inmat.type());
+    _cvrng.fill(_tmpmat,_distributiontype,_a,_b);
+    return _inmat + _tmpmat;
+}
+
 #endif // OPENCVIMGAUGMENT_H

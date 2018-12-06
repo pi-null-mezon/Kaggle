@@ -36,20 +36,28 @@ int main(int argc, char *argv[])
         dlib::matrix<float> _dlibmatrix;
         if(_mat.empty() == false) {
             for(int j = 0; j < 10; ++j) {
-                /*_tmpmat = distortimage(_mat,cvrng,0.05,cv::INTER_CUBIC, cv::BORDER_REFLECT101);
-                if(rnd.get_random_float() > 0.5f) {
-                    if(rnd.get_random_float() > 0.1f)
-                        _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),0,0.2f,0.4f,rnd.get_random_float()*180.0f);
-                    if(rnd.get_random_float() > 0.1f)
-                        _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),1,0.2f,0.4f,rnd.get_random_float()*180.0f);
-                    if(rnd.get_random_float() > 0.1f)
-                        _tmpmat = cutoutRect(_tmpmat,0,rnd.get_random_float(),0.2f,0.4f,rnd.get_random_float()*180.0f);
-                    if(rnd.get_random_float() > 0.1f)
-                        _tmpmat = cutoutRect(_tmpmat,1,rnd.get_random_float(),0.2f,0.4f,rnd.get_random_float()*180.0f);
-                } else {
+
+                _tmpmat = jitterimage(_mat,cvrng,cv::Size(0,0),0.11,0.02,11,cv::BORDER_REFLECT101,true);
+                if(rnd.get_random_float() > 0.2f)
+                    _tmpmat = distortimage(_tmpmat,cvrng,0.075,cv::INTER_CUBIC,cv::BORDER_REFLECT101);
+
+                if(rnd.get_random_float() > 0.2f)
+                    _tmpmat = cutoutRect(_tmpmat,0.25f + 0.5f*rnd.get_random_float(),0,0.2f,0.4f,rnd.get_random_float()*180.0f);
+                if(rnd.get_random_float() > 0.2f)
+                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),1,0.2f,0.4f,rnd.get_random_float()*180.0f);
+                if(rnd.get_random_float() > 0.2f)
+                    _tmpmat = cutoutRect(_tmpmat,0,0.75f + 0.25f*rnd.get_random_float(),0.2f,0.4f,rnd.get_random_float()*180.0f);
+                if(rnd.get_random_float() > 0.2f)
+                    _tmpmat = cutoutRect(_tmpmat,1,0.75f + 0.25f*rnd.get_random_float(),0.2f,0.4f,rnd.get_random_float()*180.0f);
+
+                if(rnd.get_random_float() > 0.4f)
                     _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.1f,0.3f,rnd.get_random_float()*180.0f);
-                }*/
-                _tmpmat = jitterimage(_mat,cvrng,cv::Size(0,0),0.1,0,0,cv::BORDER_REFLECT101);
+
+                if(rnd.get_random_float() > 0.5f)
+                    cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
+
+                if(rnd.get_random_float() > 0.2f)
+                    _tmpmat = addNoise(_tmpmat,cvrng,0,0.05);
                 //_tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.2f,0.4f,180.0f*rnd.get_random_float());
                 /*_dlibmatrix = cvmat2dlibmatrix<float>(_tmpmat);
                 dlib::disturb_colors(_dlibmatrix,rnd);
