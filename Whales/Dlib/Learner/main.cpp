@@ -163,7 +163,7 @@ int main(int argc, char** argv)
 
         while(qimages.is_enabled()) {
             try {
-                load_mini_batch(10, 2, rnd, cvrng, trainobjs, images, labels,true);
+                load_mini_batch(90, 2, rnd, cvrng, trainobjs, images, labels,true);
                 qimages.enqueue(images);
                 qlabels.enqueue(labels);
             }
@@ -190,7 +190,7 @@ int main(int argc, char** argv)
 
         while(testqimages.is_enabled()) {
             try  {
-                load_mini_batch(10, 2, rnd, cvrng, validobjs, images, labels, true);
+                load_mini_batch(90, 2, rnd, cvrng, validobjs, images, labels, true);
                 testqimages.enqueue(images);
                 testqlabels.enqueue(labels);
             }
