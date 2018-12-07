@@ -169,7 +169,7 @@ int main(int argc, char** argv)
 
         while(qimages.is_enabled()) {
             try {
-                load_mini_batch(90, 2, rnd, cvrng, trainobjs, images, labels,true);
+                load_mini_batch(45, 2, rnd, cvrng, trainobjs, images, labels,true);
                 qimages.enqueue(images);
                 qlabels.enqueue(labels);
             }
@@ -196,7 +196,7 @@ int main(int argc, char** argv)
 
         while(testqimages.is_enabled()) {
             try  {
-                load_mini_batch(90, 2, rnd, cvrng, validobjs, images, labels, true);
+                load_mini_batch(45, 2, rnd, cvrng, validobjs, images, labels, true);
                 testqimages.enqueue(images);
                 testqlabels.enqueue(labels);
             }
@@ -249,10 +249,13 @@ int main(int argc, char** argv)
 
     dlib::rand rnd(0);
     cv::RNG cvrng(0);
-    const int testsnum = 50;
+
+    int testsnum = 1;
+    if(validobjs.size() > 500)
+    	testsnum = 25;
     float _valaccuracy = 1;
     for(int n = 0; n < testsnum; ++n) {
-        load_mini_batch(90, 2, rnd, cvrng, validobjs, vimages, vlabels, true);
+        load_mini_batch(45, 2, rnd, cvrng, validobjs, vimages, vlabels, true);
         std::vector<matrix<float,0,1>> embedded = anet(vimages);
 
         // Now, check if the embedding puts images with the same labels near each other and

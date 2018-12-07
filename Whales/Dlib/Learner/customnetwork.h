@@ -31,25 +31,25 @@ template <int N, int K, typename SUBNET> using adense4 = dense_block4<N,K,affine
 
 // training network type
 using net_type =    loss_metric<fc_no_bias<64,
-                            avg_pool_everything<dense2<128,32,dense3<128,32,dense4<128,32,
-                            max_pool<2,2,2,2,dense3<128,32,dense4<128,32,
-                            max_pool<2,2,2,2,dense3<128,32,dense4<128,32,
-                            max_pool<2,2,2,2,dense2<128,32,dense3<128,32,dense4<128,32,
-                            max_pool<2,2,2,2,dense3<128,32,dense4<128,32,
+                            avg_pool_everything<dense2<128,16,dense3<128,16,
+                            max_pool<2,2,2,2,dense3<128,16,
+                            max_pool<2,2,2,2,dense3<128,16,
+                            max_pool<2,2,2,2,dense2<128,16,dense3<128,16,
+                            max_pool<2,2,2,2,dense3<128,16,
                             max_pool<3,3,2,2,relu<bn_con<con<32,7,7,2,2,
                             input<matrix<float>>
-                            >>>>>>>>>>>>>>>>>>>>>>>;
+                            >>>>>>>>>>>>>>>>>>;
 
 // testing network type (replaced batch normalization with fixed affine transforms)
 using anet_type =   loss_metric<fc_no_bias<64,
-                            avg_pool_everything<adense2<128,32,adense3<128,32,adense4<128,32,
-                            max_pool<2,2,2,2,adense3<128,32,adense4<128,32,
-                            max_pool<2,2,2,2,adense3<128,32,adense4<128,32,
-                            max_pool<2,2,2,2,adense2<128,32,adense3<128,32,adense4<128,32,
-                            max_pool<2,2,2,2,adense3<128,32,adense4<128,32,
+                            avg_pool_everything<adense2<128,16,adense3<128,16,
+                            max_pool<2,2,2,2,adense3<128,16,
+                            max_pool<2,2,2,2,adense3<128,16,
+                            max_pool<2,2,2,2,adense2<128,16,adense3<128,16,
+                            max_pool<2,2,2,2,adense3<128,16,
                             max_pool<3,3,2,2,relu<bn_con<con<32,7,7,2,2,
                             input<matrix<float>>
-                            >>>>>>>>>>>>>>>>>>>>>>>;
+                            >>>>>>>>>>>>>>>>>>;
 /*
 template <template <int,template<typename>class,int,typename> class block, int N, template<typename>class BN, typename SUBNET>
 using residual = add_prev1<block<N,BN,1,tag1<SUBNET>>>;
