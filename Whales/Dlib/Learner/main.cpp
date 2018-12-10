@@ -73,23 +73,26 @@ void load_mini_batch (
                 if(rnd.get_random_float() > 0.2f)
                     _tmpmat = distortimage(_tmpmat,cvrng,0.075,cv::INTER_CUBIC,cv::BORDER_REFLECT101);
 
-                if(rnd.get_random_float() > 0.2f)
-                    _tmpmat = cutoutRect(_tmpmat,0.25f + 0.5f*rnd.get_random_float(),0,0.2f,0.4f,rnd.get_random_float()*180.0f);
-                if(rnd.get_random_float() > 0.2f)
+                if(rnd.get_random_float() > 0.1f)
+                    _tmpmat = cutoutRect(_tmpmat,0.20f + 0.5f*rnd.get_random_float(),0,0.2f,0.4f,rnd.get_random_float()*180.0f);
+                if(rnd.get_random_float() > 0.05f)
                     _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),1,0.2f,0.4f,rnd.get_random_float()*180.0f);
-                if(rnd.get_random_float() > 0.2f)
+                if(rnd.get_random_float() > 0.1f)
                     _tmpmat = cutoutRect(_tmpmat,0,0.75f + 0.25f*rnd.get_random_float(),0.2f,0.4f,rnd.get_random_float()*180.0f);
-                if(rnd.get_random_float() > 0.2f)
+                if(rnd.get_random_float() > 0.1f)
                     _tmpmat = cutoutRect(_tmpmat,1,0.75f + 0.25f*rnd.get_random_float(),0.2f,0.4f,rnd.get_random_float()*180.0f);                               
 
-                if(rnd.get_random_float() > 0.4f)
-                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.1f,0.3f,rnd.get_random_float()*180.0f);
+                /*if(rnd.get_random_float() > 0.3f)
+                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.1f,0.3f,rnd.get_random_float()*180.0f);*/
 
                 if(rnd.get_random_float() > 0.5f)
                     cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
 
-                if(rnd.get_random_float() > 0.5f)
-                    _tmpmat = addNoise(_tmpmat,cvrng,0,0.05);
+                if(rnd.get_random_float() > 0.2f)
+                    _tmpmat = addNoise(_tmpmat,cvrng,0.1f*rnd.get_random_float()-0.05f,0.05*rnd.get_random_float());
+
+                if(rnd.get_random_float() > 0.1f)
+                    _tmpmat *= 1.0f + 0.5f*rnd.get_random_float();
 
                 images.push_back(cvmat2dlibmatrix<float>(_tmpmat));
             } else {
@@ -144,7 +147,7 @@ int main(int argc, char** argv)
     std::vector<unsigned long> vlabels;
 
     net_type net;
-    dnn_trainer<net_type> trainer(net, sgd(0.0005f, 0.9f));
+    dnn_trainer<net_type> trainer(net, sgd(0.0001f, 0.9f));
     trainer.set_learning_rate(0.1);
     trainer.be_verbose();
     trainer.set_synchronization_file(cmdparser.get<string>("outputdir") + string("/trainer_") + sessionguid + string("_sync") , std::chrono::minutes(10));
@@ -152,7 +155,7 @@ int main(int argc, char** argv)
     const float _lratio = static_cast<float>(validobjs.size())/(validobjs.size() + trainobjs.size());
     cout << "Validation classes / Total classes: " << _lratio << endl;
     if(_lratio > 0.05) {
-        trainer.set_test_iterations_without_progress_threshold(800);
+        trainer.set_test_iterations_without_progress_threshold(1000);
     } else {
         cout << "Small validation set >> learning rate will be controlled only by training loss progress" << endl;
     }
@@ -169,7 +172,7 @@ int main(int argc, char** argv)
 
         while(qimages.is_enabled()) {
             try {
-                load_mini_batch(45, 2, rnd, cvrng, trainobjs, images, labels,true);
+                load_mini_batch(65, 3, rnd, cvrng, trainobjs, images, labels,true);
                 qimages.enqueue(images);
                 qlabels.enqueue(labels);
             }
@@ -196,7 +199,7 @@ int main(int argc, char** argv)
 
         while(testqimages.is_enabled()) {
             try  {
-                load_mini_batch(45, 2, rnd, cvrng, validobjs, images, labels, true);
+                load_mini_batch(65, 3, rnd, cvrng, validobjs, images, labels, true);
                 testqimages.enqueue(images);
                 testqlabels.enqueue(labels);
             }

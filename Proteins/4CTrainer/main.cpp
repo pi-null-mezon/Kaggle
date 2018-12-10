@@ -19,14 +19,14 @@ using namespace dlib;
 const cv::String keys =
    "{help h           |        | app help}"
    "{classes          |   28   | number of classes (each class has two possible outcomes 'y', 'n')}"
-   "{minibatchsize    |   33   | minibatch size}"
+   "{minibatchsize    |   40   | minibatch size}"
    "{traindir t       |        | training directory location}"
    "{outputdir o      |        | output directory location}"
-   "{validportion v   |  0.20  | output directory location}"
+   "{validportion v   |  0.15  | output directory location}"
    "{number n         |   1    | number of classifiers to be trained}"
    "{swptrain         | 10000  | determines after how many steps without progress (training loss) decay should be applied to learning rate}"
    "{swpvalid         |  500   | determines after how many steps without progress (test loss) decay should be applied to learning rate}"
-   "{magic            | 31072  | seed value for the random number generator that controls data separation}"
+   "{magic            | 666    | seed value for the random number generator that controls data separation}"
    "{minlrthresh      | 1.0e-3 | minimum learning rate, determines when training should be stopped}";
 
 std::map<std::string,std::vector<std::string>> fillLabelsMap(unsigned int _classes);
@@ -131,14 +131,24 @@ int main(int argc, char** argv) try
                 _pos = rnd.get_random_32bit_number() % _trainingset.size();
                 _sample.first = _trainingset[_pos].second;
                 _tmpmat = __loadImage(_trainingset[_pos].first,512,512,false,true,true,&_training_file_loaded);
-                /*if(rnd.get_random_float() > 0.11f)
-                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.015,0,180,cv::BORDER_REFLECT101);*/
+                if(rnd.get_random_float() > 0.1f)
+                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.015,0,180,cv::BORDER_REFLECT101);
                 _tmpmat = cropimage(_tmpmat,cv::Size(400,400),&cvrng);
                 assert(_training_file_loaded);
                 if(rnd.get_random_float() > 0.5f)
                     cv::flip(_tmpmat,_tmpmat,0);
                 if(rnd.get_random_float() > 0.5f)
                     cv::flip(_tmpmat,_tmpmat,1);
+
+                if(rnd.get_random_float() > 0.9f)
+                    cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
+
+                /*if(rnd.get_random_float() > 0.2f)
+                    _tmpmat = addNoise(_tmpmat,cvrng,0.025f*rnd.get_random_float()-0.0125f,0.025f*rnd.get_random_float());
+
+                if(rnd.get_random_float() > 0.1f)
+                    _tmpmat *= 1.0f + 0.01f*rnd.get_random_float();*/
+
                 /*if(rnd.get_random_float() > 0.27f)
                     _tmpmat = distortimage(_tmpmat,cvrng,0.015,cv::INTER_LANCZOS4,cv::BORDER_REFLECT);*/
 

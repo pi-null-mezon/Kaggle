@@ -26,7 +26,7 @@ int main(int argc, char *argv[])
     bool isloaded;
     for(auto file : dir.get_files()) {
         _filename = file.full_name();
-        cv::Mat _mat = loadIFgraymatWsize(_filename,500,200,false,true,true,&isloaded);
+        cv::Mat _mat = loadIFgraymatWsize(_filename,512,192,false,true,true,&isloaded);
         assert(isloaded);
         cout << "---------------------------" << endl;
         cout << "Filename: " << file.full_name() << endl;
@@ -56,8 +56,11 @@ int main(int argc, char *argv[])
                 if(rnd.get_random_float() > 0.5f)
                     cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
 
-                if(rnd.get_random_float() > 0.2f)
-                    _tmpmat = addNoise(_tmpmat,cvrng,0,0.05);
+                if(rnd.get_random_float() > 0.1f)
+                    _tmpmat = addNoise(_tmpmat,cvrng,0.1f*rnd.get_random_float() - 0.05f,0.05*rnd.get_random_float());
+
+                _tmpmat *= 1.0 + 0.9* rnd.get_random_float();
+
                 //_tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.2f,0.4f,180.0f*rnd.get_random_float());
                 /*_dlibmatrix = cvmat2dlibmatrix<float>(_tmpmat);
                 dlib::disturb_colors(_dlibmatrix,rnd);
