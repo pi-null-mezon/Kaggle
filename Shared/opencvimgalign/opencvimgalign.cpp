@@ -1,10 +1,12 @@
 #include "opencvimgalign.h"
 
-cv::Mat alignByPCAWithCrop(const cv::Mat &_inputmat, cv::Size _targetsize, double _thresh, int _interptype, int _bordertype, bool _applyrotation)
+cv::Mat alignPCAWResize(const cv::Mat &_inputmat, const cv::Mat &_mattotransform, cv::Size _targetsize, double _thresh, int _interptype, int _bordertype, bool _applyrotation)
 {
-    if(_inputmat.depth() != CV_8U) {
-        CV_Error(cv::Error::BadDepth, "Unsupported image depth");
-    }
+    assert(_inputmat.cols == _mattotransform.cols);
+    assert(_inputmat.rows == _mattotransform.rows);
+
+    if(_targetsize.area() == 0)
+        _targetsize = cv::Size(_inputmat.cols,_inputmat.rows);
 
     // Prepare data for transformation
     cv::Mat _tmpmat, _bwmat;
@@ -21,12 +23,11 @@ cv::Mat alignByPCAWithCrop(const cv::Mat &_inputmat, cv::Size _targetsize, doubl
         default:
             CV_Error(cv::Error::BadNumChannels, "Unsupported number of channels");
             break;
-    }
-
-    if(_targetsize.area() == 0) {
-        _targetsize = cv::Size(_inputmat.cols,_inputmat.rows);
-    }
+    }   
     cv::threshold(_tmpmat,_bwmat,_thresh,255,cv::THRESH_BINARY);
+    if(_inputmat.depth() == CV_32F)
+        _bwmat.convertTo(_bwmat,CV_8U,255,0);
+
 
     int _pcalength = (int)(cv::sum(_bwmat)[0]/255);
     if(_pcalength > 0) {
@@ -50,7 +51,7 @@ cv::Mat alignByPCAWithCrop(const cv::Mat &_inputmat, cv::Size _targetsize, doubl
         // Store the center of the object
         cv::Point2d _cp(pca_analysis.mean.at<double>(0,0),pca_analysis.mean.at<double>(0,1));
         // Store first eigenvector direction
-        cv::Point2d eigenvector(pca_analysis.eigenvectors.at<double>(1,0), pca_analysis.eigenvectors.at<double>(1,1));
+        cv::Point2d eigenvector(pca_analysis.eigenvectors.at<double>(0,0), pca_analysis.eigenvectors.at<double>(0,1));
         double _angle = 180.0 * std::atan(eigenvector.y / eigenvector.x) / CV_PI;
 
         // Rotate with the image downscale crop
@@ -67,14 +68,14 @@ cv::Mat alignByPCAWithCrop(const cv::Mat &_inputmat, cv::Size _targetsize, doubl
              _trmat.at<double>(1,1) = 1.0;
              _trmat.at<double>(1,2) = _targetsize.height/2.0 - _cp.y;
         }
-        cv::warpAffine(_inputmat, _tmpmat, _trmat, _targetsize, _interptype, _bordertype);
+        cv::warpAffine(_mattotransform, _tmpmat, _trmat, _targetsize, _interptype, _bordertype);
     } else {
-        cv::resize(_inputmat,_tmpmat,_targetsize,0,0,_interptype);
+        cv::resize(_mattotransform,_tmpmat,_targetsize,0,0,_interptype);
     }
     return _tmpmat;
 }
 
-cv::Mat projectToPCA(const std::vector<cv::Mat> &_vchannels, unsigned int _targetprojection)
+cv::Mat extractFirstPCAComponentImage(const std::vector<cv::Mat> &_vchannels, unsigned int _targetprojection)
 {
     if(_vchannels.size() == 0) {
         CV_Error(cv::Error::BadNumChannels, "Zero size input vector!");
