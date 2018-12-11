@@ -6,6 +6,7 @@
 #include "dlibopencvconverter.h"
 #include "opencvimgaugment.h"
 #include "opencvimgalign.h"
+#include "opencvmorph.h"
 
 #include "customnetwork.h"
 
@@ -13,17 +14,19 @@
 
 using namespace std;
 
-const cv::String keys =  "{indirname  i|     | filename of the image to be processed}"
-                         "{outdirname o|     | filename of the image to be processed}"
-                         "{model m     |     | filename of the model weights}"
-                         "{arows       |  20 | target number of horizontal steps}"
-                         "{acols       |  20 | target number of vertical steps}"
-                         "{help h      |     | this help}";
+const cv::String keys =  "{indirname  i|       | filename of the image to be processed}"
+                         "{outdirname o|       | filename of the image to be processed}"
+                         "{model m     |       | filename of the model weights}"
+                         "{arows       |  20   | target number of horizontal steps}"
+                         "{acols       |  20   | target number of vertical steps}"
+                         "{athresh     | 0.05  | attention thresh, only regions with higher attention will be preserved}"
+                         "{visualize v | false | should be processing steps showed or not}"
+                         "{help h      |       | this help}";
 
 /**
  * @brief compute auto (or self) attention map for particular input image and particualr cnn
  * @param _inmat - input image
- * @param _net   - initialized cnn
+ * @param _net   - initialized cnn with metric loss function
  * @param _netinputsize - cnn input layer size
  * @param _mapsize - attention map detalization (steps to make for both image dimensions)
  * @return attention map with size equal to input image size and CV_32FC1 type
@@ -31,6 +34,8 @@ const cv::String keys =  "{indirname  i|     | filename of the image to be proce
 cv::Mat autoAttentionMap(const cv::Mat &_inmat, dlib::anet_type &_net, const cv::Size &_netinputsize, const cv::Size &_mapsize);
 
 cv::Mat prepareImgForNet(const cv::Mat &_inmat, int _tcols, int _trows, bool _crop, bool _center, bool _normalize);
+
+cv::Mat cropHighAttentionRegion(const cv::Mat &_inmat, dlib::anet_type &_net, const cv::Size &_netinputsize, const cv::Size &_attmapsize, float _attentionthresh=0.1f);
 
 int main(int argc, char ** argv) try
 {
@@ -56,6 +61,7 @@ int main(int argc, char ** argv) try
     dlib::deserialize(_cmd.get<string>("model")) >> net;
     cv::Size netinputsize(IMG_WIDTH,IMG_HEIGHT);
     cv::Size attmapsize(_cmd.get<int>("acols"),_cmd.get<int>("arows"));
+    const float athresh = _cmd.get<float>("athresh");
 
     QDir indir(_cmd.get<string>("indirname").c_str()), outdir(_cmd.get<string>("outdirname").c_str());
     if(!outdir.exists())
@@ -65,20 +71,22 @@ int main(int argc, char ** argv) try
     filefilters << "*.jpg" << "*.jpeg" << "*.png";
 
     QStringList fileslist = indir.entryList(filefilters,QDir::Files | QDir::NoDotAndDotDot);
-    cv::Mat _tmpmat, _attentionmap, _transformedmat;
+    cv::Mat _tmpmat, _transformedmat;
+    bool _visualizationOn = _cmd.get<bool>("visualize");
     for(int i = 0; i < fileslist.size(); ++i) {
         string _filename = indir.absoluteFilePath(fileslist.at(i)).toUtf8().constData();
-        _tmpmat = cv::imread(_filename,CV_LOAD_IMAGE_UNCHANGED);
-        if(!_tmpmat.empty()) {
-            cout << _filename << endl;
-            _attentionmap = autoAttentionMap(_tmpmat,net,netinputsize,attmapsize);
-            _transformedmat = alignPCAWResize(_attentionmap,_tmpmat,cv::Size(0,0),0.2,CV_INTER_AREA,cv::BORDER_CONSTANT);
-            cv::imshow("Original image", _tmpmat);
-            cv::imshow("Attention map", _attentionmap);
-            cv::imshow("Transformed image", _transformedmat);
-            cv::waitKey(0);
+        cout << _filename << endl;
+        _tmpmat = cv::imread(_filename,CV_LOAD_IMAGE_UNCHANGED);      
+        if(!_tmpmat.empty()) {                     
+            _transformedmat = cropHighAttentionRegion(_tmpmat,net,netinputsize,attmapsize,athresh);
+            if(_visualizationOn) {
+                cv::imshow("Transformed image", _transformedmat);
+                cv::imshow("Original image", _tmpmat);
+                cv::waitKey(1);
+            }
+            cv::imwrite(outdir.absolutePath().append("/%1").arg(fileslist.at(i)).toStdString(),_transformedmat);
         } else {
-            cout << _filename << " - can not be loaded! Abort..." << endl;
+            cout << "Can not be loaded! Abort..." << endl;
             return 6;
         }
     }
@@ -137,10 +145,12 @@ cv::Mat autoAttentionMap(const cv::Mat &_inmat, dlib::anet_type &_net, const cv:
     std::vector<dlib::matrix<float>> _dlibmatrices;
     _dlibmatrices.reserve(_mapsize.height*_mapsize.width + 1);
     _dlibmatrices.push_back(cvmat2dlibmatrix<float>(_tmpmat)); // reference image
-    float _xstep = 1.0f / _mapsize.width, _ystep = 1.0f / _mapsize.height;
+    float _xstep = 1.0f / (_mapsize.width-1), _ystep = 1.0f / (_mapsize.height-1);
+    float _xsize = 1.5f * _xstep;
+    float _ysize = _xsize * static_cast<float>(_inmat.rows) / _inmat.cols; // as cutoutRec() count in relative coordiantes
     for(unsigned int i = 0; i < _mapsize.height; ++i) {
         for(unsigned int j = 0; j < _mapsize.width; ++j) {
-            _dlibmatrices.push_back(cvmat2dlibmatrix<float>(cutoutRect(_tmpmat,j*_xstep,i*_ystep,0.1f,0.1f)));
+            _dlibmatrices.push_back(cvmat2dlibmatrix<float>(cutoutRect(_tmpmat,j*_xstep,i*_ystep,_xsize,_ysize)));
         }
     }
     // Let's calculate descriptions
@@ -159,7 +169,41 @@ cv::Mat autoAttentionMap(const cv::Mat &_inmat, dlib::anet_type &_net, const cv:
     */
 
     cv::resize(_resultmat,_resultmat,cv::Size(_inmat.cols,_inmat.rows),0,0,cv::INTER_CUBIC);
-    cv::normalize(_resultmat,_resultmat,1,0,cv::NORM_MINMAX);
-    //cv::threshold(_resultmat,_resultmat,0.35,1,cv::THRESH_BINARY);
     return _resultmat;
+}
+
+
+cv::Mat cropHighAttentionRegion(const cv::Mat &_inmat, dlib::anet_type &_net, const cv::Size &_netinputsize, const cv::Size &_attmapsize, float _attentionthresh)
+{
+    cv::Mat _attentionmap, _transformedmat;
+    // Let's calculate metric-loss-CNN attention map
+    _attentionmap = autoAttentionMap(_inmat,_net,_netinputsize,_attmapsize);
+    // Let's align image by attention map PCA directions
+    _transformedmat = alignPCAWResize(_attentionmap,_inmat,cv::Size(0,0),_attentionthresh,CV_INTER_AREA,cv::BORDER_REFLECT101);
+    // Let's find minimum area boundirg rect for binaryzed attention
+    cv::threshold(_attentionmap,_attentionmap,_attentionthresh,1,CV_THRESH_BINARY);
+    _attentionmap.convertTo(_attentionmap,CV_8U,255,0);
+    openAreaAndBorders(_attentionmap,_attentionmap,8,_attentionmap.total()/20,false);
+    //cv::imshow("Attention map", _attentionmap);
+    std::vector<std::vector<cv::Point>> cnt;
+    cv::findContours(_attentionmap,cnt,CV_RETR_EXTERNAL,CV_CHAIN_APPROX_NONE);
+    if(cnt.size() > 0) {
+        cv::RotatedRect _rrect;
+        _rrect = cv::minAreaRect(cnt[0]);
+        cv::Point2f _v[4], _w, _h;
+        _rrect.points(_v);
+        _w = _v[0] - _v[1];
+        _h = _v[1] - _v[2];
+        float _rrectwidth = std::sqrt(_w.x*_w.x + _w.y*_w.y);
+        float _rrectheight = std::sqrt(_h.x*_h.x + _h.y*_h.y);
+        if(_rrectwidth < _rrectheight)
+           std::swap(_rrectheight,_rrectwidth);
+        const float _multiplyer = 1.1; // how much region that will be cropped should be enlarged
+        _rrectheight *= _multiplyer;
+        cv::Rect2f _rect(cv::Point2f((_inmat.cols-_rrectwidth)/2.0f,(_inmat.rows-_rrectheight)/2.0f),cv::Size2f(_rrectwidth,_rrectheight));
+        _rect &= cv::Rect2f(0,0,_inmat.cols,_inmat.rows);
+        //cv::rectangle(_transformedmat,_rect,cv::Scalar(0,127,255),2,CV_AA);
+        return _transformedmat(_rect);
+    }
+    return _inmat;
 }

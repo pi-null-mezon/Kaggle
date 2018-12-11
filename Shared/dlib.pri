@@ -39,3 +39,6 @@ linux {
 
 DEFINES += PATH_TO_DLIB_RES=\\\"$${PATH_TO_DLIB_RESOURCES}\\\"
 
+HEADERS += \
+    $$PWD/opencvmorph/opencvmorph.h
+

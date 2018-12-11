@@ -10,7 +10,8 @@ include($${PWD}/../../../Shared/dlib.pri)
 
 INCLUDEPATH += $${PWD}/../../../Shared/dlibopencvconverter \
                $${PWD}/../../../Shared/opencvimgaugment \
-               $${PWD}/../../../Shared/opencvimgalign
+               $${PWD}/../../../Shared/opencvimgalign \
+               $${PWD}/../../../Shared/opencvmorph
 
 SOURCES += $${PWD}/../../../Shared/opencvimgalign/opencvimgalign.cpp
 
