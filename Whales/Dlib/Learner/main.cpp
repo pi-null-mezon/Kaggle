@@ -102,7 +102,17 @@ void load_mini_batch (
 
             labels.push_back(id);
         }
-    }    
+    }
+
+    // All the images going into a mini-batch have to be the same size.  And really, all
+    // the images in your entire training dataset should be the same size for what we are
+    // doing to make the most sense.
+    DLIB_CASSERT(images.size() > 0);
+    for (auto&& img : images)
+    {
+        DLIB_CASSERT(img.nr() == images[0].nr() && img.nc() == images[0].nc(),
+            "All the images in a single mini-batch must be the same size.");
+    }
 }
 
 const cv::String options = "{traindir t  |      | path to directory with training data}"
