@@ -17,9 +17,11 @@ using namespace std;
 const cv::String keys =  "{indirname  i|       | filename of the image to be processed}"
                          "{outdirname o|       | filename of the image to be processed}"
                          "{model m     |       | filename of the model weights}"
-                         "{arows       |  20   | target number of horizontal steps}"
-                         "{acols       |  20   | target number of vertical steps}"
-                         "{athresh     | 0.05  | attention thresh, only regions with higher attention will be preserved}"
+                         "{arows       |  11   | target number of horizontal steps}"
+                         "{acols       |  11   | target number of vertical steps}"
+                         "{orows       |  512  | target number of rows}"
+                         "{ocols       |  192  | target number of cols}"
+                         "{athresh     | 0.10  | attention thresh, only regions with higher attention will be preserved}"
                          "{visualize v | false | should be processing steps showed or not}"
                          "{help h      |       | this help}";
 
@@ -73,6 +75,7 @@ int main(int argc, char ** argv) try
     QStringList fileslist = indir.entryList(filefilters,QDir::Files | QDir::NoDotAndDotDot);
     cv::Mat _tmpmat, _transformedmat;
     bool _visualizationOn = _cmd.get<bool>("visualize");
+    const cv::Size _targetsize(_cmd.get<int>("ocols"),_cmd.get<int>("orows"));
     for(int i = 0; i < fileslist.size(); ++i) {
         string _filename = indir.absoluteFilePath(fileslist.at(i)).toUtf8().constData();
         cout << _filename << endl;
@@ -84,6 +87,7 @@ int main(int argc, char ** argv) try
                 cv::imshow("Original image", _tmpmat);
                 cv::waitKey(1);
             }
+            cv::resize(_transformedmat,_transformedmat,_targetsize,0,0,CV_INTER_AREA);
             cv::imwrite(outdir.absolutePath().append("/%1").arg(fileslist.at(i)).toStdString(),_transformedmat);
         } else {
             cout << "Can not be loaded! Abort..." << endl;
@@ -146,8 +150,8 @@ cv::Mat autoAttentionMap(const cv::Mat &_inmat, dlib::anet_type &_net, const cv:
     _dlibmatrices.reserve(_mapsize.height*_mapsize.width + 1);
     _dlibmatrices.push_back(cvmat2dlibmatrix<float>(_tmpmat)); // reference image
     float _xstep = 1.0f / (_mapsize.width-1), _ystep = 1.0f / (_mapsize.height-1);
-    float _xsize = 1.5f * _xstep;
-    float _ysize = _xsize * static_cast<float>(_inmat.rows) / _inmat.cols; // as cutoutRec() count in relative coordiantes
+    float _xsize = 1.25f * _xstep;
+    float _ysize = 1.25f * _ystep; // as cutoutRec() count in relative coordiantes
     for(unsigned int i = 0; i < _mapsize.height; ++i) {
         for(unsigned int j = 0; j < _mapsize.width; ++j) {
             _dlibmatrices.push_back(cvmat2dlibmatrix<float>(cutoutRect(_tmpmat,j*_xstep,i*_ystep,_xsize,_ysize)));
@@ -198,8 +202,9 @@ cv::Mat cropHighAttentionRegion(const cv::Mat &_inmat, dlib::anet_type &_net, co
         float _rrectheight = std::sqrt(_h.x*_h.x + _h.y*_h.y);
         if(_rrectwidth < _rrectheight)
            std::swap(_rrectheight,_rrectwidth);
-        const float _multiplyer = 1.1; // how much region that will be cropped should be enlarged
+        const float _multiplyer = 1.4; // how much region that will be cropped should be enlarged
         _rrectheight *= _multiplyer;
+        _rrectwidth *= _multiplyer;
         cv::Rect2f _rect(cv::Point2f((_inmat.cols-_rrectwidth)/2.0f,(_inmat.rows-_rrectheight)/2.0f),cv::Size2f(_rrectwidth,_rrectheight));
         _rect &= cv::Rect2f(0,0,_inmat.cols,_inmat.rows);
         //cv::rectangle(_transformedmat,_rect,cv::Scalar(0,127,255),2,CV_AA);
