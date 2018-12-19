@@ -51,8 +51,14 @@ void load_mini_batch (
     for (size_t i = 0; i < num_whales; ++i) {
 
         size_t id = rnd.get_random_32bit_number() % objs.size();
-        while(already_selected[id]) {
-            id = rnd.get_random_32bit_number() % objs.size();
+        if(rnd.get_random_float() > 0.25f) {
+            while(already_selected[id] || (objs[id].size() < 2)) {
+                id = rnd.get_random_32bit_number() % objs.size();
+            }
+        } else {
+            while(already_selected[id]) {
+                id = rnd.get_random_32bit_number() % objs.size();
+            }
         }
         already_selected[id] = true;
 
@@ -82,17 +88,17 @@ void load_mini_batch (
                 if(rnd.get_random_float() > 0.1f)
                     _tmpmat = cutoutRect(_tmpmat,1,0.75f + 0.25f*rnd.get_random_float(),0.2f,0.4f,rnd.get_random_float()*180.0f);                               
 
-                /*if(rnd.get_random_float() > 0.3f)
-                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.1f,0.3f,rnd.get_random_float()*180.0f);*/
+                if(rnd.get_random_float() > 0.3f)
+                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.1f,0.3f,rnd.get_random_float()*180.0f);
 
                 if(rnd.get_random_float() > 0.5f)
                     cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
 
                 if(rnd.get_random_float() > 0.2f)
-                    _tmpmat = addNoise(_tmpmat,cvrng,0.1f*rnd.get_random_float()-0.05f,0.05*rnd.get_random_float());
+                    _tmpmat = addNoise(_tmpmat,cvrng,0.2f*rnd.get_random_float()-0.1f,0.1f*rnd.get_random_float());
 
                 if(rnd.get_random_float() > 0.1f)
-                    _tmpmat *= 1.0f + 0.5f*rnd.get_random_float();
+                    _tmpmat *= 0.75f + 0.5f*rnd.get_random_float();
 
                 images.push_back(cvmat2dlibmatrix<float>(_tmpmat));
             } else {
@@ -102,17 +108,7 @@ void load_mini_batch (
 
             labels.push_back(id);
         }
-    }
-
-    // All the images going into a mini-batch have to be the same size.  And really, all
-    // the images in your entire training dataset should be the same size for what we are
-    // doing to make the most sense.
-    DLIB_CASSERT(images.size() > 0);
-    for (auto&& img : images)
-    {
-        DLIB_CASSERT(img.nr() == images[0].nr() && img.nc() == images[0].nc(),
-            "All the images in a single mini-batch must be the same size.");
-    }
+    }    
 }
 
 const cv::String options = "{traindir t  |      | path to directory with training data}"
@@ -157,7 +153,7 @@ int main(int argc, char** argv)
     std::vector<unsigned long> vlabels;
 
     net_type net;
-    dnn_trainer<net_type> trainer(net, sgd(0.0001f, 0.9f));
+    dnn_trainer<net_type> trainer(net, sgd(0.0005f, 0.9f));
     trainer.set_learning_rate(0.1);
     trainer.be_verbose();
     trainer.set_synchronization_file(cmdparser.get<string>("outputdir") + string("/trainer_") + sessionguid + string("_sync") , std::chrono::minutes(10));
@@ -182,7 +178,7 @@ int main(int argc, char** argv)
 
         while(qimages.is_enabled()) {
             try {
-                load_mini_batch(65, 3, rnd, cvrng, trainobjs, images, labels,true);
+                load_mini_batch(97, 2, rnd, cvrng, trainobjs, images, labels,true);
                 qimages.enqueue(images);
                 qlabels.enqueue(labels);
             }
@@ -208,8 +204,8 @@ int main(int argc, char** argv)
         std::vector<unsigned long> labels;
 
         while(testqimages.is_enabled()) {
-            try  {
-                load_mini_batch(65, 3, rnd, cvrng, validobjs, images, labels, true);
+            try {
+                load_mini_batch(97, 2, rnd, cvrng, validobjs, images, labels, false);
                 testqimages.enqueue(images);
                 testqlabels.enqueue(labels);
             }
@@ -266,15 +262,14 @@ int main(int argc, char** argv)
     int testsnum = 1;
     if(validobjs.size() > 500)
     	testsnum = 25;
-    float _valaccuracy = 1;
+    float _valMinF1 = 1.0f;
     for(int n = 0; n < testsnum; ++n) {
         load_mini_batch(45, 2, rnd, cvrng, validobjs, vimages, vlabels, true);
         std::vector<matrix<float,0,1>> embedded = anet(vimages);
 
         // Now, check if the embedding puts images with the same labels near each other and
         // images with different labels far apart.
-        int num_right = 0;
-        int num_wrong = 0;
+        int true_positive = 0, false_positive = 0, true_negative = 0, false_negative = 0;
         const float _distancethresh = anet.loss_details().get_distance_threshold();
         for (size_t i = 0; i < embedded.size(); ++i) {
             for (size_t j = i+1; j < embedded.size(); ++j)  {
@@ -282,28 +277,35 @@ int main(int argc, char** argv)
                     // The loss_metric layer will cause images with the same label to be less
                     // than net.loss_details().get_distance_threshold() distance from each
                     // other.  So we can use that distance value as our testing threshold.
-                    if (length(embedded[i] - embedded[j]) < _distancethresh)
-                        ++num_right;
-                    else
-                        ++num_wrong;
+                    if (length(embedded[i] - embedded[j]) < _distancethresh) {
+                        ++true_positive;
+                    } else {
+                        ++false_negative;
+                    }
                 } else {
-                    if (length(embedded[i]-embedded[j]) >= _distancethresh)
-                        ++num_right;
-                    else
-                        ++num_wrong;
+                    if (length(embedded[i]-embedded[j]) >= _distancethresh) {
+                        ++true_negative;
+                    } else {
+                        ++false_positive;
+                    }
                 }
             }
         }
-        const float _acc = static_cast<float>(num_right) / (num_right + num_wrong);
+        const float _precision = static_cast<float>(true_positive) / (true_positive + false_positive);
+        const float _recall = static_cast<float>(true_positive) / (true_positive + false_negative);
+        const float _F1 = 2.0f/(1.0f/_precision + 1.0f/_recall);
         cout << "Test iteration # " << n << endl;
-        cout << "accuracy:  " << _acc << endl;
-        cout << "num_right: "<< num_right << endl;
-        cout << "num_wrong: "<< num_wrong << endl;
-        if(_acc < _valaccuracy)
-        	_valaccuracy = _acc;
+        cout << "-----------------------" << endl;
+        cout << "true_positive: "<< true_positive << endl;
+        cout << "true_negative: "<< true_negative << endl;
+        cout << "false_positive: "<< false_positive << endl;
+        cout << "false_negative: "<< false_negative << endl;
+        cout << "F1 score: " << _F1 << endl << endl;
+        if(_F1 < _valMinF1)
+            _valMinF1 = _F1;
     }
 
-    string _outputfilename = string("whales_") + sessionguid + string("_VA") + std::to_string(_valaccuracy)  + string(".dat"); 
+    string _outputfilename = string("whales_") + sessionguid + string("_VF") + std::to_string(_valMinF1)  + string(".dat");
     cout << "Wait untill weights will be serialized to " << _outputfilename << endl;
     serialize(cmdparser.get<string>("outputdir") + string("/") + _outputfilename) << net;
     cout << "Done" << endl;

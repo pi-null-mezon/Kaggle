@@ -19,7 +19,7 @@ using namespace dlib;
 const cv::String keys =
    "{help h           |        | app help}"
    "{classes          |   28   | number of classes (each class has two possible outcomes 'y', 'n')}"
-   "{minibatchsize    |   40   | minibatch size}"
+   "{minibatchsize    |   34   | minibatch size}"
    "{traindir t       |        | training directory location}"
    "{outputdir o      |        | output directory location}"
    "{validportion v   |  0.15  | output directory location}"
@@ -27,7 +27,7 @@ const cv::String keys =
    "{swptrain         | 10000  | determines after how many steps without progress (training loss) decay should be applied to learning rate}"
    "{swpvalid         |  500   | determines after how many steps without progress (test loss) decay should be applied to learning rate}"
    "{magic            | 666    | seed value for the random number generator that controls data separation}"
-   "{minlrthresh      | 1.0e-3 | minimum learning rate, determines when training should be stopped}";
+   "{minlrthresh      | 1.0e-4 | minimum learning rate, determines when training should be stopped}";
 
 std::map<std::string,std::vector<std::string>> fillLabelsMap(unsigned int _classes);
 
@@ -106,7 +106,7 @@ int main(int argc, char** argv) try
         net_type net(labelsmap);
         net.subnet().layer_details().set_num_outputs(static_cast<long>(net.loss_details().number_of_labels()));
 
-        dnn_trainer<net_type> trainer(net,sgd());
+        dnn_trainer<net_type> trainer(net,sgd(0.0001,0.9));
         trainer.set_learning_rate(0.1);
         trainer.be_verbose();
         trainer.set_synchronization_file(cmdparser.get<std::string>("outputdir") + std::string("/trainer_sync_") + std::to_string(n), std::chrono::minutes(10));
@@ -131,6 +131,15 @@ int main(int argc, char** argv) try
                 _pos = rnd.get_random_32bit_number() % _trainingset.size();
                 _sample.first = _trainingset[_pos].second;
                 _tmpmat = __loadImage(_trainingset[_pos].first,512,512,false,true,true,&_training_file_loaded);
+                /*if(rnd.get_random_float() > 0.1f)
+                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.2f,0.2f,180.0f*rnd.get_random_float());
+                if(rnd.get_random_float() > 0.1f)
+                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.2f,0.2f,180.0f*rnd.get_random_float());
+                if(rnd.get_random_float() > 0.1f)
+                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.1f,0.1f,180.0f*rnd.get_random_float());
+*/
+                if(rnd.get_random_float() > 0.27f)
+                    _tmpmat = distortimage(_tmpmat,cvrng,0.015,cv::INTER_LANCZOS4,cv::BORDER_REFLECT);
                 if(rnd.get_random_float() > 0.1f)
                     _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.015,0,180,cv::BORDER_REFLECT101);
                 _tmpmat = cropimage(_tmpmat,cv::Size(400,400),&cvrng);
@@ -139,23 +148,6 @@ int main(int argc, char** argv) try
                     cv::flip(_tmpmat,_tmpmat,0);
                 if(rnd.get_random_float() > 0.5f)
                     cv::flip(_tmpmat,_tmpmat,1);
-
-                if(rnd.get_random_float() > 0.9f)
-                    cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
-
-                /*if(rnd.get_random_float() > 0.2f)
-                    _tmpmat = addNoise(_tmpmat,cvrng,0.025f*rnd.get_random_float()-0.0125f,0.025f*rnd.get_random_float());
-
-                if(rnd.get_random_float() > 0.1f)
-                    _tmpmat *= 1.0f + 0.01f*rnd.get_random_float();*/
-
-                /*if(rnd.get_random_float() > 0.27f)
-                    _tmpmat = distortimage(_tmpmat,cvrng,0.015,cv::INTER_LANCZOS4,cv::BORDER_REFLECT);*/
-
-                /*cv::resize(_tmpmat,_tmpmat,cv::Size(IMG_SIZE,IMG_SIZE),0,0,cv::INTER_AREA);*/
-
-                /*if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.4f,0.4f,45.0f*rnd.get_random_float());*/
 
                 _sample.second = cvmatF2arrayofFdlibmatrix<4>(_tmpmat);
                 trainpipe.enqueue(_sample);

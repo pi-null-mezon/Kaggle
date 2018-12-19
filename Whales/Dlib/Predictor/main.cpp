@@ -12,7 +12,7 @@
 #include "dlibopencvconverter.h"
 
 const cv::String _options = "{help h       |      | this help}"
-                            "{dstthresh t  | 0.55 | distance threshold}"
+                            "{dstthresh t  | 0.57 | distance threshold}"
                             "{inputdir i   |      | directory name where images are stored}"
                             "{recmodel r   |      | filename of the recognitiotn model}"
                             "{labels   l   |      | filename of the labels to recognize}"

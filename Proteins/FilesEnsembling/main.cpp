@@ -76,7 +76,7 @@ int main(int argc, char *argv[])
         QList<int> _labelslist = _lblmap.keys();
         bool first = true;
         for(int j = 0; j < _labelslist.size(); ++j) {
-            if(_lblmap.value(_labelslist.at(j)) > 4) { // 4 - LB 0.485
+            if(_lblmap.value(_labelslist.at(j)) > 2) { // 4 - LB 0.485
                 if(!first) {
                     _ots << ' ';
                 }
