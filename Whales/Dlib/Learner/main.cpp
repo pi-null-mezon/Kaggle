@@ -37,7 +37,8 @@ void load_mini_batch (
     const std::vector<std::vector<string>>& objs,
     std::vector<matrix<float>>& images,
     std::vector<unsigned long>& labels,
-    bool _doaugmentation
+    bool _doaugmentation,
+    const size_t min_samples=1 // if dir contains number of samples less than min_samples then dir will not be used
 )
 {
     images.clear();
@@ -51,14 +52,8 @@ void load_mini_batch (
     for (size_t i = 0; i < num_whales; ++i) {
 
         size_t id = rnd.get_random_32bit_number() % objs.size();
-        if(rnd.get_random_float() > 0.25f) {
-            while(already_selected[id] || (objs[id].size() < 2)) {
-                id = rnd.get_random_32bit_number() % objs.size();
-            }
-        } else {
-            while(already_selected[id]) {
-                id = rnd.get_random_32bit_number() % objs.size();
-            }
+        while(already_selected[id] || (objs[id].size() < min_samples)) {
+            id = rnd.get_random_32bit_number() % objs.size();
         }
         already_selected[id] = true;
 
@@ -75,9 +70,9 @@ void load_mini_batch (
                 assert(_isloaded);
 
                 if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.11,0.02,11,cv::BORDER_REFLECT101,true);
+                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.10,0.02,10,cv::BORDER_REFLECT101,true);
                 if(rnd.get_random_float() > 0.2f)
-                    _tmpmat = distortimage(_tmpmat,cvrng,0.075,cv::INTER_CUBIC,cv::BORDER_REFLECT101);
+                    _tmpmat = distortimage(_tmpmat,cvrng,0.065,cv::INTER_CUBIC,cv::BORDER_REFLECT101);
 
                 if(rnd.get_random_float() > 0.1f)
                     _tmpmat = cutoutRect(_tmpmat,0.20f + 0.5f*rnd.get_random_float(),0,0.2f,0.4f,rnd.get_random_float()*180.0f);
@@ -95,7 +90,7 @@ void load_mini_batch (
                     cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
 
                 if(rnd.get_random_float() > 0.2f)
-                    _tmpmat = addNoise(_tmpmat,cvrng,0.2f*rnd.get_random_float()-0.1f,0.1f*rnd.get_random_float());
+                    _tmpmat = addNoise(_tmpmat,cvrng,0.15f*rnd.get_random_float()-0.075f,0.075f*rnd.get_random_float());
 
                 if(rnd.get_random_float() > 0.1f)
                     _tmpmat *= 0.75f + 0.5f*rnd.get_random_float();
@@ -111,11 +106,16 @@ void load_mini_batch (
     }    
 }
 
-const cv::String options = "{traindir t  |      | path to directory with training data}"
-                           "{validdir v  |      | path to directory with validation data}"
-                           "{outputdir o |      | path to directory with output data}"
-                           "{minlrthresh | 1E-4 | path to directory with output data}"
-                           "{sessionguid |      | session guid}";
+const cv::String options = "{traindir  t  |      | path to directory with training data}"
+                           "{validdir  v  |      | path to directory with validation data}"
+                           "{outputdir o  |      | path to directory with output data}"
+                           "{model     m  |      | path to a model (to make hard mining from training set before training)}"
+                           "{minlrthresh  | 1E-4 | path to directory with output data}"
+                           "{sessionguid  |      | session guid}"
+                           "{learningrate |      | initial learning rate}"
+                           "{tiwp         | 5000 | train iterations without progress}"
+                           "{viwp         | 1000 | validation iterations without progress}";
+
 
 int main(int argc, char** argv)
 {
@@ -147,24 +147,112 @@ int main(int argc, char** argv)
     std::vector<matrix<float>> images;
     std::vector<unsigned long> labels;
 
+    // If user have provided model, we should make hard mining for this model
+    std::vector<std::vector<string>> hardtrainobjs;
+    std::vector<bool>                alreadyselected(trainobjs.size(),false);
+    hardtrainobjs.reserve(trainobjs.size());
+    if(cmdparser.has("model")) {
+        anet_type _anet;
+        try {
+            dlib::deserialize(cmdparser.get<string>("model")) >> _anet;
+        }
+        catch(std::exception &_e) {
+            cout << _e.what() << endl;
+            return 4;
+        }
+        std::vector<matrix<float,0,1>> _valldescriptions;
+        std::vector<size_t> _valllabels;
+        size_t _totalimages = 0;
+        for(size_t i = 0; i < trainobjs.size(); ++i)
+            _totalimages += trainobjs[i].size();
+        _valldescriptions.reserve(_totalimages);
+        _valllabels.reserve(_totalimages);
+        bool _isloaded = false;
+        cout << "Please wait while hard mining will be performed" << endl;
+        for(size_t i = 0; i < trainobjs.size(); ++i) {
+            cout << "label " << i << " (" << trainobjs[i].size() << " images)";
+            std::vector<dlib::matrix<float>> _vdlibimages;
+            _vdlibimages.reserve(trainobjs[i].size());
+            for(size_t j = 0; j < trainobjs[i].size(); ++j) {
+                _vdlibimages.push_back(cvmat2dlibmatrix<float>(loadIFgraymatWsize(trainobjs[i][j],IMG_WIDTH,IMG_HEIGHT,false,true,true,&_isloaded)));
+                assert(_isloaded);
+            }
+            std::vector<matrix<float,0,1>> _vdscrmatrices = _anet(_vdlibimages);
+            for(size_t j = 0; j < _vdscrmatrices.size(); ++j) {
+                _valldescriptions.push_back(std::move(_vdscrmatrices[j]));
+                _valllabels.push_back(i);
+            }
+            cout << " - descriptions collected" << endl;
+        }
+
+        const float _distancethresh = _anet.loss_details().get_distance_threshold();
+        size_t tp = 0, fp = 0, tn = 0, fn = 0;
+        for(size_t i = 0; i < _valldescriptions.size(); ++i) {
+            for(size_t j = i+1; j < _valldescriptions.size(); ++j) {
+                if(_valllabels[i] == _valllabels[j]) {
+                    if(length(_valldescriptions[i] - _valldescriptions[j]) < _distancethresh) {
+                        tp++;
+                    } else {
+                        if(alreadyselected[_valllabels[i]] == false) {
+                            hardtrainobjs.push_back(trainobjs[_valllabels[i]]);
+                            alreadyselected[_valllabels[i]] = true;
+                        }
+                        if(alreadyselected[_valllabels[j]] == false) {
+                            hardtrainobjs.push_back(trainobjs[_valllabels[j]]);
+                            alreadyselected[_valllabels[j]] = true;
+                        }
+                        fn++;
+                    }
+                } else {
+                    if(length(_valldescriptions[i] - _valldescriptions[j]) >= _distancethresh) {
+                        tn++;
+                    } else {
+                        if(alreadyselected[_valllabels[i]] == false) {
+                            hardtrainobjs.push_back(trainobjs[_valllabels[i]]);
+                            alreadyselected[_valllabels[i]] = true;
+                        }
+                        if(alreadyselected[_valllabels[j]] == false) {
+                            hardtrainobjs.push_back(trainobjs[_valllabels[j]]);
+                            alreadyselected[_valllabels[j]] = true;
+                        }
+                        fp++;
+                    }
+                }
+            }
+        }
+        cout << "Fasle positives found: " << fp << endl;
+        cout << "True  positives found: " << tp << endl;
+        cout << "False negatives found: " << fn << endl;
+        cout << "True  negatives found: " << tn << endl;
+        trainobjs = std::move(hardtrainobjs);
+        cout << "hard trainobjs.size(): "<< trainobjs.size() << endl;
+    }
+    // end of hard mining
+
+
     auto validobjs = load_objects_list(cmdparser.get<string>("validdir"));
     cout << "validobjs.size(): "<< validobjs.size() << endl;
     std::vector<matrix<float>> vimages;
     std::vector<unsigned long> vlabels;
+
+    //set_dnn_prefer_smallest_algorithms();
 
     net_type net;
     dnn_trainer<net_type> trainer(net, sgd(0.0005f, 0.9f));
     trainer.set_learning_rate(0.1);
     trainer.be_verbose();
     trainer.set_synchronization_file(cmdparser.get<string>("outputdir") + string("/trainer_") + sessionguid + string("_sync") , std::chrono::minutes(10));
-    trainer.set_iterations_without_progress_threshold(5000);
+    if(cmdparser.has("learningrate"))
+        trainer.set_learning_rate(cmdparser.get<double>("learningrate"));
+    trainer.set_iterations_without_progress_threshold(cmdparser.get<int>("tiwp"));
     const float _lratio = static_cast<float>(validobjs.size())/(validobjs.size() + trainobjs.size());
     cout << "Validation classes / Total classes: " << _lratio << endl;
     if(_lratio > 0.05) {
-        trainer.set_test_iterations_without_progress_threshold(1000);
+        trainer.set_test_iterations_without_progress_threshold(cmdparser.get<int>("viwp"));
     } else {
         cout << "Small validation set >> learning rate will be controlled only by training loss progress" << endl;
     }
+    set_all_bn_running_stats_window_sizes(net, 300);
 
     dlib::pipe<std::vector<matrix<float>>> qimages(4);
     dlib::pipe<std::vector<unsigned long>> qlabels(4);
@@ -178,7 +266,12 @@ int main(int argc, char** argv)
 
         while(qimages.is_enabled()) {
             try {
-                load_mini_batch(97, 2, rnd, cvrng, trainobjs, images, labels,true);
+                if(rnd.get_random_float() > 0.9)
+                    load_mini_batch(21, 9, rnd, cvrng, trainobjs, images, labels,true,9);
+                else if(rnd.get_random_float() > 0.2)
+                    load_mini_batch(97, 2, rnd, cvrng, trainobjs, images, labels,true,2);
+                else
+                    load_mini_batch(97, 2, rnd, cvrng, trainobjs, images, labels,true,2);
                 qimages.enqueue(images);
                 qlabels.enqueue(labels);
             }
@@ -205,7 +298,7 @@ int main(int argc, char** argv)
 
         while(testqimages.is_enabled()) {
             try {
-                load_mini_batch(97, 2, rnd, cvrng, validobjs, images, labels, false);
+                load_mini_batch(95, 2, rnd, cvrng, validobjs, images, labels, false);
                 testqimages.enqueue(images);
                 testqlabels.enqueue(labels);
             }
