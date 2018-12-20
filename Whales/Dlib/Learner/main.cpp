@@ -90,10 +90,10 @@ void load_mini_batch (
                     cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
 
                 if(rnd.get_random_float() > 0.2f)
-                    _tmpmat = addNoise(_tmpmat,cvrng,0.15f*rnd.get_random_float()-0.075f,0.075f*rnd.get_random_float());
+                    _tmpmat = addNoise(_tmpmat,cvrng,0.1f*rnd.get_random_float()-0.05f,0.075f*rnd.get_random_float());
 
                 if(rnd.get_random_float() > 0.1f)
-                    _tmpmat *= 0.75f + 0.5f*rnd.get_random_float();
+                    _tmpmat *= 0.8f + 0.4f*rnd.get_random_float();
 
                 images.push_back(cvmat2dlibmatrix<float>(_tmpmat));
             } else {
@@ -266,12 +266,12 @@ int main(int argc, char** argv)
 
         while(qimages.is_enabled()) {
             try {
-                if(rnd.get_random_float() > 0.9)
-                    load_mini_batch(21, 9, rnd, cvrng, trainobjs, images, labels,true,9);
-                else if(rnd.get_random_float() > 0.2)
-                    load_mini_batch(97, 2, rnd, cvrng, trainobjs, images, labels,true,2);
+                if(rnd.get_random_float() > 0.8f)
+                    load_mini_batch(21, 9, rnd, cvrng, trainobjs, images, labels, false, 9);
+                else if(rnd.get_random_float() > 0.8f)
+                    load_mini_batch(38, 5, rnd, cvrng, trainobjs, images, labels, false, 5);
                 else
-                    load_mini_batch(97, 2, rnd, cvrng, trainobjs, images, labels,true,2);
+                    load_mini_batch(97, 2, rnd, cvrng, trainobjs, images, labels, false, 2);
                 qimages.enqueue(images);
                 qlabels.enqueue(labels);
             }
