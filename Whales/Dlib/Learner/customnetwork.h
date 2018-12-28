@@ -26,13 +26,13 @@ template <typename SUBNET> using level0 = res<512,res_down<512,SUBNET>>;
 template <typename SUBNET> using level1 = res<256,res_down<256,SUBNET>>;
 template <typename SUBNET> using level2 = res<128,res_down<128,SUBNET>>;
 template <typename SUBNET> using level3 = res<64,res_down<64,SUBNET>>;
-template <typename SUBNET> using level4 = res<32,res_down<32,SUBNET>>;
+template <typename SUBNET> using level4 = res<64,res_down<64,SUBNET>>;
 
 template <typename SUBNET> using alevel0 = ares<512,ares_down<512,SUBNET>>;
 template <typename SUBNET> using alevel1 = ares<256,ares_down<256,SUBNET>>;
 template <typename SUBNET> using alevel2 = ares<128,ares_down<128,SUBNET>>;
 template <typename SUBNET> using alevel3 = ares<64,ares_down<64,SUBNET>>;
-template <typename SUBNET> using alevel4 = ares<32,ares_down<32,SUBNET>>;
+template <typename SUBNET> using alevel4 = ares<64,ares_down<64,SUBNET>>;
 
 // training network type
 using net_type = loss_metric<fc_no_bias<128,avg_pool_everything<
@@ -41,7 +41,7 @@ using net_type = loss_metric<fc_no_bias<128,avg_pool_everything<
                             level2<
                             level3<
                             level4<
-                            relu<bn_con<con<16,7,7,2,2,
+                            relu<bn_con<con<32,7,7,2,2,
                             input<matrix<float>>
                             >>>>>>>>>>>;
 
@@ -52,7 +52,7 @@ using anet_type = loss_metric<fc_no_bias<128,avg_pool_everything<
                             alevel2<
                             alevel3<
                             alevel4<
-                            relu<affine<con<16,7,7,2,2,
+                            relu<affine<con<32,7,7,2,2,
                             input<matrix<float>>
                             >>>>>>>>>>>;
 }

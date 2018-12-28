@@ -70,9 +70,9 @@ void load_mini_batch (
                 assert(_isloaded);
 
                 if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.10,0.02,10,cv::BORDER_REFLECT101,true);
-                if(rnd.get_random_float() > 0.2f)
-                    _tmpmat = distortimage(_tmpmat,cvrng,0.065,cv::INTER_CUBIC,cv::BORDER_REFLECT101);
+                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.11,0.05,11,cv::BORDER_REFLECT101,true);
+                if(rnd.get_random_float() > 0.5f)
+                    _tmpmat = distortimage(_tmpmat,cvrng,0.07,cv::INTER_CUBIC,cv::BORDER_REFLECT101);
 
                 if(rnd.get_random_float() > 0.1f)
                     _tmpmat = cutoutRect(_tmpmat,0.20f + 0.5f*rnd.get_random_float(),0,0.2f,0.4f,rnd.get_random_float()*180.0f);
@@ -81,7 +81,7 @@ void load_mini_batch (
                 if(rnd.get_random_float() > 0.1f)
                     _tmpmat = cutoutRect(_tmpmat,0,0.75f + 0.25f*rnd.get_random_float(),0.2f,0.4f,rnd.get_random_float()*180.0f);
                 if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = cutoutRect(_tmpmat,1,0.75f + 0.25f*rnd.get_random_float(),0.2f,0.4f,rnd.get_random_float()*180.0f);                               
+                    _tmpmat = cutoutRect(_tmpmat,1,0.75f + 0.25f*rnd.get_random_float(),0.2f,0.4f,rnd.get_random_float()*180.0f);
 
                 if(rnd.get_random_float() > 0.3f)
                     _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.1f,0.3f,rnd.get_random_float()*180.0f);
@@ -89,11 +89,11 @@ void load_mini_batch (
                 if(rnd.get_random_float() > 0.5f)
                     cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
 
-                if(rnd.get_random_float() > 0.2f)
-                    _tmpmat = addNoise(_tmpmat,cvrng,0.1f*rnd.get_random_float()-0.05f,0.075f*rnd.get_random_float());
+                if(rnd.get_random_float() > 0.5f)
+                    _tmpmat = addNoise(_tmpmat,cvrng,0.1f*rnd.get_random_float()-0.05f,0.05*rnd.get_random_float());
 
-                if(rnd.get_random_float() > 0.1f)
-                    _tmpmat *= 0.8f + 0.4f*rnd.get_random_float();
+                if(rnd.get_random_float() > 0.5f)
+                    _tmpmat *= 1.0f + 0.5f*rnd.get_random_float();
 
                 images.push_back(cvmat2dlibmatrix<float>(_tmpmat));
             } else {
@@ -238,7 +238,7 @@ int main(int argc, char** argv)
     //set_dnn_prefer_smallest_algorithms();
 
     net_type net;
-    dnn_trainer<net_type> trainer(net, sgd(0.0005f, 0.9f));
+    dnn_trainer<net_type> trainer(net, sgd());
     trainer.set_learning_rate(0.1);
     trainer.be_verbose();
     trainer.set_synchronization_file(cmdparser.get<string>("outputdir") + string("/trainer_") + sessionguid + string("_sync") , std::chrono::minutes(10));
@@ -252,7 +252,6 @@ int main(int argc, char** argv)
     } else {
         cout << "Small validation set >> learning rate will be controlled only by training loss progress" << endl;
     }
-    set_all_bn_running_stats_window_sizes(net, 300);
 
     dlib::pipe<std::vector<matrix<float>>> qimages(4);
     dlib::pipe<std::vector<unsigned long>> qlabels(4);
@@ -266,12 +265,7 @@ int main(int argc, char** argv)
 
         while(qimages.is_enabled()) {
             try {
-                if(rnd.get_random_float() > 0.8f)
-                    load_mini_batch(21, 9, rnd, cvrng, trainobjs, images, labels, false, 9);
-                else if(rnd.get_random_float() > 0.8f)
-                    load_mini_batch(38, 5, rnd, cvrng, trainobjs, images, labels, false, 5);
-                else
-                    load_mini_batch(97, 2, rnd, cvrng, trainobjs, images, labels, false, 2);
+                load_mini_batch(63, 2, rnd, cvrng, trainobjs, images, labels, true,2);
                 qimages.enqueue(images);
                 qlabels.enqueue(labels);
             }
@@ -298,7 +292,7 @@ int main(int argc, char** argv)
 
         while(testqimages.is_enabled()) {
             try {
-                load_mini_batch(95, 2, rnd, cvrng, validobjs, images, labels, false);
+                load_mini_batch(63, 2, rnd, cvrng, validobjs, images, labels, false,2);
                 testqimages.enqueue(images);
                 testqlabels.enqueue(labels);
             }
