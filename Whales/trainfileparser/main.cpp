@@ -38,7 +38,7 @@ int main(int argc, char *argv[])
     QStringList _labels = _labelsmap.uniqueKeys();
     for(int i = 0; i < _labels.size(); ++i) {
         int _count = _labelsmap.count(_labels.at(i));
-        if(_count > 1) { // control what classes (in terms of instances per class) should be enrolled
+        if(_count > 0) { // control what classes (in terms of instances per class) should be enrolled
             qInfo("  label %s - %d instances", _labels.at(i).toUtf8().constData(), _count);
             _outputdir.mkdir(_labels.at(i));
             QStringList _files = _labelsmap.values(_labels.at(i));

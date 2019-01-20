@@ -5,7 +5,6 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/imgcodecs.hpp>
 
-
 /**
  * @brief Makes image copy with the cutout rectangle on top, color of the cutout region equals to mean color of the input image
  * @param _mat - input image
@@ -26,6 +25,24 @@ cv::Mat cutoutRect(const cv::Mat &_mat, float _cx=0.5f, float _cy=0.5f, float _p
         _vert[i] = _verticiesf[i];
     cv::Mat _omat = _mat.clone();
     cv::fillConvexPoly(_omat,_vert,4,cv::mean(_mat));
+    return _omat;
+}
+
+/**
+ * @brief Makes image copy with the cutout ellipse on top, color of the cutout region equals to mean color of the input image
+ * @param _mat - input image
+ * @param _cx - position of the center of the cutout rect  relative to image width
+ * @param _cy - position of the center of the cutout rect relative to image width
+ * @param _px - portion of the image that will be covered by the cutout rect in horizontal dimension
+ * @param _py - portion of the image that will be covered by the cutout rect in vertical dimension
+ * @param _angledeg - angle of the cutout rect
+ * @return input image copy with the cutout ellipse on top of it
+ */
+cv::Mat cutoutEllipse(const cv::Mat &_mat, float _cx=0.5f, float _cy=0.5f, float _px=0.5f, float _py=0.5f, float _angledeg=0.0f)
+{
+    cv::RotatedRect _rrect(cv::Point2f(_mat.cols*_cx,_mat.rows*_cy),cv::Size(_mat.cols*_px,_mat.rows*_py),_angledeg);
+    cv::Mat _omat = _mat.clone();
+    cv::ellipse(_omat,_rrect,cv::mean(_mat),-1,cv::FILLED);
     return _omat;
 }
 
