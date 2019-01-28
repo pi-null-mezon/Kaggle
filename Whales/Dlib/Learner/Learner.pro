@@ -17,3 +17,8 @@ HEADERS += \
 INCLUDEPATH += $${PWD}/../../../Shared/dlibimgaugment \
                $${PWD}/../../../Shared/opencvimgaugment \
                $${PWD}/../../../Shared/dlibopencvconverter
+
+unix {
+   target.path = /usr/local/bin
+   INSTALLS += target
+}

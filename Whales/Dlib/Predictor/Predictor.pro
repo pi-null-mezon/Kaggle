@@ -30,3 +30,8 @@ include($${PWD}/../../../Shared/opencv.pri)
 
 include($${PWD}/../../../../OpenIRT/Sources/Basic/imagerecognizer.pri)
 include($${PWD}/../../../../OpenIRT/Sources/Kaggle/Whales/dlibwhalesrecognizer.pri)
+
+unix {
+   target.path = /usr/local/bin
+   INSTALLS += target
+}
