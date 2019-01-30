@@ -7,12 +7,19 @@
 
 #include "dlibwhalesrecognizer.h"
 
+#ifdef Q_OS_LINUX
+    #define RENDER_DELAY_MS 35
+#else
+    #define RENDER_DELAY_MS 30
+#endif
+
 using namespace std;
 
 const cv::String keys = "{inputdir  i |       | input directory name (where dirty data is stored)}"
                         "{outputdir o |       | output directory name (where cleaned data should be stored)}"
                         "{model     m |       | model filename}"
-                        "{dstthresh t | 0.595 | min distance for same ids}";
+                        "{samemaxdst  | 0.595 | max desired distance for the same ids}"
+                        "{diffmindst  | 0.445 | min desired distance for different ids}";
 
 cv::Mat medianDescription(const vector<cv::Mat> &_vlbldscr)
 {
@@ -77,7 +84,6 @@ int main(int argc, char **argv)
         qInfo("Model '%s' does not exist! Abort...",_modelfileinfo.filePath().toUtf8().constData());
         return 6;
     }
-    double dstthresh = cmdparser.get<double>("dstthresh");
 
     // Load identification model
     cv::Ptr<cv::oirt::CNNImageRecognizer> recognizer = cv::oirt::createDlibWhalesRecognizer(cmdparser.get<cv::String>("model"));
@@ -86,7 +92,9 @@ int main(int argc, char **argv)
     QStringList listofsubdirs = qindir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
     QStringList filefilters;
     filefilters << "*.png" << "*.jpeg" << "*.bmp" << "*.jpg";
-    qInfo("Stage I - 'in class' analysis");
+
+    qInfo("\n-------------\nStage I - 'in class' analysis\n-------------\n");
+    double samemaxdst = cmdparser.get<double>("samemaxdst");
     QMap<QString,QString> id2filenamemap;
     QMap<QString,cv::Mat> id2meddscrmap;
     for(int i = 0; i < listofsubdirs.size(); ++i) {
@@ -105,21 +113,21 @@ int main(int argc, char **argv)
             // Compare with median description, preserve
             for(int j = 0; j < listoffiles.size(); ++j) {
                 double _distance = cv::oirt::euclideanDistance(_mediandscr,_vlbldscr[j]);
-                if(_distance < dstthresh) {
+                if(_distance < samemaxdst) {
                     qInfo("    %.3f for %s ",_distance, listoffiles.at(j).toUtf8().constData());
                     _vpreservefile[j] = true;
                 } else {
                     qInfo("    %.3f for %s - manual check is suggested",_distance, listoffiles.at(j).toUtf8().constData());
                     cv::imshow("Test picture",cv::imread(subdir.absoluteFilePath(listoffiles.at(j)).toStdString(),CV_LOAD_IMAGE_UNCHANGED));
-                    cv::waitKey(30); // delay for the picture to be rendered properly
+                    cv::waitKey(RENDER_DELAY_MS); // delay for the picture to be rendered properly
                     for(int k = 0; k < listoffiles.size(); ++k) {
-                        if(cv::oirt::euclideanDistance(_mediandscr,_vlbldscr[k]) < dstthresh) {
+                        if(cv::oirt::euclideanDistance(_mediandscr,_vlbldscr[k]) < samemaxdst) {
                             cv::imshow("Reference picture",cv::imread(subdir.absoluteFilePath(listoffiles.at(k)).toStdString(),CV_LOAD_IMAGE_UNCHANGED));
                             break;
                         }
                     }
-                    cv::waitKey(30); // delay for the picture to be rendered properly
-                    cout << "Is this images belong to the same class? (yes/no or y/n): ";
+                    cv::waitKey(RENDER_DELAY_MS); // delay for the picture to be rendered properly
+                    cout << "Are this images belong to the same class? (yes/no or y/n): ";
                     string answer;
                     getline(cin,answer);
                     if((answer.compare("yes") == 0) || (answer.compare("y") == 0))
@@ -155,8 +163,10 @@ int main(int argc, char **argv)
             qInfo("    insufficient number of samples (%d), label will be skipped", listoffiles.size());
         }
     }
+    cv::destroyAllWindows();
 
-    qInfo("Stage II - 'between class' analysis");
+    qInfo("\n-------------\nStage II - 'between class' analysis\n-------------\n");
+    double diffmindst = cmdparser.get<double>("diffmindst");
     QStringList listofclasses = id2meddscrmap.keys();
     vector<bool> _vpreserveclass(listofclasses.size(),true);
     for(int i = 0; i < (listofclasses.size()-1); ++i) {
@@ -166,16 +176,17 @@ int main(int argc, char **argv)
                 if(_vpreserveclass[j]) {
                     double _distance = cv::oirt::euclideanDistance(id2meddscrmap.value(listofclasses.at(i)),id2meddscrmap.value(listofclasses.at(j)));
                     qInfo("    %.3f - #%d %s to #%d %s",_distance,i,listofclasses.at(i).toUtf8().constData(),j,listofclasses.at(j).toUtf8().constData());
-                    if(_distance < dstthresh) {
-                        if(_distance < 0.75*dstthresh) {
+                    if(_distance < samemaxdst) {
+                        if(_distance < diffmindst) {
+                            // here we are very confident that i and j represent same class, so no manual control needed
                             _vpreserveclass[j] = false;
                         } else {
                             QStringList class2_fileslist = id2filenamemap.values(listofclasses.at(j));
                             cv::imshow("Class 1", cv::imread(class1_fileslist.at(0).toStdString(),CV_LOAD_IMAGE_UNCHANGED));
-                            cv::waitKey(30);
+                            cv::waitKey(RENDER_DELAY_MS);
                             cv::imshow("Class 2", cv::imread(class2_fileslist.at(0).toStdString(),CV_LOAD_IMAGE_UNCHANGED));
-                            cv::waitKey(30);
-                            cout << "Is this images belong to the same class? (yes/no or y/n): ";
+                            cv::waitKey(RENDER_DELAY_MS);
+                            cout << "Are this images belong to the same class? (yes/no or y/n): ";
                             string answer;
                             getline(cin,answer);
                             if((answer.compare("yes") == 0) || (answer.compare("y") == 0))
@@ -199,7 +210,7 @@ int main(int argc, char **argv)
                 QFile::copy(fileslist.at(j),qoutdir.absolutePath().append(QString("/%1/%2").arg(listofclasses.at(i),QFileInfo(fileslist.at(j)).fileName())));
             }
         }
-        qInfo("%d) %s - %s", i, listofclasses.at(i).toUtf8().constData(), _vpreserveclass[i] ? "copied" : "dropped out");
+        qInfo("%d) %s - %s", (int)i, listofclasses.at(i).toUtf8().constData(), _vpreserveclass[i] ? "copied" : "dropped out");
     }
     qInfo("Done");
     return 0;
