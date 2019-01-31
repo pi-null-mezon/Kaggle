@@ -18,8 +18,9 @@ using namespace std;
 const cv::String keys = "{inputdir  i |       | input directory name (where dirty data is stored)}"
                         "{outputdir o |       | output directory name (where cleaned data should be stored)}"
                         "{model     m |       | model filename}"
-                        "{samemaxdst  | 0.595 | max desired distance for the same ids}"
-                        "{diffmindst  | 0.445 | min desired distance for different ids}";
+                        "{samemaxdst  | 0.575 | max desired distance for the same ids}"
+                        "{diffmindst  | 0.425 | min desired distance for different ids}"
+                        "{help h      |       | help}";
 
 cv::Mat medianDescription(const vector<cv::Mat> &_vlbldscr)
 {
@@ -53,7 +54,7 @@ int main(int argc, char **argv)
 {
     cv::CommandLineParser cmdparser(argc,argv,keys);
     cmdparser.about("This application allows you to semi-automatically filter train data");
-    if(argc == 1) {
+    if(argc == 1 || cmdparser.has("help")) {
         cmdparser.printMessage();
         return 0;
     }
@@ -123,16 +124,16 @@ int main(int argc, char **argv)
                     for(int k = 0; k < listoffiles.size(); ++k) {
                         if(cv::oirt::euclideanDistance(_mediandscr,_vlbldscr[k]) < samemaxdst) {
                             cv::imshow("Reference picture",cv::imread(subdir.absoluteFilePath(listoffiles.at(k)).toStdString(),CV_LOAD_IMAGE_UNCHANGED));
+                            cv::waitKey(RENDER_DELAY_MS); // delay for the picture to be rendered properly
                             break;
                         }
-                    }
-                    cv::waitKey(RENDER_DELAY_MS); // delay for the picture to be rendered properly
+                        cv::destroyWindow("Reference picture");
+                    }                   
                     cout << "Are this images belong to the same class? (yes/no or y/n): ";
                     string answer;
                     getline(cin,answer);
                     if((answer.compare("yes") == 0) || (answer.compare("y") == 0))
                         _vpreservefile[j] = true;
-                    //cv::destroyAllWindows();
                 }
             }
             // Also we should try to find identical images
@@ -174,14 +175,18 @@ int main(int argc, char **argv)
             QStringList class1_fileslist = id2filenamemap.values(listofclasses.at(i));
             for(int j = i+1; j< listofclasses.size(); ++j) {
                 if(_vpreserveclass[j]) {
-                    double _distance = cv::oirt::euclideanDistance(id2meddscrmap.value(listofclasses.at(i)),id2meddscrmap.value(listofclasses.at(j)));
-                    qInfo("    %.3f - #%d %s to #%d %s",_distance,i,listofclasses.at(i).toUtf8().constData(),j,listofclasses.at(j).toUtf8().constData());
+                    double _distance = cv::oirt::euclideanDistance(id2meddscrmap.value(listofclasses.at(i)),id2meddscrmap.value(listofclasses.at(j)));                   
                     if(_distance < samemaxdst) {
+                        QStringList class2_fileslist = id2filenamemap.values(listofclasses.at(j));
                         if(_distance < diffmindst) {
+                            qInfo("    %.3f - #%d %s to #%d %s - identified as same class",_distance,i,listofclasses.at(i).toUtf8().constData(),j,listofclasses.at(j).toUtf8().constData());
                             // here we are very confident that i and j represent same class, so no manual control needed
                             _vpreserveclass[j] = false;
+                            for(int k = 0; k < class2_fileslist.size(); ++k) {
+                                id2filenamemap.insertMulti(listofclasses.at(i),class2_fileslist.at(k));
+                            }
                         } else {
-                            QStringList class2_fileslist = id2filenamemap.values(listofclasses.at(j));
+                            qInfo("    %.3f - #%d %s to #%d %s - manual check is suggested",_distance,i,listofclasses.at(i).toUtf8().constData(),j,listofclasses.at(j).toUtf8().constData());
                             cv::imshow("Class 1", cv::imread(class1_fileslist.at(0).toStdString(),CV_LOAD_IMAGE_UNCHANGED));
                             cv::waitKey(RENDER_DELAY_MS);
                             cv::imshow("Class 2", cv::imread(class2_fileslist.at(0).toStdString(),CV_LOAD_IMAGE_UNCHANGED));
@@ -189,10 +194,15 @@ int main(int argc, char **argv)
                             cout << "Are this images belong to the same class? (yes/no or y/n): ";
                             string answer;
                             getline(cin,answer);
-                            if((answer.compare("yes") == 0) || (answer.compare("y") == 0))
+                            if((answer.compare("yes") == 0) || (answer.compare("y") == 0)) {
                                 _vpreserveclass[j] = false;
-                            //cv::destroyAllWindows();
+                                for(int k = 0; k < class2_fileslist.size(); ++k) {
+                                    id2filenamemap.insertMulti(listofclasses.at(i),class2_fileslist.at(k));
+                                }
+                            }
                         }
+                    } else {
+                        qInfo("    %.3f - #%d %s to #%d %s",_distance,i,listofclasses.at(i).toUtf8().constData(),j,listofclasses.at(j).toUtf8().constData());
                     }
                 }
             }
@@ -210,7 +220,7 @@ int main(int argc, char **argv)
                 QFile::copy(fileslist.at(j),qoutdir.absolutePath().append(QString("/%1/%2").arg(listofclasses.at(i),QFileInfo(fileslist.at(j)).fileName())));
             }
         }
-        qInfo("%d) %s - %s", (int)i, listofclasses.at(i).toUtf8().constData(), _vpreserveclass[i] ? "copied" : "dropped out");
+        qInfo("%d) %s - %s", (int)i, listofclasses.at(i).toUtf8().constData(), _vpreserveclass[i] ? "preserved" : "dropped");
     }
     qInfo("Done");
     return 0;
