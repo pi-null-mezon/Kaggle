@@ -79,21 +79,25 @@ int main(int argc, char ** argv) try
         if(_ofile.open(QIODevice::WriteOnly)) {
             _ots.setDevice(&_ofile);
             _ots << "filename,P0_X,P0_Y,P1_X,P1_Y,P2_X,P2_Y,P3_X,P3_Y";
+            _ots.setRealNumberPrecision(1);
+            _ots.setRealNumberNotation(QTextStream::FixedNotation);
         }
     }
 
     QStringList filefilters;
     filefilters << "*.jpg" << "*.jpeg" << "*.png";
 
-    QStringList fileslist = indir.entryList(filefilters,QDir::Files | QDir::NoDotAndDotDot);
+
     cv::Mat _tmpmat, _transformedmat;
     bool _visualizationOn = _cmd.get<bool>("visualize");
     const cv::Size _targetsize(_cmd.get<int>("ocols"),_cmd.get<int>("orows"));
     cv::RotatedRect _rrect;
     cv::Point2f _vertices[4];
+    // Let's enroll files in the root of input directory
+    QStringList fileslist = indir.entryList(filefilters,QDir::Files | QDir::NoDotAndDotDot);
     for(int i = 0; i < fileslist.size(); ++i) {
         string _filename = indir.absoluteFilePath(fileslist.at(i)).toUtf8().constData();
-        cout << _filename << endl;
+        cout << _filename;
         _tmpmat = cv::imread(_filename,CV_LOAD_IMAGE_UNCHANGED);      
         if(!_tmpmat.empty()) {                     
             _transformedmat = cropHighAttentionRegion(_tmpmat,net,netinputsize,attmapsize,athresh,&_rrect);
@@ -107,7 +111,7 @@ int main(int argc, char ** argv) try
             if(_visualizationOn) {
                 cv::imshow("Transformed image", _transformedmat);
                 cv::imshow("Original image", _tmpmat);
-                cv::waitKey(1);
+                cv::waitKey(10);
             }
             if(_transformedmat.total() != _targetsize.area()) {
                 if(_transformedmat.total() > _targetsize.area())
@@ -116,11 +120,54 @@ int main(int argc, char ** argv) try
                     cv::resize(_transformedmat,_transformedmat,_targetsize,0,0,CV_INTER_CUBIC);
             }
             cv::imwrite(outdir.absolutePath().append("/%1").arg(fileslist.at(i)).toStdString(),_transformedmat);
+            cout << " - enrolled" << endl;
         } else {
-            cout << "Can not be loaded! Abort..." << endl;
+            cout << " - can not be loaded! Abort..." << endl;
             return 6;
         }
     }
+    // Now let's enroll files in subdirs
+    QStringList listofsubdirs = indir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+    for(int i = 0; i < listofsubdirs.size(); ++i) {
+        cout << listofsubdirs.at(i).toStdString() << endl;
+        QDir _subdir(indir.absolutePath().append("/%1").arg(listofsubdirs.at(i)));
+        outdir.mkdir(listofsubdirs.at(i));
+        QStringList _listoffiles = _subdir.entryList(filefilters,QDir::Files | QDir::NoDotAndDotDot);
+        for(int j = 0; j < _listoffiles.size(); ++j) {
+            string _filename = _subdir.absoluteFilePath(_listoffiles.at(j)).toStdString();
+            cout << "  " << _filename;
+            _tmpmat = cv::imread(_filename,CV_LOAD_IMAGE_UNCHANGED);
+            if(!_tmpmat.empty()) {
+                _transformedmat = cropHighAttentionRegion(_tmpmat,net,netinputsize,attmapsize,athresh,&_rrect);
+                if(_ofile.isOpen()) {
+                    _rrect.points(_vertices);
+                    _ots << '\n' << listofsubdirs.at(i) << "/" << _listoffiles.at(j);
+                    for(int i = 0; i < 4; ++i)
+                        _ots << ',' << _vertices[i].x << ',' << _vertices[i].y;
+                    _ots.flush();
+                }
+                if(_visualizationOn) {
+                    cv::imshow("Transformed image", _transformedmat);
+                    cv::imshow("Original image", _tmpmat);
+                    cv::waitKey(1);
+                }
+                if(_transformedmat.total() != _targetsize.area()) {
+                    if(_transformedmat.total() > _targetsize.area())
+                        cv::resize(_transformedmat,_transformedmat,_targetsize,0,0,CV_INTER_AREA);
+                    else
+                        cv::resize(_transformedmat,_transformedmat,_targetsize,0,0,CV_INTER_CUBIC);
+                }
+                cv::imwrite(outdir.absolutePath().append("/%1/%2").arg(listofsubdirs.at(i),_listoffiles.at(j)).toStdString(),_transformedmat);
+                cout << " - enrolled" << endl;
+            } else {
+                cout << " - can not be loaded! Abort..." << endl;
+                return 6;
+            }
+
+        }
+    }
+
+
     cout << "All files has been enrolled successfully" << endl;
     return 0;
 }
@@ -210,7 +257,7 @@ cv::Mat cropHighAttentionRegion(const cv::Mat &_inmat, dlib::anet_type &_net, co
     // Let's calculate metric-loss-CNN attention map
     _attentionmap = autoAttentionMap(_inmat,_net,_netinputsize,_attmapsize);
     // Let's align image by attention map PCA directions
-    _transformedmat = alignPCAWResize(_attentionmap,_inmat,cv::Size(0,0),_attentionthresh,CV_INTER_AREA,cv::BORDER_REFLECT101);
+    _transformedmat = alignPCAWResize(_attentionmap,_inmat,cv::Size(0,0),_attentionthresh,CV_INTER_AREA,cv::BORDER_REPLICATE);
     // Let's find minimum area boundirg rect for binaryzed attention
     cv::threshold(_attentionmap,_attentionmap,_attentionthresh,1,CV_THRESH_BINARY);
     _attentionmap.convertTo(_attentionmap,CV_8U,255,0);
