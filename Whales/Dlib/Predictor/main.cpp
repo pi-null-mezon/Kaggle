@@ -14,7 +14,7 @@
 const cv::String _options = "{help h       |      | this help}"
                             "{dstthresh t  | 0.57 | distance threshold}"
                             "{inputdir i   |      | directory name where images are stored}"
-                            "{recmodel r   |      | filename of the recognitiotn model}"
+                            "{model m      |      | filename/filenames of the recognitiotn model/models (use ; to separate names)}"
                             "{labels   l   |      | filename of the labels to recognize}"
                             "{outputfile o |      | output filename with the results}";
 
@@ -38,17 +38,19 @@ int main(int argc, char *argv[])
         return 2;
     }
 
-    if(_cmdparser.has("recmodel") == false) {
+    if(_cmdparser.has("model") == false) {
         qWarning("You have not provide recognition model file name! Abort...");
         return 3;
     } else {
-        QFileInfo _fi(_cmdparser.get<cv::String>("recmodel").c_str());
-        if(!_fi.exists()) {
-            qWarning("Model file name you have provided does not exist! Abort...");
-            return 4;
+        QStringList models_list = QString(_cmdparser.get<cv::String>("model").c_str()).split(';');
+        for(int i = 0; i < models_list.size(); ++i) {
+            if(QFileInfo(models_list.at(i)).exists() == false) {
+                qWarning("Model '%s' does not exist! Abort...",models_list.at(i).toUtf8().constData());
+                return 4;
+            }
         }
     }
-    QString _recmodelfilename = _cmdparser.get<cv::String>("recmodel").c_str();
+    QString _recmodelfilename = _cmdparser.get<cv::String>("model").c_str();
 
     if(_cmdparser.has("labels") == false) {
         qWarning("You have not provide labels file name! Abort...");

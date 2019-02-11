@@ -11,6 +11,33 @@
 
 using namespace std;
 
+
+cv::Mat distortperspective(const cv::Mat&_inmat, cv::RNG &_cvrng, double _maxportion=0.05, bool changesides=false, int _interp_method=CV_INTER_LINEAR, int _bordertype=cv::BORDER_DEFAULT)
+{
+    cv::Point2f pts1[]={
+                        cv::Point2f(0,0),
+                        cv::Point2f(_inmat.cols,0),
+                        cv::Point2f(_inmat.cols,_inmat.rows),
+                        cv::Point2f(0,_inmat.rows)
+                       };
+
+    float hshift = _cvrng.uniform(0.0,_maxportion)*_inmat.cols;
+    float vshift = _cvrng.uniform(0.0,_maxportion)*_inmat.rows;
+    if(changesides)
+        vshift *= -1;
+
+    cv::Point2f pts2[]={
+                        cv::Point2f(hshift,- vshift),
+                        cv::Point2f(_inmat.cols - hshift, vshift),
+                        cv::Point2f(_inmat.cols - hshift, _inmat.rows - vshift),
+                        cv::Point2f(hshift,_inmat.rows + vshift)
+                       };
+    cv::Mat _outmat;
+    cv::warpPerspective(_inmat,_outmat,cv::getPerspectiveTransform(pts1,pts2),cv::Size(_inmat.cols,_inmat.rows),_interp_method,_bordertype,cv::mean(_inmat));
+    _outmat = addNoise(_outmat,_cvrng,0,20);
+    return _outmat;
+}
+
 int main(int argc, char *argv[])
 {
     if(argc != 2) {
@@ -26,7 +53,7 @@ int main(int argc, char *argv[])
     bool isloaded;
     for(auto file : dir.get_files()) {
         _filename = file.full_name();
-        cv::Mat _mat = loadIFgraymatWsize(_filename,512,192,false,true,false,&isloaded);
+        cv::Mat _mat = loadIbgrmatWsize(_filename,512,192,false,&isloaded);
         assert(isloaded);
         cout << "---------------------------" << endl;
         cout << "Filename: " << file.full_name() << endl;
@@ -37,9 +64,15 @@ int main(int argc, char *argv[])
         if(_mat.empty() == false) {
             for(int j = 0; j < 10; ++j) {
 
-                _tmpmat = _mat.clone();/*jitterimage(_mat,cvrng,cv::Size(0,0),0.05,0.05,5,cv::BORDER_REFLECT101,true);*/
+                if(rnd.get_random_float() > 0.5f)
+                    _tmpmat = distortperspective(_mat,cvrng,0.25,false,CV_INTER_LINEAR,cv::BORDER_CONSTANT);
+                else
+                    _tmpmat = distortperspective(_mat,cvrng,0.25,true,CV_INTER_CUBIC,cv::BORDER_CONSTANT);
+
+
+                /*jitterimage(_mat,cvrng,cv::Size(0,0),0.05,0.05,5,cv::BORDER_REFLECT101,true);*/
                 /*if(rnd.get_random_float() > 0.5f)
-                    _tmpmat = distortimage(_tmpmat,cvrng,0.02,cv::INTER_CUBIC,cv::BORDER_REFLECT101);*/
+                    _tmpmat = distortimage(_tmpmat,cvrng,0.02,cv::INTER_CUBIC,cv::BORDER_REFLECT101);
 
                 /*if(rnd.get_random_float() > 0.1f)
                     _tmpmat = cutoutRect(_tmpmat,0.25f + 0.5f*rnd.get_random_float(),0,0.2f,0.4f,rnd.get_random_float()*180.0f);*/
@@ -55,7 +88,7 @@ int main(int argc, char *argv[])
 
                 if(rnd.get_random_float() > 0.5f)
                     cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));*/
-                cv::flip(_tmpmat,_tmpmat,1);
+                /*cv::flip(_tmpmat,_tmpmat,1);
                 if(rnd.get_random_float() > 0.5f)
                     _tmpmat = addNoise(_tmpmat,cvrng,0.1f*rnd.get_random_float()-0.025f,0.1f*rnd.get_random_float());
 
