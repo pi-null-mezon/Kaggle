@@ -337,12 +337,12 @@ int main(int argc, char** argv)
                 _valMinF1 = _F1;
         }
 
-        string _outputfilename = string("whales_") + sessionguid + string("_VF") + std::to_string(_valMinF1) + string(".dat");
+        string _outputfilename = string("head_") + sessionguid + string("_VF") + std::to_string(_valMinF1) + string(".dat");
         cout << "Wait untill weights will be serialized to " << _outputfilename << endl;
         serialize(cmdparser.get<string>("outputdir") + string("/") + _outputfilename) << net;
         cout << "Done" << endl;
     } else {
-        string _outputfilename = string("whales_") /*+ sessionguid + string("_mbiter_") +  std::to_string(trainer.get_train_one_step_calls())*/ + string(".dat");
+        string _outputfilename = string("head") /*+ sessionguid + string("_mbiter_") +  std::to_string(trainer.get_train_one_step_calls())*/ + string(".dat");
         cout << "Wait untill weights will be serialized to " << _outputfilename << endl;
         serialize(cmdparser.get<string>("outputdir") + string("/") + _outputfilename) << net;
         cout << "Done" << endl;

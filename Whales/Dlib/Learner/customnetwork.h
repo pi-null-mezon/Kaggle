@@ -6,6 +6,8 @@
 #define IMG_WIDTH  512
 #define IMG_HEIGHT 192
 
+#define FNUM 16
+
 namespace dlib {
 
 template <template <int,template<typename>class,int,typename> class block, int N, template<typename>class BN, typename SUBNET>
@@ -22,17 +24,17 @@ template <int N, typename SUBNET> using ares      = relu<residual<block,N,affine
 template <int N, typename SUBNET> using res_down  = relu<residual_down<block,N,bn_con,SUBNET>>;
 template <int N, typename SUBNET> using ares_down = relu<residual_down<block,N,affine,SUBNET>>;
 
-template <typename SUBNET> using level0 = res<512,res_down<512,SUBNET>>;
-template <typename SUBNET> using level1 = res<256,res_down<256,SUBNET>>;
-template <typename SUBNET> using level2 = res<128,res_down<128,SUBNET>>;
-template <typename SUBNET> using level3 = res<64,res_down<64,SUBNET>>;
-template <typename SUBNET> using level4 = res<32,res_down<32,SUBNET>>;
+template <typename SUBNET> using level0 = res<32*FNUM,res_down<32*FNUM,SUBNET>>;
+template <typename SUBNET> using level1 = res<16*FNUM,res_down<16*FNUM,SUBNET>>;
+template <typename SUBNET> using level2 = res<8*FNUM,res_down<8*FNUM,SUBNET>>;
+template <typename SUBNET> using level3 = res<4*FNUM,res_down<4*FNUM,SUBNET>>;
+template <typename SUBNET> using level4 = res<2*FNUM,res_down<2*FNUM,SUBNET>>;
 
-template <typename SUBNET> using alevel0 = ares<512,ares_down<512,SUBNET>>;
-template <typename SUBNET> using alevel1 = ares<256,ares_down<256,SUBNET>>;
-template <typename SUBNET> using alevel2 = ares<128,ares_down<128,SUBNET>>;
-template <typename SUBNET> using alevel3 = ares<64,ares_down<64,SUBNET>>;
-template <typename SUBNET> using alevel4 = ares<32,ares_down<32,SUBNET>>;
+template <typename SUBNET> using alevel0 = ares<32*FNUM,ares_down<32*FNUM,SUBNET>>;
+template <typename SUBNET> using alevel1 = ares<16*FNUM,ares_down<16*FNUM,SUBNET>>;
+template <typename SUBNET> using alevel2 = ares<8*FNUM,ares_down<8*FNUM,SUBNET>>;
+template <typename SUBNET> using alevel3 = ares<4*FNUM,ares_down<4*FNUM,SUBNET>>;
+template <typename SUBNET> using alevel4 = ares<2*FNUM,ares_down<2*FNUM,SUBNET>>;
 
 // training network type
 using net_type = loss_metric<fc_no_bias<128,avg_pool_everything<
@@ -41,7 +43,7 @@ using net_type = loss_metric<fc_no_bias<128,avg_pool_everything<
                             level2<
                             level3<
                             level4<
-                            relu<bn_con<con<16,7,7,2,2,
+                            relu<bn_con<con<FNUM,7,7,2,2,
                             input<matrix<float>>
                             >>>>>>>>>>>;
 
@@ -52,7 +54,7 @@ using anet_type = loss_metric<fc_no_bias<128,avg_pool_everything<
                             alevel2<
                             alevel3<
                             alevel4<
-                            relu<affine<con<16,7,7,2,2,
+                            relu<affine<con<FNUM,7,7,2,2,
                             input<matrix<float>>
                             >>>>>>>>>>>;
 }
