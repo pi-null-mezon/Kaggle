@@ -73,11 +73,11 @@ void load_mini_batch (
                     cv::flip(_tmpmat,_tmpmat,1);
 
                 if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.07,0.05,11,cv::BORDER_REFLECT101,true);
+                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.14,0.06,14,cv::BORDER_REFLECT101,true);
                 if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = distortimage(_tmpmat,cvrng,0.05,cv::INTER_CUBIC,cv::BORDER_REFLECT101);
+                    _tmpmat = distortimage(_tmpmat,cvrng,0.09,cv::INTER_CUBIC,cv::BORDER_REFLECT101);
 
-                /*if(rnd.get_random_float() > 0.1f)
+                if(rnd.get_random_float() > 0.1f)
                     _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.1f,0.3f,rnd.get_random_float()*180.0f);
                 if(rnd.get_random_float() > 0.1f)
                     _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.1f,0.3f,rnd.get_random_float()*180.0f);
@@ -95,13 +95,12 @@ void load_mini_batch (
                     _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.1f,0.3f,rnd.get_random_float()*180.0f);
                 if(rnd.get_random_float() > 0.1f)
                     _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.1f,0.3f,rnd.get_random_float()*180.0f);
-                    */
 
-                if(rnd.get_random_float() > 0.5f)
+                if(rnd.get_random_float() > 0.3f)
                     cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));            
 
                 if(rnd.get_random_float() > 0.1f)
-                    _tmpmat *= 0.8f + 1.0f*rnd.get_random_float();
+                    _tmpmat *= 0.75f + 0.5f*rnd.get_random_float();
 
                 if(rnd.get_random_float() > 0.1f)
                     _tmpmat = addNoise(_tmpmat,cvrng,10*rnd.get_random_float(),25*rnd.get_random_float());
@@ -199,9 +198,9 @@ int main(int argc, char** argv)
         while(qimages.is_enabled()) {
             try {
                 if(rnd.get_random_float() > 0.01)
-                    load_mini_batch(descriptor, 90, 2, rnd, cvrng, trainobjs, images, labels, true,2);
+                    load_mini_batch(descriptor, 96, 2, rnd, cvrng, trainobjs, images, labels, true,2);
                 else
-                    load_mini_batch(descriptor, 60, 3, rnd, cvrng, trainobjs, images, labels, true,2);
+                    load_mini_batch(descriptor, 64, 3, rnd, cvrng, trainobjs, images, labels, true,2);
                 qimages.enqueue(images);
                 qlabels.enqueue(labels);
             }
@@ -230,7 +229,7 @@ int main(int argc, char** argv)
 
         while(testqimages.is_enabled()) {
             try {
-                load_mini_batch(descriptor, 90, 2, rnd, cvrng, validobjs, images, labels, false,2);
+                load_mini_batch(descriptor, 96, 2, rnd, cvrng, validobjs, images, labels, false,2);
                 testqimages.enqueue(images);
                 testqlabels.enqueue(labels);
             }
