@@ -157,9 +157,10 @@ int main(int argc, char** argv)
 
     // If user have provided model, we should make hard mining for this model
     std::vector<std::vector<string>> hardtrainobjs;
-    std::vector<bool>                alreadyselected(trainobjs.size(),false);
-    hardtrainobjs.reserve(trainobjs.size());
+    std::vector<bool>                alreadyselected;
     if(cmdparser.has("model")) {
+        hardtrainobjs.reserve(trainobjs.size());
+        alreadyselected = std::vector<bool>(trainobjs.size(),false);
         anet_type _anet;
         try {
             dlib::deserialize(cmdparser.get<string>("model")) >> _anet;
@@ -169,11 +170,13 @@ int main(int argc, char** argv)
             return 4;
         }
         std::vector<matrix<float,0,1>> _valldescriptions;
+        std::vector<std::string> _vfilename;
         std::vector<size_t> _valllabels;
         size_t _totalimages = 0;
         for(size_t i = 0; i < trainobjs.size(); ++i)
             _totalimages += trainobjs[i].size();
         _valldescriptions.reserve(_totalimages);
+        _vfilename.reserve(_totalimages);
         _valllabels.reserve(_totalimages);
         bool _isloaded = false;
         cout << "Please wait while descriptions will be computed" << endl;
@@ -182,6 +185,7 @@ int main(int argc, char** argv)
             std::vector<dlib::matrix<float>> _vdlibimages;
             _vdlibimages.reserve(trainobjs[i].size());
             for(size_t j = 0; j < trainobjs[i].size(); ++j) {
+                _vfilename.push_back(trainobjs[i][j]);
                 _vdlibimages.push_back(cvmat2dlibmatrix<float>(loadIFgraymatWsize(trainobjs[i][j],IMG_WIDTH,IMG_HEIGHT,false,true,true,&_isloaded)));
                 assert(_isloaded);
             }
@@ -201,6 +205,12 @@ int main(int argc, char** argv)
                     if(length(_valldescriptions[i] - _valldescriptions[j]) < _distancethresh) {
                         tp++;
                     } else {
+                        std::cout << " Reference " << _valllabels[i]
+                                  << " vs Test " << _valllabels[j]
+                                  << " - dst: " << length(_valldescriptions[i] - _valldescriptions[j]) << std::endl;
+                        cv::imshow("Ref.",cv::imread(_vfilename[i],CV_LOAD_IMAGE_UNCHANGED));
+                        cv::imshow("Test",cv::imread(_vfilename[j],CV_LOAD_IMAGE_UNCHANGED));
+                        cv::waitKey(0);
                         if(alreadyselected[_valllabels[i]] == false) {
                             hardtrainobjs.push_back(trainobjs[_valllabels[i]]);
                             alreadyselected[_valllabels[i]] = true;
@@ -215,6 +225,12 @@ int main(int argc, char** argv)
                     if(length(_valldescriptions[i] - _valldescriptions[j]) >= _distancethresh) {
                         tn++;
                     } else {
+                        std::cout << " Reference " << _valllabels[i]
+                                  << " vs Test " << _valllabels[j]
+                                  << " - dst: " << length(_valldescriptions[i] - _valldescriptions[j]) << std::endl;
+                        cv::imshow("Ref.",cv::imread(_vfilename[i],CV_LOAD_IMAGE_UNCHANGED));
+                        cv::imshow("Test",cv::imread(_vfilename[j],CV_LOAD_IMAGE_UNCHANGED));
+                        cv::waitKey(0);
                         if(alreadyselected[_valllabels[i]] == false) {
                             hardtrainobjs.push_back(trainobjs[_valllabels[i]]);
                             alreadyselected[_valllabels[i]] = true;
