@@ -8,7 +8,7 @@
 #include "dlibwhalesrecognizer.h"
 
 #ifdef Q_OS_LINUX
-    #define RENDER_DELAY_MS 35
+    #define RENDER_DELAY_MS 60
 #else
     #define RENDER_DELAY_MS 30
 #endif
@@ -18,7 +18,7 @@ using namespace std;
 const cv::String keys = "{inputdir  i |       | input directory name (where dirty data is stored)}"
                         "{outputdir o |       | output directory name (where cleaned data should be stored)}"
                         "{model     m |       | model filename}"
-                        "{samemaxdst  | 0.575 | max desired distance for the same ids}"
+                        "{samemaxdst  | 0.525 | max desired distance for the same ids}"
                         "{diffmindst  | 0.425 | min desired distance for different ids}"
                         "{help h      |       | help}";
 
@@ -27,7 +27,7 @@ cv::Mat medianDescription(const vector<cv::Mat> &_vlbldscr)
     assert(_vlbldscr.size() > 0);
 
     if(_vlbldscr.size() == 1)
-        return _vlbldscr[0].clone();
+        return _vlbldscr[0];
 
     cv::Mat _mediandscr = cv::Mat::zeros(_vlbldscr[0].rows,_vlbldscr[0].cols,CV_32FC1);
     for(size_t k = 0; k < _mediandscr.total(); ++k) {
@@ -111,7 +111,7 @@ int main(int argc, char **argv)
                 _vlbldscr.push_back(recognizer->getImageDescription(cv::imread(_filename,CV_LOAD_IMAGE_UNCHANGED)));
             }
             cv::Mat _mediandscr = medianDescription(_vlbldscr);
-            // Compare with median description, preserve
+            // Compare with median description
             for(int j = 0; j < listoffiles.size(); ++j) {
                 double _distance = cv::oirt::euclideanDistance(_mediandscr,_vlbldscr[j]);
                 if(_distance < samemaxdst) {
@@ -121,11 +121,17 @@ int main(int argc, char **argv)
                     qInfo("    %.3f for %s - manual check is suggested",_distance, listoffiles.at(j).toUtf8().constData());
                     cv::imshow("Test picture",cv::imread(subdir.absoluteFilePath(listoffiles.at(j)).toStdString(),CV_LOAD_IMAGE_UNCHANGED));
                     cv::waitKey(RENDER_DELAY_MS); // delay for the picture to be rendered properly
+                    bool _ref_img_found = false;
                     for(int k = 0; k < listoffiles.size(); ++k) {
                         if(cv::oirt::euclideanDistance(_mediandscr,_vlbldscr[k]) < samemaxdst) {
                             cv::imshow("Reference picture",cv::imread(subdir.absoluteFilePath(listoffiles.at(k)).toStdString(),CV_LOAD_IMAGE_UNCHANGED));
                             cv::waitKey(RENDER_DELAY_MS); // delay for the picture to be rendered properly
+                            _ref_img_found = true;
                             break;
+                        }
+                        if(_ref_img_found == false) {
+                            cv::imshow("Reference picture",cv::imread(subdir.absoluteFilePath(listoffiles.at(0)).toStdString(),CV_LOAD_IMAGE_UNCHANGED));
+                            cv::waitKey(RENDER_DELAY_MS); // delay for the picture to be rendered properly
                         }
                         cv::destroyWindow("Reference picture");
                     }                   
@@ -136,11 +142,11 @@ int main(int argc, char **argv)
                         _vpreservefile[j] = true;
                 }
             }
-            // Also we should try to find identical images
+            // Also we should try to find identical and allmost identical images
             for(int k = 0; k < (listoffiles.size() - 1); ++k) {
                 if(_vpreservefile[k]) {
                     for(int n = k+1; n < listoffiles.size(); ++n) {
-                        if(_vpreservefile[n] && (cv::oirt::euclideanDistance(_vlbldscr[k],_vlbldscr[n]) < 0.01)) {
+                        if(_vpreservefile[n] && (cv::oirt::euclideanDistance(_vlbldscr[k],_vlbldscr[n]) < 0.101)) {
                             _vpreservefile[n] = false;
                         }
                     }
@@ -187,9 +193,9 @@ int main(int argc, char **argv)
                             }
                         } else {
                             qInfo("    %.3f - #%d %s to #%d %s - manual check is suggested",_distance,i,listofclasses.at(i).toUtf8().constData(),j,listofclasses.at(j).toUtf8().constData());
-                            cv::imshow("Class 1", cv::imread(class1_fileslist.at(0).toStdString(),CV_LOAD_IMAGE_UNCHANGED));
+                            cv::imshow("Class 1", cv::imread(class1_fileslist.at(class1_fileslist.size()-1).toStdString(),CV_LOAD_IMAGE_UNCHANGED));
                             cv::waitKey(RENDER_DELAY_MS);
-                            cv::imshow("Class 2", cv::imread(class2_fileslist.at(0).toStdString(),CV_LOAD_IMAGE_UNCHANGED));
+                            cv::imshow("Class 2", cv::imread(class2_fileslist.at(class2_fileslist.size()-1).toStdString(),CV_LOAD_IMAGE_UNCHANGED));
                             cv::waitKey(RENDER_DELAY_MS);
                             cout << "Are this images belong to the same class? (yes/no or y/n): ";
                             string answer;

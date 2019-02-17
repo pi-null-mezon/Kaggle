@@ -89,12 +89,20 @@ int main(int argc, char *argv[])
         _ts << "\n" << _fileslist.at(i) << ',';
         cv::Mat _cvmat = cv::imread(_qdir.absoluteFilePath(_fileslist.at(i)).toUtf8().constData());
         auto _vpredictions = _ptr->recognize(_cvmat,true);
-        if(_vpredictions.size() > 4) {
-            for(size_t j = 0; j < 5; j++) {
-                if((_vpredictions[j].second < _dstthresh) /*&& (j < 4)*/) {
+        if(_vpredictions.size() >= 5) {
+            if(_vpredictions[0].second < _dstthresh) {
+                for(size_t j = 0; j < 5; j++)
                     _ts << ' ' << _ptr->getLabelInfo(_vpredictions[j].first).c_str();
-                } else {
-                    _ts << " new_whale";
+            } else {
+                _ts << " new_whale";
+                int _pos = 0;
+                for(size_t j = 0; j < _vpredictions.size(); j++) {
+                    if(QString(_ptr->getLabelInfo(_vpredictions[j].first).c_str()).compare("new_whale") != 0) {
+                        _ts << ' ' << _ptr->getLabelInfo(_vpredictions[j].first).c_str();
+                        _pos++;
+                        if(_pos == 4)
+                            break;
+                    }
                 }
             }
         }

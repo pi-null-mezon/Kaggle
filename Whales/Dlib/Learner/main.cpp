@@ -72,7 +72,7 @@ void load_mini_batch (
                     cv::flip(_tmpmat,_tmpmat,1);
 
                 if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.14,0.06,14,cv::BORDER_REFLECT101,true);
+                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.12,0.04,13,cv::BORDER_REFLECT101,true);
                 if(rnd.get_random_float() > 0.1f)
                     _tmpmat = distortimage(_tmpmat,cvrng,0.09,cv::INTER_CUBIC,cv::BORDER_REFLECT101);
 
@@ -88,21 +88,21 @@ void load_mini_batch (
                 if(rnd.get_random_float() > 0.1f)
                     _tmpmat = cutoutRect(_tmpmat,0,rnd.get_random_float(),0.2f,0.4f,rnd.get_random_float()*180.0f);
                 if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = cutoutRect(_tmpmat,1,rnd.get_random_float(),0.2f,0.4f,rnd.get_random_float()*180.0f);                
+                    _tmpmat = cutoutRect(_tmpmat,1,rnd.get_random_float(),0.2f,0.4f,rnd.get_random_float()*180.0f);
 
-                if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.1f,0.3f,rnd.get_random_float()*180.0f);
-                if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.1f,0.3f,rnd.get_random_float()*180.0f);
+                /*if(rnd.get_random_float() > 0.1f)
+                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.1f,0.3f,rnd.get_random_float()*180.0f);*/
+               /* if(rnd.get_random_float() > 0.1f)
+                   _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.1f,0.3f,rnd.get_random_float()*180.0f);*/
 
                 if(rnd.get_random_float() > 0.5f)
                     cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
 
                 if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = addNoise(_tmpmat,cvrng,0.1f*rnd.get_random_float()-0.05f,0.05*rnd.get_random_float());
+                    _tmpmat *= 1.0f + 1.0f*rnd.get_random_float();
 
                 if(rnd.get_random_float() > 0.1f)
-                    _tmpmat *= 1.0f + 0.9f*rnd.get_random_float();
+                    _tmpmat = addNoise(_tmpmat,cvrng,0.1f*rnd.get_random_float()-0.05f,0.05*rnd.get_random_float());
 
                 images.push_back(cvmat2dlibmatrix<float>(_tmpmat));
             } else {
@@ -126,7 +126,8 @@ const cv::String options = "{traindir  t  |      | path to directory with traini
                            "{sessionguid  |      | session guid}"
                            "{learningrate |      | initial learning rate}"
                            "{tiwp         | 5000 | train iterations without progress}"
-                           "{viwp         | 1000 | validation iterations without progress}";
+                           "{viwp         | 1000 | validation iterations without progress}"
+                           "{delayms      | 0    | delay of visualization}";
 
 
 int main(int argc, char** argv)
@@ -199,6 +200,7 @@ int main(int argc, char** argv)
         cout << "Please wait while hard mining will be performed" << endl;
         const float _distancethresh = _anet.loss_details().get_distance_threshold();
         size_t tp = 0, fp = 0, tn = 0, fn = 0;
+        int _delayms = cmdparser.get<int>("delayms");
         for(size_t i = 0; i < _valldescriptions.size(); ++i) {
             for(size_t j = i+1; j < _valldescriptions.size(); ++j) {
                 if(_valllabels[i] == _valllabels[j]) {
@@ -210,7 +212,7 @@ int main(int argc, char** argv)
                                   << " - dst: " << length(_valldescriptions[i] - _valldescriptions[j]) << std::endl;
                         cv::imshow("Ref.",cv::imread(_vfilename[i],CV_LOAD_IMAGE_UNCHANGED));
                         cv::imshow("Test",cv::imread(_vfilename[j],CV_LOAD_IMAGE_UNCHANGED));
-                        cv::waitKey(0);
+                        cv::waitKey(_delayms);
                         if(alreadyselected[_valllabels[i]] == false) {
                             hardtrainobjs.push_back(trainobjs[_valllabels[i]]);
                             alreadyselected[_valllabels[i]] = true;
@@ -230,7 +232,7 @@ int main(int argc, char** argv)
                                   << " - dst: " << length(_valldescriptions[i] - _valldescriptions[j]) << std::endl;
                         cv::imshow("Ref.",cv::imread(_vfilename[i],CV_LOAD_IMAGE_UNCHANGED));
                         cv::imshow("Test",cv::imread(_vfilename[j],CV_LOAD_IMAGE_UNCHANGED));
-                        cv::waitKey(0);
+                        cv::waitKey(_delayms);
                         if(alreadyselected[_valllabels[i]] == false) {
                             hardtrainobjs.push_back(trainobjs[_valllabels[i]]);
                             alreadyselected[_valllabels[i]] = true;
