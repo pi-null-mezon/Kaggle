@@ -6,16 +6,10 @@
 namespace dlib {
 
 // training network type
-using net_type = loss_metric<fc_no_bias<128,
-                             relu<bn_fc<fc<512,
-                             relu<bn_fc<fc<512,
-                             input<matrix<float>>>>>>>>>>;
+using net_type = loss_metric<fc_no_bias<512,relu<dropout<fc<1024,dropout<input<matrix<float>>>>>>>>;
 
 // testing network type (replaced batch normalization with fixed affine transforms)
-using anet_type = loss_metric<fc_no_bias<128,
-                              relu<affine<fc<512,
-                              relu<affine<fc<512,
-                              input<matrix<float>>>>>>>>>>;
+using anet_type = loss_metric<fc_no_bias<512,relu<multiply<fc<1024,multiply<input<matrix<float>>>>>>>>;
 }
 
 #endif // CUSTOMNETWORK_H

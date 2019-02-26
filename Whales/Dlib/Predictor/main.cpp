@@ -92,7 +92,7 @@ int main(int argc, char *argv[])
         if(_vpredictions.size() >= 5) {
             if(_vpredictions[0].second < _dstthresh) {
                 for(size_t j = 0; j < 5; j++)
-                    _ts << ' ' << _ptr->getLabelInfo(_vpredictions[j].first).c_str();
+                   _ts << ' ' << _ptr->getLabelInfo(_vpredictions[j].first).c_str();
             } else {
                 _ts << " new_whale";
                 int _pos = 0;
