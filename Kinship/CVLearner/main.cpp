@@ -37,13 +37,11 @@ std::vector<std::vector<std::vector<string>>> split_into_folds(const std::vector
 
 std::vector<std::vector<string>> merge_except(const std::vector<std::vector<std::vector<string>>> &_objs, size_t _index)
 {
-    std::vector<std::vector<string>> _mergedobjs(_objs[0].size());
+    std::vector<std::vector<string>> _mergedobjs;
     for(size_t i = 0; i < _objs.size(); ++i) {
-        if(i != _index) {
-            for(size_t j = 0; j < _mergedobjs.size(); ++j) {
-                _mergedobjs[j].insert(_mergedobjs[j].end(),_objs[i][j].begin(),_objs[i][j].end());
-            }
-        }
+        if(i != _index)
+            for(size_t j = 0; j < _objs[i].size(); ++j)
+                _mergedobjs.push_back(_objs[i][j]);
     }
     return _mergedobjs;
 }
@@ -270,8 +268,8 @@ int main(int argc, char** argv)
 
     auto trainobjs = load_classes_list(cmdparser.get<string>("traindir"));
     cout << "trainobjs.size(): "<< trainobjs.size() << endl;
-    for(size_t i = 0; i < trainobjs.size(); ++i)
-        cout << "  label " << i << " - unique samples - " << trainobjs[i].size() << endl;
+    /*for(size_t i = 0; i < trainobjs.size(); ++i)
+        cout << "  label " << i << " - unique samples - " << trainobjs[i].size() << endl;*/
     dlib::rand _foldsplitrnd(cmdparser.get<unsigned int>("splitseed"));
     auto allobjsfolds = split_into_folds(trainobjs,cmdparser.get<unsigned int>("cvfolds"),_foldsplitrnd);
 
