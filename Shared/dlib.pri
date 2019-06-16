@@ -24,7 +24,10 @@ win32 {
 LIBS += -ldlib
 
 linux {
-    LIBS += -L/usr/local/cuda-9.1/lib64
+    LIBS += -llapack \
+            -lblas
+
+    LIBS += -L/usr/local/cuda/lib64
 
     LIBS += -lcudnn \
             -lpthread \
