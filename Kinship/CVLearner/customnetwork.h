@@ -3,14 +3,14 @@
 
 #include <dlib/dnn.h>
 
-#define IMG_WIDTH  150
-#define IMG_HEIGHT 150
+#define IMG_WIDTH  200
+#define IMG_HEIGHT 200
 
 #define FNUM 16
 
 namespace dlib {
 
-/*template <template <int,template<typename>class,int,typename> class block, int N, template<typename>class BN, typename SUBNET>
+template <template <int,template<typename>class,int,typename> class block, int N, template<typename>class BN, typename SUBNET>
 using residual = add_prev1<block<N,BN,1,tag1<SUBNET>>>;
 
 template <template <int,template<typename>class,int,typename> class block, int N, template<typename>class BN, typename SUBNET>
@@ -24,35 +24,41 @@ template <int N, typename SUBNET> using ares      = relu<residual<block,N,affine
 template <int N, typename SUBNET> using res_down  = relu<residual_down<block,N,bn_con,SUBNET>>;
 template <int N, typename SUBNET> using ares_down = relu<residual_down<block,N,affine,SUBNET>>;
 
-template <typename SUBNET> using level0 = res<32*FNUM,res_down<32*FNUM,SUBNET>>;
-template <typename SUBNET> using level1 = res<16*FNUM,res_down<16*FNUM,SUBNET>>;
-template <typename SUBNET> using level2 = res<8*FNUM,res_down<8*FNUM,SUBNET>>;
-template <typename SUBNET> using level3 = res<4*FNUM,res_down<4*FNUM,SUBNET>>;
-template <typename SUBNET> using level4 = res<2*FNUM,res_down<2*FNUM,SUBNET>>;
+template <typename SUBNET> using level0 = res_down<256,SUBNET>;
+template <typename SUBNET> using level1 = res<256,res<256,res_down<256,SUBNET>>>;
+template <typename SUBNET> using level2 = res<128,res<128,res_down<128,SUBNET>>>;
+template <typename SUBNET> using level3 = res<64,res<64,res<64,res_down<64,SUBNET>>>>;
+template <typename SUBNET> using level4 = res<32,res<32,res<32,SUBNET>>>;
 
-template <typename SUBNET> using alevel0 = ares<32*FNUM,ares_down<32*FNUM,SUBNET>>;
-template <typename SUBNET> using alevel1 = ares<16*FNUM,ares_down<16*FNUM,SUBNET>>;
-template <typename SUBNET> using alevel2 = ares<8*FNUM,ares_down<8*FNUM,SUBNET>>;
-template <typename SUBNET> using alevel3 = ares<4*FNUM,ares_down<4*FNUM,SUBNET>>;
-template <typename SUBNET> using alevel4 = ares<2*FNUM,ares_down<2*FNUM,SUBNET>>;
+template <typename SUBNET> using alevel0 = ares_down<256,SUBNET>;
+template <typename SUBNET> using alevel1 = ares<256,ares<256,ares_down<256,SUBNET>>>;
+template <typename SUBNET> using alevel2 = ares<128,ares<128,ares_down<128,SUBNET>>>;
+template <typename SUBNET> using alevel3 = ares<64,ares<64,ares<64,ares_down<64,SUBNET>>>>;
+template <typename SUBNET> using alevel4 = ares<32,ares<32,ares<32,SUBNET>>>;
 
 // training network type
-using net_type = loss_multiclass_log<fc<2,avg_pool_everything<
-                            
+using net_type = loss_metric<fc_no_bias<128,avg_pool_everything<
+                            level0<
+                            level1<
+                            level2<
+                            level3<
                             level4<
-                            relu<bn_con<con<FNUM,7,7,2,2,
+                            max_pool<3,3,2,2,relu<bn_con<con<32,7,7,2,2,
                             input_rgb_image
-                            >>>>>>>;
+                            >>>>>>>>>>>>;
 
 // testing network type (replaced batch normalization with fixed affine transforms)
-using anet_type = loss_multiclass_log<fc<2,avg_pool_everything<
-                            
+using anet_type = loss_metric<fc_no_bias<128,avg_pool_everything<
+                            alevel0<
+                            alevel1<
+                            alevel2<
+                            alevel3<
                             alevel4<
-                            relu<affine<con<FNUM,7,7,2,2,
+                            max_pool<3,3,2,2,relu<affine<con<32,7,7,2,2,
                             input_rgb_image
-                            >>>>>>>;*/
+                            >>>>>>>>>>>>;
 
-template <int N, template <typename> class BN, typename SUBNET>
+/*template <int N, template <typename> class BN, typename SUBNET>
 using block  = relu<BN<con<N,3,3,1,1,relu<BN<con<4*N,1,1,1,1,SUBNET>>>>>>;
 
 template <int N, int K, template <typename> class BN, typename SUBNET>
@@ -73,7 +79,7 @@ template <int N, int K, typename SUBNET> using adense3 = dense_block3<N,K,affine
 template <int N, int K, typename SUBNET> using adense4 = dense_block4<N,K,affine,SUBNET>;
 
 // training network type
-/*using net_type =    loss_multiclass_log<fc<2,
+using net_type =    loss_multiclass_log<fc<2,
                             avg_pool_everything<dense2<64,FNUM,                            
                             avg_pool<2,2,2,2,dense3<64,FNUM,
                             relu<bn_con<con<FNUM,5,5,2,2,
@@ -87,24 +93,6 @@ using anet_type =   loss_multiclass_log<fc<2,
                             relu<affine<con<FNUM,5,5,2,2,
                             input_rgb_image
                             >>>>>>>>>;*/
-
-// training network type
-using net_type =    loss_metric<fc<64,
-                            avg_pool_everything<dense2<64,FNUM,
-                            avg_pool<2,2,2,2,dense3<64,FNUM,
-                            avg_pool<2,2,2,2,dense3<64,FNUM,
-                            relu<bn_con<con<FNUM,5,5,2,2,
-                            input_rgb_image
-                            >>>>>>>>>>>;
-
-// testing network type (replaced batch normalization with fixed affine transforms)
-using anet_type =   loss_metric<fc<64,
-                            avg_pool_everything<adense2<64,FNUM,
-                            avg_pool<2,2,2,2,adense3<64,FNUM,
-                            avg_pool<2,2,2,2,adense3<64,FNUM,
-                            relu<affine<con<FNUM,5,5,2,2,
-                            input_rgb_image
-                            >>>>>>>>>>>;
 
 }
 

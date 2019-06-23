@@ -90,24 +90,24 @@ void load_mini_batch (
                 if(rnd.get_random_float() > 0.5f)
                     cv::flip(_tmpmat,_tmpmat,1);
 
+                if(rnd.get_random_float() > 0.1f)
+                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.03,0.03,3,cv::BORDER_REFLECT101,false);
+                if(rnd.get_random_float() > 0.5f)
+                    _tmpmat = distortimage(_tmpmat,cvrng,0.015,cv::INTER_CUBIC,cv::BORDER_REFLECT101);
+
+               /* if(rnd.get_random_float() > 0.1f)
+                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.15f,0.15f,rnd.get_random_float()*180.0f);*/
+               /* if(rnd.get_random_float() > 0.1f)
+                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.15f,0.15f,rnd.get_random_float()*180.0f);*/
+
                 /*if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.05,0.05,5,cv::BORDER_REFLECT101,false);
+                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),0,0.2f,0.2f,rnd.get_random_float()*180.0f);
                 if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = distortimage(_tmpmat,cvrng,0.03,cv::INTER_CUBIC,cv::BORDER_REFLECT101);
-
+                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),1,0.2f,0.2f,rnd.get_random_float()*180.0f);
                 if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.1f,0.3f,rnd.get_random_float()*180.0f);
+                    _tmpmat = cutoutRect(_tmpmat,0,rnd.get_random_float(),0.2f,0.2f,rnd.get_random_float()*180.0f);
                 if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.1f,0.3f,rnd.get_random_float()*180.0f);
-
-                if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),0,0.2f,0.4f,rnd.get_random_float()*180.0f);
-                if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),1,0.2f,0.4f,rnd.get_random_float()*180.0f);
-                if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = cutoutRect(_tmpmat,0,rnd.get_random_float(),0.2f,0.4f,rnd.get_random_float()*180.0f);
-                if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = cutoutRect(_tmpmat,1,rnd.get_random_float(),0.2f,0.4f,rnd.get_random_float()*180.0f);*/
+                    _tmpmat = cutoutRect(_tmpmat,1,rnd.get_random_float(),0.2f,0.2f,rnd.get_random_float()*180.0f);*/
 
                 if(rnd.get_random_float() > 0.5f)
                     cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
@@ -116,7 +116,7 @@ void load_mini_batch (
                     _tmpmat *= (0.8f + 0.4f*rnd.get_random_float());
 
                 if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = addNoise(_tmpmat,cvrng,0,5);
+                    _tmpmat = addNoise(_tmpmat,cvrng,0,7);
 
                 dlib::matrix<dlib::rgb_pixel> _dlibtmpimg = cvmat2dlibmatrix<dlib::rgb_pixel>(_tmpmat);
                 dlib::disturb_colors(_dlibtmpimg,rnd);
@@ -127,8 +127,8 @@ void load_mini_batch (
                 _tmpmat = loadIbgrmatWsize(obj,IMG_WIDTH,IMG_HEIGHT,false,&_isloaded);
                 assert(_isloaded);
 
-                if(rnd.get_random_float() > 0.5f)
-                    cv::flip(_tmpmat,_tmpmat,1);
+               /* if(rnd.get_random_float() > 0.5f)
+                    cv::flip(_tmpmat,_tmpmat,1);*/
                 //cv::imshow(string("Ordinary ") + to_string(std::hash<std::thread::id>{}(std::this_thread::get_id())),_tmpmat);
                 //cv::waitKey(0);
                 images.push_back(cvmat2dlibmatrix<dlib::rgb_pixel>(_tmpmat));
