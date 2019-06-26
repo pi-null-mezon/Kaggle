@@ -4,6 +4,7 @@
 
 #include <iostream>
 #include <string>
+#include <iterator>
 
 #include <dlib/dnn.h>
 #include <dlib/misc_api.h>
@@ -21,14 +22,34 @@ using namespace std;
 struct Family {
     Family() {}
     void clear() {photosmap.clear(); relationsmap.clear();}
-    bool valid() {
-        if(photosmap.size() == 0)
+    static bool isvalid(const Family &_family) {
+        if(_family.photosmap.size() == 0)
             return false;
-        foreach (const auto &_person, photosmap) {
+        foreach (const auto &_person, _family.photosmap) {
             if(_person.second.size() == 0)
                 return false;
         }
         return true;
+    }
+    static std::vector<std::pair<string,string>> findnotrelated(const Family &_family) {
+        std::vector<string> _vkeys(_family.relationsmap.size(),string());
+        size_t i = 0;
+        foreach (const auto &_person, _family.relationsmap)
+            _vkeys[i++] = _person.first;
+        std::vector<std::pair<string,string>> _notrelatedpairs;
+        foreach (const auto &_person, _family.relationsmap) {
+            const string &_key = _person.first;
+            const std::vector<string> &_vkinships = _person.second;
+            std::vector<bool> _vrelated(_vkeys.size(),false);
+            for(size_t i = 0; i < _vkeys.size(); ++i)
+                for(size_t j = 0; j < _vkinships.size(); ++j)
+                    if((_vkeys[i]).compare(_vkinships[j]) == 0)
+                        _vrelated[i] = true;
+            for(size_t i = 0; i < _vrelated.size(); ++i)
+                if((_vrelated[i] == false) && (_key.compare(_vkeys[i]) != 0))
+                    _notrelatedpairs.push_back(std::make_pair(_key,_vkeys[i]));
+        }
+        return _notrelatedpairs;
     }
     std::map<string,std::vector<string>> photosmap;
     std::map<string,std::vector<string>> relationsmap;
@@ -45,8 +66,6 @@ std::ostream& operator<< (std::ostream& out, const Family &_family)
     }
     return out;
 }
-
-
 
 std::vector<Family> load_families(const string &_traindirname, const string &_relationsfilename)
 {
@@ -74,14 +93,19 @@ std::vector<Family> load_families(const string &_traindirname, const string &_re
         else
             _newfamily = false;
 
-        if(_newfamily) {
-            std::cout << "Family: " << _familyname.toStdString() << std::endl;
-            if(_family.valid()) {
+        if(_newfamily) {            
+            if(Family::isvalid(_family)) {
+                /*std::cout << "Family: " << _familyname.toStdString() << std::endl;
                 std::cout << _family << std::endl;
+                std::vector<std::pair<string,string>> _vnr = Family::findnotrelated(_family);
+                std::cout << "NOT RELATED PAIRS:" << std::endl;
+                foreach (const auto &_pair, _vnr)
+                    std::cout << _pair.first << " - " << _pair.second << std::endl;
+                std::cout << std::endl;*/
                 _vfamilies.push_back(std::move(_family));
             } else {
                 _family.clear();
-                std::cout << "invalid family" << std::endl << std::endl;
+                //std::cout << _familyname.toStdString() << " - invalid family" << std::endl << std::endl;
             }
             _familyname = _line.section('/',0,0);
         }
@@ -95,7 +119,7 @@ std::vector<Family> load_families(const string &_traindirname, const string &_re
             QDir _qsubdir(_qdir.absolutePath().append("/%1/%2").arg(_familyname,_leftname.c_str()));
             QStringList _photosmapnames = _qsubdir.entryList(_filesfilters,QDir::Files | QDir::NoDotAndDotDot);
             for(const QString &_filename: _photosmapnames)
-                _family.photosmap[_leftname].push_back(_filename.toUtf8().constData());
+                _family.photosmap[_leftname].push_back(_qsubdir.absoluteFilePath(_filename).toUtf8().constData());
             if(_photosmapnames.size() == 0)
                 _family.photosmap[_leftname] = std::vector<string>();
         }
@@ -103,7 +127,7 @@ std::vector<Family> load_families(const string &_traindirname, const string &_re
             QDir _qsubdir(_qdir.absolutePath().append("/%1/%2").arg(_familyname,_rightname.c_str()));
             QStringList _photosmapnames = _qsubdir.entryList(_filesfilters,QDir::Files | QDir::NoDotAndDotDot);
             for(const QString &_filename: _photosmapnames)
-                _family.photosmap[_rightname].push_back(_filename.toUtf8().constData());
+                _family.photosmap[_rightname].push_back(_qsubdir.absoluteFilePath(_filename).toUtf8().constData());
             if(_photosmapnames.size() == 0)
                 _family.photosmap[_rightname] = std::vector<string>();
         }
@@ -111,30 +135,17 @@ std::vector<Family> load_families(const string &_traindirname, const string &_re
     return _vfamilies;
 }
 
-std::vector<std::vector<string>> load_classes_list(const string& dir)
+std::vector<std::vector<Family>> split_into_folds(const std::vector<Family> &_objs, unsigned int _folds, dlib::rand& _rnd)
 {
-    std::vector<std::vector<string>> objects;
-    for(auto subdir : directory(dir).get_dirs()) {
-        std::vector<string> imgs;
-        for(auto img : subdir.get_files())
-            imgs.push_back(img);
-        if(imgs.size() != 0)
-            objects.push_back(imgs);
-    }
-    return objects;
-}
-
-std::vector<std::vector<std::vector<string>>> split_into_folds(const std::vector<std::vector<string>> &_objs, unsigned int _folds, dlib::rand& _rnd)
-{
-    std::vector<std::vector<std::vector<string>>> _output(_folds);
+    std::vector<std::vector<Family>> _output(_folds);
     for(size_t i = 0; i < _objs.size(); ++i)
         _output[_rnd.get_integer(_folds)].push_back(_objs[i]);
     return _output;
 }
 
-std::vector<std::vector<string>> merge_except(const std::vector<std::vector<std::vector<string>>> &_objs, size_t _index)
+std::vector<Family> merge_except(const std::vector<std::vector<Family>> &_objs, size_t _index)
 {
-    std::vector<std::vector<string>> _mergedobjs;
+    std::vector<Family> _mergedobjs;
     for(size_t i = 0; i < _objs.size(); ++i) {
         if(i != _index)
             for(size_t j = 0; j < _objs[i].size(); ++j)
@@ -143,13 +154,12 @@ std::vector<std::vector<string>> merge_except(const std::vector<std::vector<std:
     return _mergedobjs;
 }
 
-
-void load_mini_batch (
+void load_mini_batch_with_kinhips_only (
     const size_t num_classes,
-    const size_t samples_per_class,
+    const size_t num_samples,
     dlib::rand& rnd,
     cv::RNG & cvrng,
-    const std::vector<std::vector<string>>& objs,
+    const std::vector<Family>& objs,
     std::vector<matrix<dlib::rgb_pixel>>& images,
     std::vector<unsigned long>& labels,
     bool _doaugmentation
@@ -157,31 +167,34 @@ void load_mini_batch (
 {
     images.clear();
     labels.clear();
-    DLIB_CASSERT(num_classes <= objs.size(), "The dataset doesn't have that many classes!");
 
-    string obj;
     cv::Mat _tmpmat;
     bool _isloaded;
+    Family family;
+    std::vector<bool> already_selected_family(objs.size(), false);
 
-    std::vector<bool> already_selected(objs.size(), false);
-
-    for(size_t i = 0; i < num_classes; ++i) {
+    size_t classes_selected = 0;
+    while(classes_selected < num_classes) {
 
         size_t id = rnd.get_random_32bit_number() % objs.size();
-        while(already_selected[id])
+        while(already_selected_family[id])
             id = rnd.get_random_32bit_number() % objs.size();
-        already_selected[id] = true;
+        already_selected_family[id] = true;
 
-        for(size_t j = 0; j < samples_per_class; ++j) {
+        family = objs[id];
+        auto _it = family.relationsmap.begin();
+        std::advance(_it, rnd.get_random_32bit_number() % family.relationsmap.size());
+        std::vector<string> vkinships = _it->second;
+        vkinships.push_back(_it->first);
 
-            if(objs[id].size() == samples_per_class) {
-                obj = objs[id][j];
-            } else {
-                obj = objs[id][rnd.get_random_32bit_number() % objs[id].size()];
-            }            
+        size_t samples_selected = 0;
+        while(samples_selected < num_samples) {
+
+            const string &person_name = vkinships[rnd.get_random_32bit_number() % vkinships.size()];
+            const string &filename_to_load = family.photosmap.at(person_name)[rnd.get_random_32bit_number() % family.photosmap[person_name].size()];
 
             if(_doaugmentation) {
-                _tmpmat = loadIbgrmatWsize(obj,IMG_WIDTH,IMG_HEIGHT,false,&_isloaded);
+                _tmpmat = loadIbgrmatWsize(filename_to_load,IMG_WIDTH,IMG_HEIGHT,false,&_isloaded);
                 assert(_isloaded);
 
                 if(rnd.get_random_float() > 0.5f)
@@ -215,26 +228,119 @@ void load_mini_batch (
 
                 dlib::matrix<dlib::rgb_pixel> _dlibtmpimg = cvmat2dlibmatrix<dlib::rgb_pixel>(_tmpmat);
                 dlib::disturb_colors(_dlibtmpimg,rnd);
-                //cv::imshow(string("Augmented ") + to_string(std::hash<std::thread::id>{}(std::this_thread::get_id())),_tmpmat);
-                //cv::waitKey(0);
+                /*cv::imshow(string("Augmented id ") + to_string(id) + string(" thread: ") + to_string(std::hash<std::thread::id>{}(std::this_thread::get_id())),_tmpmat);
+                cv::waitKey(0);*/
                 images.push_back(_dlibtmpimg);
             } else {
-                _tmpmat = loadIbgrmatWsize(obj,IMG_WIDTH,IMG_HEIGHT,false,&_isloaded);
+                _tmpmat = loadIbgrmatWsize(filename_to_load,IMG_WIDTH,IMG_HEIGHT,false,&_isloaded);
                 assert(_isloaded);
 
-               /* if(rnd.get_random_float() > 0.5f)
-                    cv::flip(_tmpmat,_tmpmat,1);*/
-                //cv::imshow(string("Ordinary ") + to_string(std::hash<std::thread::id>{}(std::this_thread::get_id())),_tmpmat);
-                //cv::waitKey(0);
+                if(rnd.get_random_float() > 0.5f)
+                    cv::flip(_tmpmat,_tmpmat,1);
                 images.push_back(cvmat2dlibmatrix<dlib::rgb_pixel>(_tmpmat));
             }
-
             labels.push_back(id);
+            samples_selected++;
+        }
+        classes_selected++;
+    }
+}
+
+void load_mini_batch_without_kinships (
+    const size_t num_classes,
+    const size_t num_samples,
+    dlib::rand& rnd,
+    cv::RNG & cvrng,
+    const std::vector<Family>& objs,
+    std::vector<matrix<dlib::rgb_pixel>>& images,
+    std::vector<unsigned long>& labels,
+    bool _doaugmentation
+)
+{
+    images.clear();
+    labels.clear();
+
+    cv::Mat _tmpmat;
+    bool _isloaded;
+    Family family;
+    std::vector<bool> already_selected_family(objs.size(), false);
+
+    size_t classes_selected = 0;
+    while(classes_selected < num_classes) {
+
+        size_t id = rnd.get_random_32bit_number() % objs.size();
+        while(already_selected_family[id])
+            id = rnd.get_random_32bit_number() % objs.size();
+        already_selected_family[id] = true;
+
+        family = objs[id];
+        auto nonrelatedpairs = Family::findnotrelated(family);
+        if(nonrelatedpairs.size() == 0)
+            continue;
+        size_t num = rnd.get_random_32bit_number() % nonrelatedpairs.size();
+
+        for(int i = 0; i < 2; ++i) {
+            size_t samples_selected = 0;
+            while(samples_selected < num_samples) {
+
+                const string &person_name = (i == 0 ? nonrelatedpairs[num].first : nonrelatedpairs[num].second);
+                const string &filename_to_load = family.photosmap.at(person_name)[rnd.get_random_32bit_number() % family.photosmap[person_name].size()];
+
+                if(_doaugmentation) {
+                    _tmpmat = loadIbgrmatWsize(filename_to_load,IMG_WIDTH,IMG_HEIGHT,false,&_isloaded);
+                    assert(_isloaded);
+
+                    if(rnd.get_random_float() > 0.5f)
+                        cv::flip(_tmpmat,_tmpmat,1);
+
+                    if(rnd.get_random_float() > 0.1f)
+                        _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.05,0.05,5,cv::BORDER_REFLECT101,false);
+                    if(rnd.get_random_float() > 0.5f)
+                        _tmpmat = distortimage(_tmpmat,cvrng,0.03,cv::INTER_CUBIC,cv::BORDER_REFLECT101);
+
+                    if(rnd.get_random_float() > 0.1f)
+                        _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.2f,0.2f,rnd.get_random_float()*180.0f);
+
+                    if(rnd.get_random_float() > 0.1f)
+                        _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),0,0.2f,0.2f,rnd.get_random_float()*180.0f);
+                    if(rnd.get_random_float() > 0.1f)
+                        _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),1,0.2f,0.2f,rnd.get_random_float()*180.0f);
+                    if(rnd.get_random_float() > 0.1f)
+                        _tmpmat = cutoutRect(_tmpmat,0,rnd.get_random_float(),0.2f,0.2f,rnd.get_random_float()*180.0f);
+                    if(rnd.get_random_float() > 0.1f)
+                        _tmpmat = cutoutRect(_tmpmat,1,rnd.get_random_float(),0.2f,0.2f,rnd.get_random_float()*180.0f);
+
+                    if(rnd.get_random_float() > 0.5f)
+                        cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
+
+                    if(rnd.get_random_float() > 0.1f)
+                        _tmpmat *= (0.7f + 0.6f*rnd.get_random_float());
+
+                    if(rnd.get_random_float() > 0.1f)
+                        _tmpmat = addNoise(_tmpmat,cvrng,0,13);
+
+                    dlib::matrix<dlib::rgb_pixel> _dlibtmpimg = cvmat2dlibmatrix<dlib::rgb_pixel>(_tmpmat);
+                    dlib::disturb_colors(_dlibtmpimg,rnd);
+                    /*cv::imshow(string("Augmented ") + person_name + string(" id ") + to_string(id) + string(") thread: ") + to_string(std::hash<std::thread::id>{}(std::this_thread::get_id())),_tmpmat);
+                    cv::waitKey(0);*/
+                    images.push_back(_dlibtmpimg);
+                } else {
+                    _tmpmat = loadIbgrmatWsize(filename_to_load,IMG_WIDTH,IMG_HEIGHT,false,&_isloaded);
+                    assert(_isloaded);
+
+                    if(rnd.get_random_float() > 0.5f)
+                        cv::flip(_tmpmat,_tmpmat,1);
+                    images.push_back(cvmat2dlibmatrix<dlib::rgb_pixel>(_tmpmat));
+                }
+                labels.push_back(i == 0 ? id : id + objs.size());
+                samples_selected++;
+            }
+            classes_selected++;
         }
     }
 }
 
-float test_metric_accuracy_on_set(const std::vector<std::vector<string>> &_testobjs, dlib::net_type &_net, bool _beverbose,
+float test_metric_accuracy_on_set(const std::vector<Family> &_testobjs, dlib::net_type &_net, bool _beverbose,
                            const size_t _classes,
                            const size_t _samples,
                            const size_t _iterations=10,
@@ -255,7 +361,7 @@ float test_metric_accuracy_on_set(const std::vector<std::vector<string>> &_testo
     std::vector<unsigned long> labels;
     float _dstthresh = anet.loss_details().get_distance_threshold();
     for(size_t i = 0; i < _iterations; ++i) {
-        load_mini_batch(_classes, _samples, rnd, cvrng, _testobjs, images, labels, _doaugmentation);
+        load_mini_batch_with_kinhips_only(_classes, _samples, rnd, cvrng, _testobjs, images, labels, _doaugmentation);
         std::vector<matrix<float,0,1>> embedded = anet(images);
         for(size_t k = 0; k < images.size(); ++k) {
             for(size_t n = k+1; n < images.size(); ++n) {
@@ -293,8 +399,8 @@ const cv::String options = "{traindir  t  |      | path to directory with traini
                            "{minlrthresh  | 1E-5 | path to directory with output data}"
                            "{sessionguid  |      | session guid}"
                            "{learningrate |      | initial learning rate}"                          
-                           "{classes      | 2    | classes per minibatch}"
-                           "{samples      | 16   | samples per class in minibatch}"
+                           "{classes      | 30   | classes per minibatch}"
+                           "{samples      | 15   | samples per class in minibatch}"
                            "{bnwsize      | 100  | will be passed in set_all_bn_running_stats_window_sizes before net training}"
                            "{tiwp         | 5000 | train iterations without progress}"
                            "{viwp         | 1000 | validation iterations without progress}"
@@ -327,9 +433,7 @@ int main(int argc, char** argv)
     cout << "Trainig session guid: " << sessionguid << endl;
     cout << "-------------" << endl;
 
-    std::vector<Family> vfamilies = load_families(cmdparser.get<string>("traindir"),cmdparser.get<string>("pairsfile"));
-
-    /*auto trainobjs = load_classes_list(cmdparser.get<string>("traindir"));
+    auto trainobjs = load_families(cmdparser.get<string>("traindir"),cmdparser.get<string>("pairsfile"));
     cout << "trainobjs.size(): "<< trainobjs.size() << endl;
     dlib::rand _foldsplitrnd(cmdparser.get<unsigned int>("splitseed"));
     auto allobjsfolds = split_into_folds(trainobjs,cmdparser.get<unsigned int>("cvfolds"),_foldsplitrnd);
@@ -349,7 +453,7 @@ int main(int argc, char** argv)
 
         trainobjs = merge_except(allobjsfolds,_fold);
         cout << "trainobjs.size(): " << trainobjs.size() << endl;
-        std::vector<std::vector<string>> validobjs = allobjsfolds[_fold];
+        std::vector<Family> validobjs = allobjsfolds[_fold];
         cout << "validobjs.size(): " << validobjs.size() << endl;
 
         net_type net;
@@ -378,7 +482,10 @@ int main(int argc, char** argv)
 
             while(qimages.is_enabled()) {
                 try {
-                    load_mini_batch(classes_per_minibatch, samples_per_class, rnd, cvrng, trainobjs, images, labels, true);
+                    if(rnd.get_random_float() > 0.5f)
+                        load_mini_batch_without_kinships(classes_per_minibatch, samples_per_class, rnd, cvrng, trainobjs, images, labels, true);
+                    else
+                        load_mini_batch_with_kinhips_only(classes_per_minibatch, samples_per_class, rnd, cvrng, trainobjs, images, labels, true);
                     qimages.enqueue(images);
                     qlabels.enqueue(labels);
                 }
@@ -406,7 +513,10 @@ int main(int argc, char** argv)
 
             while(testqimages.is_enabled()) {
                 try {
-                    load_mini_batch(classes_per_minibatch, samples_per_class, rnd, cvrng, validobjs, images, labels, false);
+                    if(rnd.get_random_float() > 0.5f)
+                        load_mini_batch_without_kinships(classes_per_minibatch, samples_per_class, rnd, cvrng, validobjs, images, labels, false);
+                    else
+                        load_mini_batch_with_kinhips_only(classes_per_minibatch, samples_per_class, rnd, cvrng, validobjs, images, labels, false);
                     testqimages.enqueue(images);
                     testqlabels.enqueue(labels);
                 }
@@ -469,23 +579,13 @@ int main(int argc, char** argv)
             acc = test_metric_accuracy_on_set(validobjs,net,true,classes_per_minibatch,2*samples_per_class,20);
             cout << "Average validation accuracy: " << acc << endl;
         }
-        std::vector<std::vector<string>> testobjs;
-        if(cmdparser.has("testdir")) {
-            testobjs = load_classes_list(cmdparser.get<string>("testdir"));
-            cout << "testdir.size(): "<< testobjs.size() << endl;
-        }
-        if(testobjs.size() > 0) {
-            cout << "Accuracy evaluation on test set:" << endl;
-            acc = test_metric_accuracy_on_set(testobjs,net,true,classes_per_minibatch,2*samples_per_class);
-            cout << "Average test accuracy: " << acc << endl;
-        }
 
         string _outputfilename = string("net_") + sessionguid + std::string("_split_") + std::to_string(_fold) + string(".dat");
-        if((validobjs.size() > 0) || (testobjs.size() > 0))
+        if(validobjs.size() > 0)
             _outputfilename = string("net_") + sessionguid + std::string("_split_") + std::to_string(_fold) + string("_acc_") + to_string(acc) + string(".dat");
         cout << "Wait untill weights will be serialized to " << _outputfilename << endl;
         serialize(cmdparser.get<string>("outputdir") + string("/") + _outputfilename) << net;
     }
-    cout << "Done" << endl;*/
+    cout << "Done" << endl;
     return 0;
 }
