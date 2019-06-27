@@ -239,6 +239,9 @@ void load_mini_batch_with_kinhips_only (
                 _tmpmat = loadIbgrmatWsize(filename_to_load,IMG_WIDTH,IMG_HEIGHT,false,&_isloaded);
                 assert(_isloaded);
 
+                cv::cvtColor(_tmpmat,_tmpmat,CV_BGR2GRAY);
+                cv::Mat _vchannels[] = {_tmpmat,_tmpmat,_tmpmat};
+                cv::merge(_vchannels,3,_tmpmat);
                 if(rnd.get_random_float() > 0.5f)
                     cv::flip(_tmpmat,_tmpmat,1);
                 images.push_back(cvmat2dlibmatrix<dlib::rgb_pixel>(_tmpmat));
@@ -337,6 +340,9 @@ void load_mini_batch_without_kinships (
                     _tmpmat = loadIbgrmatWsize(filename_to_load,IMG_WIDTH,IMG_HEIGHT,false,&_isloaded);
                     assert(_isloaded);
 
+                    cv::cvtColor(_tmpmat,_tmpmat,CV_BGR2GRAY);
+                    cv::Mat _vchannels[] = {_tmpmat,_tmpmat,_tmpmat};
+                    cv::merge(_vchannels,3,_tmpmat);
                     if(rnd.get_random_float() > 0.5f)
                         cv::flip(_tmpmat,_tmpmat,1);
                     images.push_back(cvmat2dlibmatrix<dlib::rgb_pixel>(_tmpmat));
