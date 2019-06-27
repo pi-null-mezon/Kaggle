@@ -104,7 +104,6 @@ std::vector<Family> load_families(const string &_traindirname, const string &_re
             } else {
                 _family.clear();
                 std::cout << _familyname.toStdString() << " - invalid family" << std::endl << std::endl;
-                break
             }
             _familyname = _line.section('/',0,0);
         }
