@@ -23,13 +23,11 @@ struct Family {
     Family() {}
     void clear() {photosmap.clear(); relationsmap.clear();}
     static bool isvalid(const Family &_family) {
-        if(_family.photosmap.size() == 0)
-            return false;
-        foreach (const auto &_person, _family.photosmap) {
-            if(_person.second.size() == 0)
-                return false;
+        foreach(const auto &_person, _family.photosmap) {
+            if(_person.second.size() > 0)
+                return true;
         }
-        return true;
+        return false;
     }
     static std::vector<std::pair<string,string>> findnotrelated(const Family &_family) {
         std::vector<string> _vkeys(_family.relationsmap.size(),string());
@@ -94,7 +92,7 @@ std::vector<Family> load_families(const string &_traindirname, const string &_re
             _newfamily = false;
 
         if(_newfamily) {            
-            if(/*Family::isvalid(_family)*/ true) {
+            if(Family::isvalid(_family)) {
                 /*std::cout << "Family: " << _familyname.toStdString() << std::endl;
                 std::cout << _family << std::endl;
                 std::vector<std::pair<string,string>> _vnr = Family::findnotrelated(_family);
@@ -105,7 +103,8 @@ std::vector<Family> load_families(const string &_traindirname, const string &_re
                 _vfamilies.push_back(std::move(_family));
             } else {
                 _family.clear();
-                //std::cout << _familyname.toStdString() << " - invalid family" << std::endl << std::endl;
+                std::cout << _familyname.toStdString() << " - invalid family" << std::endl << std::endl;
+                break
             }
             _familyname = _line.section('/',0,0);
         }
