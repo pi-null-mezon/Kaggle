@@ -38,6 +38,15 @@ int main(int argc, char *argv[])
             for(int j = 0; j < 10; ++j) {
 
                 _tmpmat = _mat.clone();
+
+                cv::cvtColor(_tmpmat,_tmpmat,CV_BGR2GRAY);
+                if(rnd.get_random_float() > 0.1f)
+                    _tmpmat = addNoise(_tmpmat,cvrng,0,15);
+
+                cv::Mat _vchannels[] = {_tmpmat,_tmpmat,_tmpmat};
+                cv::merge(_vchannels,3,_tmpmat);
+                cout << "Augmented img channels: " << _tmpmat.channels() << endl;
+
                 if(rnd.get_random_float() > 0.5f)
                     cv::flip(_tmpmat,_tmpmat,1);
 
@@ -66,8 +75,6 @@ int main(int argc, char *argv[])
                 if(rnd.get_random_float() > 0.1f)
                     _tmpmat *= (0.8f + 0.4f*rnd.get_random_float());
 
-                if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = addNoise(_tmpmat,cvrng,0,15);
 
                 //_tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.2f,0.4f,180.0f*rnd.get_random_float());
                 /*_dlibmatrix = cvmat2dlibmatrix<float>(_tmpmat);

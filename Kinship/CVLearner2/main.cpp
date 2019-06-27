@@ -94,7 +94,7 @@ std::vector<Family> load_families(const string &_traindirname, const string &_re
             _newfamily = false;
 
         if(_newfamily) {            
-            if(Family::isvalid(_family)) {
+            if(/*Family::isvalid(_family)*/ true) {
                 /*std::cout << "Family: " << _familyname.toStdString() << std::endl;
                 std::cout << _family << std::endl;
                 std::vector<std::pair<string,string>> _vnr = Family::findnotrelated(_family);
@@ -191,11 +191,19 @@ void load_mini_batch_with_kinhips_only (
         while(samples_selected < num_samples) {
 
             const string &person_name = vkinships[rnd.get_random_32bit_number() % vkinships.size()];
-            const string &filename_to_load = family.photosmap.at(person_name)[rnd.get_random_32bit_number() % family.photosmap[person_name].size()];
+            if(family.photosmap.at(person_name).size() == 0)
+                continue;
+            const string &filename_to_load = family.photosmap.at(person_name)[rnd.get_random_32bit_number() % family.photosmap.at(person_name).size()];
 
             if(_doaugmentation) {
                 _tmpmat = loadIbgrmatWsize(filename_to_load,IMG_WIDTH,IMG_HEIGHT,false,&_isloaded);
                 assert(_isloaded);
+
+                cv::cvtColor(_tmpmat,_tmpmat,CV_BGR2GRAY);
+                if(rnd.get_random_float() > 0.1f)
+                    _tmpmat = addNoise(_tmpmat,cvrng,0,13);
+                cv::Mat _vchannels[] = {_tmpmat,_tmpmat,_tmpmat};
+                cv::merge(_vchannels,3,_tmpmat);
 
                 if(rnd.get_random_float() > 0.5f)
                     cv::flip(_tmpmat,_tmpmat,1);
@@ -222,9 +230,6 @@ void load_mini_batch_with_kinhips_only (
 
                 if(rnd.get_random_float() > 0.1f)
                     _tmpmat *= (0.7f + 0.6f*rnd.get_random_float());
-
-                if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = addNoise(_tmpmat,cvrng,0,13);
 
                 dlib::matrix<dlib::rgb_pixel> _dlibtmpimg = cvmat2dlibmatrix<dlib::rgb_pixel>(_tmpmat);
                 dlib::disturb_colors(_dlibtmpimg,rnd);
@@ -284,11 +289,19 @@ void load_mini_batch_without_kinships (
             while(samples_selected < num_samples) {
 
                 const string &person_name = (i == 0 ? nonrelatedpairs[num].first : nonrelatedpairs[num].second);
-                const string &filename_to_load = family.photosmap.at(person_name)[rnd.get_random_32bit_number() % family.photosmap[person_name].size()];
+                if(family.photosmap.at(person_name).size() == 0)
+                    break;
+                const string &filename_to_load = family.photosmap.at(person_name)[rnd.get_random_32bit_number() % family.photosmap.at(person_name).size()];
 
                 if(_doaugmentation) {
                     _tmpmat = loadIbgrmatWsize(filename_to_load,IMG_WIDTH,IMG_HEIGHT,false,&_isloaded);
                     assert(_isloaded);
+
+                    cv::cvtColor(_tmpmat,_tmpmat,CV_BGR2GRAY);
+                    if(rnd.get_random_float() > 0.1f)
+                        _tmpmat = addNoise(_tmpmat,cvrng,0,13);
+                    cv::Mat _vchannels[] = {_tmpmat,_tmpmat,_tmpmat};
+                    cv::merge(_vchannels,3,_tmpmat);
 
                     if(rnd.get_random_float() > 0.5f)
                         cv::flip(_tmpmat,_tmpmat,1);
@@ -315,9 +328,6 @@ void load_mini_batch_without_kinships (
 
                     if(rnd.get_random_float() > 0.1f)
                         _tmpmat *= (0.7f + 0.6f*rnd.get_random_float());
-
-                    if(rnd.get_random_float() > 0.1f)
-                        _tmpmat = addNoise(_tmpmat,cvrng,0,13);
 
                     dlib::matrix<dlib::rgb_pixel> _dlibtmpimg = cvmat2dlibmatrix<dlib::rgb_pixel>(_tmpmat);
                     dlib::disturb_colors(_dlibtmpimg,rnd);
@@ -361,7 +371,10 @@ float test_metric_accuracy_on_set(const std::vector<Family> &_testobjs, dlib::ne
     std::vector<unsigned long> labels;
     float _dstthresh = anet.loss_details().get_distance_threshold();
     for(size_t i = 0; i < _iterations; ++i) {
-        load_mini_batch_with_kinhips_only(_classes, _samples, rnd, cvrng, _testobjs, images, labels, _doaugmentation);
+        if((i % 2) == 0)
+            load_mini_batch_with_kinhips_only(_classes, _samples, rnd, cvrng, _testobjs, images, labels, _doaugmentation);
+        else
+            load_mini_batch_without_kinships(_classes, _samples, rnd, cvrng, _testobjs, images, labels, _doaugmentation);
         std::vector<matrix<float,0,1>> embedded = anet(images);
         for(size_t k = 0; k < images.size(); ++k) {
             for(size_t n = k+1; n < images.size(); ++n) {
@@ -382,7 +395,7 @@ float test_metric_accuracy_on_set(const std::vector<Family> &_testobjs, dlib::ne
         float _recall    = (float)vtp[i] / (vtp[i] + vfn[i]);
         vf1[i] = 2 * _precision*_recall / (_precision + _recall);
         if(_beverbose)
-            cout << "iteration #" << i << " - F1: " << vf1[i] << endl;
+            cout << "iteration #" << i << (((i % 2) == 0) ? " (without kinships)" : " (with kinships)") << " - F1: " << vf1[i] << endl;
     }
     float acc = 0.0f;
     for(size_t i = 0; i < _iterations; ++i)
