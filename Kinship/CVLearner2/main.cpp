@@ -93,8 +93,6 @@ std::vector<Family> load_families(const string &_traindirname, const string &_re
 
         if(_newfamily) {            
             if(Family::isvalid(_family)) {
-                if(_family.photosmap.size() == 2)
-                    std::cout << _family << endl;
                 /*std::cout << "Family: " << _familyname.toStdString() << std::endl;
                 std::cout << _family << std::endl;
                 std::vector<std::pair<string,string>> _vnr = Family::findnotrelated(_family);
@@ -105,7 +103,7 @@ std::vector<Family> load_families(const string &_traindirname, const string &_re
                 _vfamilies.push_back(std::move(_family));
             } else {
                 _family.clear();
-                std::cout << _familyname.toStdString() << " - invalid family" << std::endl << std::endl;
+                //std::cout << _familyname.toStdString() << " - invalid family" << std::endl << std::endl;
             }
             _familyname = _line.section('/',0,0);
         }
@@ -192,7 +190,7 @@ void load_mini_batch_with_kinhips (
 
             const string &person_name = vkinships[rnd.get_random_32bit_number() % vkinships.size()];
             if(family.photosmap.at(person_name).size() == 0)
-                continue;
+                break;
             const string &filename_to_load = family.photosmap.at(person_name)[rnd.get_random_32bit_number() % family.photosmap.at(person_name).size()];
 
             if(_doaugmentation) {
