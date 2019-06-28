@@ -93,6 +93,8 @@ std::vector<Family> load_families(const string &_traindirname, const string &_re
 
         if(_newfamily) {            
             if(Family::isvalid(_family)) {
+                if(_family.photosmap.size() == 2)
+                    std::cout << _family << endl;
                 /*std::cout << "Family: " << _familyname.toStdString() << std::endl;
                 std::cout << _family << std::endl;
                 std::vector<std::pair<string,string>> _vnr = Family::findnotrelated(_family);
@@ -152,7 +154,7 @@ std::vector<Family> merge_except(const std::vector<std::vector<Family>> &_objs, 
     return _mergedobjs;
 }
 
-void load_mini_batch_with_kinhips_only (
+void load_mini_batch_with_kinhips (
     const size_t num_classes,
     const size_t num_samples,
     dlib::rand& rnd,
@@ -376,7 +378,7 @@ float test_metric_accuracy_on_set(const std::vector<Family> &_testobjs, dlib::ne
     float _dstthresh = anet.loss_details().get_distance_threshold();
     for(size_t i = 0; i < _iterations; ++i) {
         if((i % 2) == 0)
-            load_mini_batch_with_kinhips_only(_classes, _samples, rnd, cvrng, _testobjs, images, labels, _doaugmentation);
+            load_mini_batch_with_kinhips(_classes, _samples, rnd, cvrng, _testobjs, images, labels, _doaugmentation);
         else
             load_mini_batch_without_kinships(_classes, _samples, rnd, cvrng, _testobjs, images, labels, _doaugmentation);
         std::vector<matrix<float,0,1>> embedded = anet(images);
@@ -502,7 +504,7 @@ int main(int argc, char** argv)
                     if(rnd.get_random_float() > 0.5f)
                         load_mini_batch_without_kinships(classes_per_minibatch, samples_per_class, rnd, cvrng, trainobjs, images, labels, true);
                     else
-                        load_mini_batch_with_kinhips_only(classes_per_minibatch, samples_per_class, rnd, cvrng, trainobjs, images, labels, true);
+                        load_mini_batch_with_kinhips(classes_per_minibatch, samples_per_class, rnd, cvrng, trainobjs, images, labels, true);
                     qimages.enqueue(images);
                     qlabels.enqueue(labels);
                 }
@@ -533,7 +535,7 @@ int main(int argc, char** argv)
                     if(rnd.get_random_float() > 0.5f)
                         load_mini_batch_without_kinships(classes_per_minibatch, samples_per_class, rnd, cvrng, validobjs, images, labels, false);
                     else
-                        load_mini_batch_with_kinhips_only(classes_per_minibatch, samples_per_class, rnd, cvrng, validobjs, images, labels, false);
+                        load_mini_batch_with_kinhips(classes_per_minibatch, samples_per_class, rnd, cvrng, validobjs, images, labels, false);
                     testqimages.enqueue(images);
                     testqlabels.enqueue(labels);
                 }
