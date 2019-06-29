@@ -26,7 +26,7 @@ int main(int argc, char *argv[])
     bool isloaded;
     for(auto file : dir.get_files()) {
         _filename = file.full_name();
-        cv::Mat _mat = loadIbgrmatWsize(_filename,150,150,false,&isloaded);
+        cv::Mat _mat = loadIFgraymatWsize(_filename,150,150,false,true,true,&isloaded);
         assert(isloaded);
         cout << "---------------------------" << endl;
         cout << "Filename: " << file.full_name() << endl;
@@ -39,13 +39,8 @@ int main(int argc, char *argv[])
 
                 _tmpmat = _mat.clone();
 
-                cv::cvtColor(_tmpmat,_tmpmat,CV_BGR2GRAY);
                 if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = addNoise(_tmpmat,cvrng,0,15);
-
-                cv::Mat _vchannels[] = {_tmpmat,_tmpmat,_tmpmat};
-                cv::merge(_vchannels,3,_tmpmat);
-                cout << "Augmented img channels: " << _tmpmat.channels() << endl;
+                    _tmpmat = addNoise(_tmpmat,cvrng,0,0.05);
 
                 if(rnd.get_random_float() > 0.5f)
                     cv::flip(_tmpmat,_tmpmat,1);
