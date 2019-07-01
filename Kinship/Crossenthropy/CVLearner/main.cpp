@@ -189,14 +189,35 @@ std::vector<Family> merge_except(const std::vector<std::vector<Family>> &_objs, 
     return _mergedobjs;
 }
 
-cv::Mat __loadImage(const std::string &_fileone, const std::string &_filetwo,int _tcols, int _trows, bool _crop, bool _center, bool _normalize, bool *_isloadded)
-{
-    cv::Mat _channels[2];
-    _channels[0] = loadIFgraymatWsize(_fileone,_tcols,_trows,_crop,_center,_normalize,_isloadded);
-    _channels[1] = loadIFgraymatWsize(_filetwo,_tcols,_trows,_crop,_center,_normalize,_isloadded);
-    cv::Mat _outmat;
-    cv::merge(_channels,2,_outmat);
-    return _outmat;
+void augment(cv::Mat &_tmpmat, dlib::rand& rnd,cv::RNG & cvrng) {
+    if(rnd.get_random_float() > 0.5f)
+        cv::flip(_tmpmat,_tmpmat,1);
+
+    if(rnd.get_random_float() > 0.1f)
+        _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.1,0.1,10,cv::BORDER_CONSTANT,false);
+    if(rnd.get_random_float() > 0.5f)
+        _tmpmat = distortimage(_tmpmat,cvrng,0.06,cv::INTER_CUBIC,cv::BORDER_CONSTANT);
+
+    if(rnd.get_random_float() > 0.1f)
+        _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.3f,0.3f,rnd.get_random_float()*180.0f);
+
+    if(rnd.get_random_float() > 0.1f)
+        _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),0,0.3f,0.3f,rnd.get_random_float()*180.0f);
+    if(rnd.get_random_float() > 0.1f)
+        _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),1,0.3f,0.3f,rnd.get_random_float()*180.0f);
+    if(rnd.get_random_float() > 0.1f)
+        _tmpmat = cutoutRect(_tmpmat,0,rnd.get_random_float(),0.3f,0.3f,rnd.get_random_float()*180.0f);
+    if(rnd.get_random_float() > 0.1f)
+        _tmpmat = cutoutRect(_tmpmat,1,rnd.get_random_float(),0.3f,0.3f,rnd.get_random_float()*180.0f);
+
+    if(rnd.get_random_float() > 0.1f)
+        _tmpmat = addNoise(_tmpmat,cvrng,0,0.07);
+
+    if(rnd.get_random_float() > 0.5f)
+        cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
+
+    if(rnd.get_random_float() > 0.1f)
+        _tmpmat *= static_cast<double>((0.7f + 0.6f*rnd.get_random_float()));
 }
 
 void load_mini_batch (
@@ -205,7 +226,7 @@ void load_mini_batch (
     dlib::rand& rnd,
     cv::RNG & cvrng,
     const std::vector<Family>& objs,
-    std::vector<std::array<matrix<float>,2>>& images,
+    std::vector<std::array<matrix<float>,6>>& images,
     std::vector<unsigned long>& labels,
     bool _doaugmentation
 )
@@ -213,58 +234,40 @@ void load_mini_batch (
     images.clear();
     labels.clear();
 
-    cv::Mat _tmpmat;
+    cv::Mat _tmpmat, _leftmat, _rightmat, _channels[6];
     bool _isloaded;
     Family family_one;
     string first_filename, second_filename;
     unsigned long label;
-    std::vector<bool> already_selected_family(objs.size(), false);
-
-    size_t it1 = 0, it2;
+    //std::vector<bool> already_selected_family(objs.size(), false);
 
     size_t classes_selected = 0;
     while(classes_selected < num_classes) {
 
-        it1++;
-        if(it1 == objs.size())
-            cout << "it1 endless loop" << endl;
-
         // select random family
         size_t id = rnd.get_random_32bit_number() % objs.size();
-        while(already_selected_family[id])
+        /*while(already_selected_family[id])
             id = rnd.get_random_32bit_number() % objs.size();
-        already_selected_family[id] = true;
+        already_selected_family[id] = true;*/
 
         family_one = objs[id];
         auto _it1 = family_one.relationsmap.begin();
         std::advance(_it1, rnd.get_random_32bit_number() % family_one.relationsmap.size());
         const string &person_one = _it1->first;
-        /*if(family_one.photosmap.at(person_one).size() == 0)
-            continue;*/
         std::vector<string> kinships_one = _it1->second;
 
         // select another random family
-        id = rnd.get_random_32bit_number() % objs.size();
-        while(already_selected_family[id])
-            id = rnd.get_random_32bit_number() % objs.size();
-        //already_selected_family[id] = true;
-        std::vector<string> imposters = Family::allphotos(objs[id]);
-        /*if(imposters.size() == 0)
-            continue;*/
+        size_t id2 = rnd.get_random_32bit_number() % objs.size();
+        while(id2 == id)
+            id2 = rnd.get_random_32bit_number() % objs.size();
+        std::vector<string> imposters = Family::allphotos(objs[id2]);
 
-        size_t samples_selected = 0;
-        it2 = 0;
+        size_t samples_selected = 0;       
         while(samples_selected < num_samples) {
 
-            it2++;
             first_filename = family_one.photosmap.at(person_one)[rnd.get_random_32bit_number() % family_one.photosmap.at(person_one).size()];
             if(samples_selected % 2 == 0) {
                 const string &kinship = kinships_one[rnd.get_random_32bit_number() % kinships_one.size()];
-                if(it2 == objs.size())
-                    cout << "it2 endless loop for " << person_one << " vs " << kinship << " in family: " << endl << family_one << endl;
-
-                /*if(family_one.photosmap.at(kinship).size() == 0)
-                    continue;               */
                 second_filename = family_one.photosmap.at(kinship)[rnd.get_random_32bit_number() % family_one.photosmap.at(kinship).size()];               
                 label = 1;
             } else {
@@ -275,47 +278,28 @@ void load_mini_batch (
                 std::swap(first_filename,second_filename);
 
             if(_doaugmentation) {
-                _tmpmat = __loadImage(first_filename,second_filename,IMG_WIDTH,IMG_HEIGHT,false,true,true,&_isloaded);
+
+                _leftmat = loadIFbgrmatWsize(first_filename,IMG_WIDTH,IMG_HEIGHT,false,true,true,&_isloaded);
                 assert(_isloaded);
+                _rightmat = loadIFbgrmatWsize(second_filename,IMG_WIDTH,IMG_HEIGHT,false,true,true,&_isloaded);
+                assert(_isloaded);
+                augment(_leftmat,rnd,cvrng);
+                augment(_rightmat,rnd,cvrng);
+                cv::split(_leftmat,_channels);
+                cv::split(_rightmat,_channels+3);
+                cv::merge(_channels,6,_tmpmat);
 
-                if(rnd.get_random_float() > 0.5f)
-                    cv::flip(_tmpmat,_tmpmat,1);
-
-                if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.05,0.05,5,cv::BORDER_REFLECT101,false);
-                if(rnd.get_random_float() > 0.5f)
-                    _tmpmat = distortimage(_tmpmat,cvrng,0.03,cv::INTER_CUBIC,cv::BORDER_REFLECT101);
-
-                if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.2f,0.2f,rnd.get_random_float()*180.0f);
-
-                if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),0,0.2f,0.2f,rnd.get_random_float()*180.0f);
-                if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),1,0.2f,0.2f,rnd.get_random_float()*180.0f);
-                if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = cutoutRect(_tmpmat,0,rnd.get_random_float(),0.2f,0.2f,rnd.get_random_float()*180.0f);
-                if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = cutoutRect(_tmpmat,1,rnd.get_random_float(),0.2f,0.2f,rnd.get_random_float()*180.0f);
-
-                if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = addNoise(_tmpmat,cvrng,0,0.05);
-
-                if(rnd.get_random_float() > 0.5f)
-                    cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));               
-
-                if(rnd.get_random_float() > 0.1f)
-                    _tmpmat *= static_cast<double>((0.7f + 0.6f*rnd.get_random_float()));
-
-                images.push_back(cvmatF2arrayofFdlibmatrix<2>(_tmpmat));
+                images.push_back(cvmatF2arrayofFdlibmatrix<6>(_tmpmat));
             } else {
-                _tmpmat = __loadImage(first_filename,second_filename,IMG_WIDTH,IMG_HEIGHT,false,true,true,&_isloaded);
+                _leftmat = loadIFbgrmatWsize(first_filename,IMG_WIDTH,IMG_HEIGHT,false,true,true,&_isloaded);
                 assert(_isloaded);
+                _rightmat = loadIFbgrmatWsize(second_filename,IMG_WIDTH,IMG_HEIGHT,false,true,true,&_isloaded);
+                assert(_isloaded);
+                cv::split(_leftmat,_channels);
+                cv::split(_rightmat,_channels+3);
+                cv::merge(_channels,6,_tmpmat);
 
-                if(rnd.get_random_float() > 0.5f)
-                    cv::flip(_tmpmat,_tmpmat,1);
-
-                images.push_back(cvmatF2arrayofFdlibmatrix<2>(_tmpmat));
+                images.push_back(cvmatF2arrayofFdlibmatrix<6>(_tmpmat));
             }
             labels.push_back(label);
             samples_selected++;
@@ -341,7 +325,7 @@ float test_metric_accuracy_on_set(const std::vector<Family> &_testobjs, dlib::ne
     std::vector<uint> vtn(_iterations,0);
     std::vector<uint> vfp(_iterations,0);
     std::vector<uint> vfn(_iterations,0);
-    std::vector<std::array<dlib::matrix<float>,2>> images;
+    std::vector<std::array<dlib::matrix<float>,6>> images;
     std::vector<unsigned long> labels;
     for(size_t i = 0; i < _iterations; ++i) {
         load_mini_batch(_classes, _samples, rnd, cvrng, _testobjs, images, labels, _doaugmentation);
@@ -363,7 +347,7 @@ float test_metric_accuracy_on_set(const std::vector<Family> &_testobjs, dlib::ne
         float _recall    = static_cast<float>(vtp[i]) / (vtp[i] + vfn[i]);
         vf1[i] = 2 * _precision*_recall / (_precision + _recall);
         if(_beverbose)
-            cout << "iteration #" << i << (((i % 2) == 0) ? " (without kinships)" : " (with kinships)") << " - F1: " << vf1[i] << endl;
+            cout << "iteration #" << i << " - F1: " << vf1[i] << endl;
     }
     float acc = 0.0f;
     for(size_t i = 0; i < _iterations; ++i)
@@ -440,7 +424,7 @@ int main(int argc, char** argv)
         net_type net;
         set_all_bn_running_stats_window_sizes(net, cmdparser.get<unsigned>("bnwsize"));
 
-        dnn_trainer<net_type> trainer(net,sgd(0.0001f,0.9f));
+        dnn_trainer<net_type> trainer(net,sgd(0.0003f,0.9f));
         trainer.set_learning_rate(0.1);
         trainer.be_verbose();
         trainer.set_synchronization_file(cmdparser.get<string>("outputdir") + string("/trainer_") + sessionguid + std::string("_split_") + std::to_string(_fold) + string("_sync") , std::chrono::minutes(10));
@@ -451,14 +435,14 @@ int main(int argc, char** argv)
         else
             trainer.set_iterations_without_progress_threshold(static_cast<unsigned long>(cmdparser.get<int>("tiwp")));
 
-        dlib::pipe<std::vector<std::array<dlib::matrix<float>,2>>> qimages(5);
+        dlib::pipe<std::vector<std::array<dlib::matrix<float>,6>>> qimages(5);
         dlib::pipe<std::vector<unsigned long>> qlabels(5);
         auto data_loader = [classes_per_minibatch,samples_per_class,&qimages, &qlabels, &trainobjs](time_t seed)  {
 
             dlib::rand rnd(time(nullptr)+seed);
             cv::RNG cvrng(static_cast<uint64_t>(time(nullptr) + seed));
 
-            std::vector<std::array<dlib::matrix<float>,2>> images;
+            std::vector<std::array<dlib::matrix<float>,6>> images;
             std::vector<unsigned long> labels;
 
             while(qimages.is_enabled()) {
@@ -479,14 +463,14 @@ int main(int argc, char** argv)
         std::thread data_loader4([data_loader](){ data_loader(4); });
 
         // Same for the test
-        dlib::pipe<std::vector<std::array<dlib::matrix<float>,2>>> testqimages(1);
+        dlib::pipe<std::vector<std::array<dlib::matrix<float>,6>>> testqimages(1);
         dlib::pipe<std::vector<unsigned long>> testqlabels(1);
         auto testdata_loader = [classes_per_minibatch, samples_per_class,&testqimages, &testqlabels, &validobjs](time_t seed) {
 
             dlib::rand rnd(time(nullptr)+seed);
             cv::RNG cvrng(static_cast<uint64_t>(time(nullptr) + seed));
 
-            std::vector<std::array<dlib::matrix<float>,2>> images;
+            std::vector<std::array<dlib::matrix<float>,6>> images;
             std::vector<unsigned long> labels;
 
             while(testqimages.is_enabled()) {
@@ -509,7 +493,7 @@ int main(int argc, char** argv)
             testdata_loader1.join();
         }
 
-        std::vector<std::array<dlib::matrix<float>,2>> images, vimages;
+        std::vector<std::array<dlib::matrix<float>,6>> images, vimages;
         std::vector<unsigned long> labels, vlabels;
         cout << "-------------" << endl;
         cout << "Wait while training will be accomplished:" << endl;

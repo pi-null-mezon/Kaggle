@@ -42,7 +42,7 @@ using net_type = loss_multiclass_log<fc<2,avg_pool_everything<
                             level3<
                             level4<
                             max_pool<3,3,2,2,relu<bn_con<con<32,7,7,2,2,
-                            input<std::array<matrix<float>,2>>
+                            input<std::array<matrix<float>,6>>
                             >>>>>>>>>>>>;
 
 // testing network type (replaced batch normalization with fixed affine transforms)
@@ -53,7 +53,7 @@ using anet_type = loss_multiclass_log<fc<2,avg_pool_everything<
                             alevel3<
                             alevel4<
                             max_pool<3,3,2,2,relu<affine<con<32,7,7,2,2,
-                            input<std::array<matrix<float>,2>>
+                            input<std::array<matrix<float>,6>>
                             >>>>>>>>>>>>;
 
 }

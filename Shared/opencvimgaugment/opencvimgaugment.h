@@ -227,6 +227,51 @@ cv::Mat loadIFgraymatWsize(std::string _filename, int _tcols, int _trows, bool _
     return _originalimgmat;
 }
 
+cv::Mat loadIFbgrmatWsize(std::string _filename, int _tcols, int _trows, bool _crop, bool _center, bool _normalize, bool *_isloadded=nullptr)
+{
+    cv::Mat _originalimgmat = cv::imread(_filename, cv::IMREAD_COLOR);
+    if(_isloadded)
+        *_isloadded = !_originalimgmat.empty();
+
+    if(_originalimgmat.empty())
+        return cv::Mat();
+
+    if(_crop == true) {
+        _originalimgmat = cropFromCenterAndResize(_originalimgmat,cv::Size(_tcols,_trows));
+    } else if((_originalimgmat.cols != _tcols) || (_originalimgmat.rows != _trows)) {
+        int resizetype = CV_INTER_AREA;
+        if(_originalimgmat.cols*_originalimgmat.rows < _tcols*_trows)
+            resizetype = CV_INTER_CUBIC;
+        cv::resize(_originalimgmat,_originalimgmat,cv::Size(_tcols,_trows),0,0,resizetype);
+    }
+
+    _originalimgmat.convertTo(_originalimgmat,CV_32F);
+    if(_center) {
+        if(_normalize) {
+            cv::Mat _vchannelmean, _vchannelstdev;
+            cv::meanStdDev(_originalimgmat,_vchannelmean,_vchannelstdev);
+            const float _mean_blue  = static_cast<float>(_vchannelmean.at<const double>(0));
+            const float _mean_green = static_cast<float>(_vchannelmean.at<const double>(1));
+            const float _mean_red   = static_cast<float>(_vchannelmean.at<const double>(2));
+            const float _stdev_blue  = static_cast<float>(3.0*_vchannelstdev.at<const double>(0));
+            const float _stdev_green = static_cast<float>(3.0*_vchannelstdev.at<const double>(1));
+            const float _stdev_red   = static_cast<float>(3.0*_vchannelstdev.at<const double>(2));
+            float *_val = _originalimgmat.ptr<float>(0);
+            int _pos = 0;
+            for(size_t i = 0; i < _originalimgmat.total(); ++i) {
+                _pos = i*3;
+                _val[_pos]   = (_val[_pos]   - _mean_blue)  / _stdev_blue;
+                _val[_pos+1] = (_val[_pos+1] - _mean_green) / _stdev_green;
+                _val[_pos+2] = (_val[_pos+2] - _mean_red)   / _stdev_red;
+            }
+        } else {
+            cv::Scalar _vchannelmean = cv::mean(_originalimgmat);
+            _originalimgmat = (_originalimgmat - _vchannelmean) / 256.0f;
+        }
+    }
+    return _originalimgmat;
+}
+
 cv::Mat addNoise(const cv::Mat &_inmat, cv::RNG &_cvrng, double _a=0, double _b=0.1, int _distributiontype=cv::RNG::NORMAL)
 {
     cv::Mat _tmpmat = cv::Mat::zeros(_inmat.rows,_inmat.cols,_inmat.type());
