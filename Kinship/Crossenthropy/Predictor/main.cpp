@@ -89,27 +89,32 @@ int main(int argc, char *argv[])
         if(_lines == 0) {
             _ots << _line;
         } else {
-            cv::Mat _channels[2];
-            _channels[0] = loadIFgraymatWsize(_testdir.absoluteFilePath(_line.section('-',0,0)).toStdString(),
+            cv::Mat _channels[6];
+            cv::Mat _leftmat = loadIFbgrmatWsize(_testdir.absoluteFilePath(_line.section('-',0,0)).toStdString(),
                                                   IMG_WIDTH,IMG_HEIGHT,false,true,true,&_isloaded);
             if(!_isloaded) {
                 qInfo("  WARNING: file '%s' can not be loaded!",_line.section('-',0,0).toUtf8().constData());
                 continue;
             }
-            _channels[1] = loadIFgraymatWsize(_testdir.absoluteFilePath(_line.section('-',1,1).section(',',0,0)).toStdString(),
+
+            cv::Mat _rightmat = loadIFbgrmatWsize(_testdir.absoluteFilePath(_line.section('-',1,1).section(',',0,0)).toStdString(),
                                                    IMG_WIDTH,IMG_HEIGHT,false,true,true,&_isloaded);
             if(!_isloaded) {
                 qInfo("  WARNING: file '%s' can not be loaded!",_line.section('-',1,1).section(',',0,0).toUtf8().constData());
                 continue;
             }
+            cv::split(_leftmat,&_channels[0]);
+            cv::split(_rightmat,&_channels[3]);
             cv::Mat _tmpmat;
-            cv::merge(_channels,2,_tmpmat);
-            dlib::matrix<float,1,2> _prob = dlib::mat(snet(cvmatF2arrayofFdlibmatrix<2>(_tmpmat)));
+            cv::merge(_channels,6,_tmpmat);
+            dlib::matrix<float,1,2> _prob = dlib::mat(snet(cvmatF2arrayofFdlibmatrix<6>(_tmpmat)));
             const float _kinshipsprob = _prob(1);
 
-            std::swap(_channels[0],_channels[1]);
-            cv::merge(_channels,2,_tmpmat);
-            _prob = dlib::mat(snet(cvmatF2arrayofFdlibmatrix<2>(_tmpmat)));
+            std::swap(_channels[0],_channels[3]);
+            std::swap(_channels[1],_channels[4]);
+            std::swap(_channels[2],_channels[5]);
+            cv::merge(_channels,6,_tmpmat);
+            _prob = dlib::mat(snet(cvmatF2arrayofFdlibmatrix<6>(_tmpmat)));
             const float _skinshipsprob = _prob(1);
 
             qInfo("  %lu) kinship prob estimation %.4f - %.4f",_lines,_kinshipsprob,_skinshipsprob);
