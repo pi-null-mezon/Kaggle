@@ -121,7 +121,7 @@ int main(int argc, char *argv[])
             if(_visualize) {
                 cv::imshow("left",loadIbgrmatWsize(_testdir.absoluteFilePath(_line.section('-',0,0)).toStdString(),IMG_WIDTH,IMG_HEIGHT,false));
                 cv::imshow("right",loadIbgrmatWsize(_testdir.absoluteFilePath(_line.section('-',1,1).section(',',0,0)).toStdString(),IMG_WIDTH,IMG_HEIGHT,false));
-                if((_kinshipsprob + _skinshipsprob) / 2 > 0.5)
+                if((_kinshipsprob + _skinshipsprob) / 2 > 0.5f)
                     cv::waitKey(0);
                 else
                     cv::waitKey(1);

@@ -257,7 +257,7 @@ cv::Mat loadIFbgrmatWsize(std::string _filename, int _tcols, int _trows, bool _c
             const float _stdev_green = static_cast<float>(3.0*_vchannelstdev.at<const double>(1));
             const float _stdev_red   = static_cast<float>(3.0*_vchannelstdev.at<const double>(2));
             float *_val = _originalimgmat.ptr<float>(0);
-            int _pos = 0;
+            size_t _pos = 0;
             for(size_t i = 0; i < _originalimgmat.total(); ++i) {
                 _pos = i*3;
                 _val[_pos]   = (_val[_pos]   - _mean_blue)  / _stdev_blue;
@@ -266,7 +266,7 @@ cv::Mat loadIFbgrmatWsize(std::string _filename, int _tcols, int _trows, bool _c
             }
         } else {
             cv::Scalar _vchannelmean = cv::mean(_originalimgmat);
-            _originalimgmat = (_originalimgmat - _vchannelmean) / 256.0f;
+            _originalimgmat = (_originalimgmat - _vchannelmean) / 256.0;
         }
     }
     return _originalimgmat;
