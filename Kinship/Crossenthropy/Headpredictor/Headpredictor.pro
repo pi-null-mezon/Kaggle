@@ -24,7 +24,7 @@ else: unix:!android: target.path = /usr/local/bin
 
 INCLUDEPATH += $${PWD}/../../../Shared/opencvimgaugment \
                $${PWD}/../../../Shared/dlibopencvconverter \
-               $${PWD}/../CVLearner
+               $${PWD}/../Headlearner
 
 
 include($${PWD}/../../../Shared/opencv.pri)

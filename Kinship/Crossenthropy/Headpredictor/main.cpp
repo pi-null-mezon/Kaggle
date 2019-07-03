@@ -11,46 +11,13 @@
 #include "customnetwork.h"
 
 
-const cv::String options = "{m model    |       | - name to cnn model file}"
-                           "{t testdir  |       | - name of the test directory}"
-                           "{p pairs    |       | - path to the sample_submission.csv file}"
-                           "{o output   |       | - name of the output file}"
-                           "{v          | false | - data visualization}"
-                           "{h help     |       | - flag to show help}";
-
-std::vector<cv::Mat> makeVariants(const cv::Mat &_left, const cv::Mat &_right)
-{
-    std::vector<cv::Mat> _variants;
-    _variants.reserve(8);
-    cv::Mat _channels[2];
-    for(int i = 0; i < 4; ++i) {
-        cv::Mat _merged;
-        if(i == 0 || i == 1)
-            _channels[0] = _left.clone();
-        else
-            cv::flip(_left,_channels[0],1);
-        if((i % 2) == 0)
-            _channels[1] = _right.clone();
-        else
-            cv::flip(_right,_channels[1],1);
-        cv::merge(_channels,2,_merged);
-        _variants.push_back(std::move(_merged));
-    }
-    for(int i = 0; i < 4; ++i) {
-        cv::Mat _merged;
-        if(i == 0 || i == 1)
-            _channels[0] = _right.clone();
-        else
-            cv::flip(_right,_channels[0],1);
-        if((i % 2) == 0)
-            _channels[1] = _left.clone();
-        else
-            cv::flip(_left,_channels[1],1);
-        cv::merge(_channels,2,_merged);
-        _variants.push_back(std::move(_merged));
-    }
-    return _variants;
-}
+const cv::String options = "{m model         |       | - name to cnn model file}"
+                           "{f facedscrmodel |       | - path to dlib_face_recognition_resnet_model_v1.dat}"
+                           "{t testdir       |       | - name of the test directory}"
+                           "{p pairs         |       | - path to the sample_submission.csv file}"
+                           "{o output        |       | - name of the output file}"
+                           "{v               | false | - data visualization}"
+                           "{h help          |       | - flag to show help}";
 
 int main(int argc, char *argv[])
 {
@@ -69,6 +36,19 @@ int main(int argc, char *argv[])
         qInfo("Model file '%s' does not exist! Abort...",_cmdp.get<cv::String>("model").c_str());
         return 2;
     }
+    if(!_cmdp.has("facedscrmodel")) {
+        qInfo("You have not provided model for face descriptor! Abort...");
+        return 11;
+    }
+    qInfo("Trying to load face descriptor model, please wait...");
+    dlib::dlib_face_dscr_type fdscrnet;
+    try{
+        dlib::deserialize(_cmdp.get<string>("facedscrmodel"))>> fdscrnet;
+    } catch(std::exception &e) {
+        qInfo("EXCEPTION WHILE LOADING FACE DESCRIPTOR MODEL");
+        qInfo("%s",e.what());
+    }
+    qInfo("Success");
     if(!_cmdp.has("testdir")) {
         qInfo("You have not provided testdir for prediction! Abort...");
         return 3;
@@ -105,7 +85,7 @@ int main(int argc, char *argv[])
     _filesfilters << "*.jpg" << "*.png";
     QStringList _imgfiles = _testdir.entryList(_filesfilters,QDir::Files | QDir::NoDotAndDotDot);
 
-    qInfo("Trying to load model file, please wait...");
+    qInfo("Trying to load model, please wait...");
     dlib::anet_type net;
     try {
         dlib::deserialize(_cmdp.get<cv::String>("model").c_str()) >> net;
@@ -127,29 +107,31 @@ int main(int argc, char *argv[])
             _ots << _line;
         } else {
 
-            cv::Mat _leftmat = loadIFgraymatWsize(_testdir.absoluteFilePath(_line.section('-',0,0)).toStdString(),
-                                                  IMG_WIDTH,IMG_HEIGHT,false,true,true,&_isloaded);
+            cv::Mat _leftmat = loadIbgrmatWsize(_testdir.absoluteFilePath(_line.section('-',0,0)).toStdString(),
+                                                  IMG_WIDTH,IMG_HEIGHT,false,&_isloaded);
             if(!_isloaded) {
                 qInfo("  WARNING: file '%s' can not be loaded!",_line.section('-',0,0).toUtf8().constData());
                 continue;
             }
 
-            cv::Mat _rightmat = loadIFgraymatWsize(_testdir.absoluteFilePath(_line.section('-',1,1).section(',',0,0)).toStdString(),
-                                                   IMG_WIDTH,IMG_HEIGHT,false,true,true,&_isloaded);
+            cv::Mat _rightmat = loadIbgrmatWsize(_testdir.absoluteFilePath(_line.section('-',1,1).section(',',0,0)).toStdString(),
+                                                   IMG_WIDTH,IMG_HEIGHT,false,&_isloaded);
             if(!_isloaded) {
                 qInfo("  WARNING: file '%s' can not be loaded!",_line.section('-',1,1).section(',',0,0).toUtf8().constData());
                 continue;
             }
-            std::vector<cv::Mat> _variants = makeVariants(_leftmat,_rightmat);
-            std::vector<float>   _probs(_variants.size(),0.0f);
-            for(size_t k = 0; k < _variants.size(); ++k) {
-                dlib::matrix<float,1,2> _p = dlib::mat(snet(cvmatF2arrayofFdlibmatrix<2>(_variants[k])));
-                _probs[k] = _p(1);
-                qInfo("     %.4f", _probs[k]);
-            }
-            float _kinshipsprob = std::accumulate(_probs.begin(),_probs.end(),0.0f) / _variants.size();
 
-            qInfo("  %lu) kinship prob estimation: %.3f",_lines,_kinshipsprob);
+            dlib::matrix<float,0,1> _leftdscr = fdscrnet(cvmat2dlibmatrix<dlib::rgb_pixel>(_leftmat));
+            dlib::matrix<float,0,1> _rightdscr = fdscrnet(cvmat2dlibmatrix<dlib::rgb_pixel>(_rightmat));
+            dlib::matrix<float,0,1> _features;
+            _features.set_size(dlib::num_rows(_leftdscr));
+            for(int i = 0; i < dlib::num_rows(_leftdscr); ++i)
+                _features(i) = (_leftdscr(i)-_rightdscr(i))*(_leftdscr(i)-_rightdscr(i));
+
+            dlib::matrix<float,1,2> _prob = dlib::mat(snet(_features));
+            float _kinshipsprob = _prob(1);
+
+            qInfo("  %lu) kinship prob estimation: %.4f",_lines,_kinshipsprob);
             if(_visualize) {
                 cv::imshow("left",loadIbgrmatWsize(_testdir.absoluteFilePath(_line.section('-',0,0)).toStdString(),IMG_WIDTH,IMG_HEIGHT,false));
                 cv::imshow("right",loadIbgrmatWsize(_testdir.absoluteFilePath(_line.section('-',1,1).section(',',0,0)).toStdString(),IMG_WIDTH,IMG_HEIGHT,false));
