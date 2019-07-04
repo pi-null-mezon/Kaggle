@@ -17,10 +17,10 @@ const cv::String options = "{m model    |       | - name to cnn model file}"
                            "{o output   |       | - name of the output file}"
                            "{v          | false | - data visualization}"
                            "{h help     |       | - flag to show help}";
-
-std::vector<cv::Mat> makeVariants(const cv::Mat &_left, const cv::Mat &_right)
+template<int C>
+std::vector<std::array<dlib::matrix<float>,C>> makeVariants(const cv::Mat &_left, const cv::Mat &_right)
 {
-    std::vector<cv::Mat> _variants;
+    std::vector<std::array<dlib::matrix<float>,C>> _variants;
     _variants.reserve(8);
     cv::Mat _channels[2];
     for(int i = 0; i < 4; ++i) {
@@ -34,7 +34,7 @@ std::vector<cv::Mat> makeVariants(const cv::Mat &_left, const cv::Mat &_right)
         else
             cv::flip(_right,_channels[1],1);
         cv::merge(_channels,2,_merged);
-        _variants.push_back(std::move(_merged));
+        _variants.push_back(cvmatF2arrayofFdlibmatrix<C>(_merged));
     }
     for(int i = 0; i < 4; ++i) {
         cv::Mat _merged;
@@ -47,7 +47,7 @@ std::vector<cv::Mat> makeVariants(const cv::Mat &_left, const cv::Mat &_right)
         else
             cv::flip(_left,_channels[1],1);
         cv::merge(_channels,2,_merged);
-        _variants.push_back(std::move(_merged));
+        _variants.push_back(cvmatF2arrayofFdlibmatrix<C>(_merged));
     }
     return _variants;
 }
@@ -140,11 +140,11 @@ int main(int argc, char *argv[])
                 qInfo("  WARNING: file '%s' can not be loaded!",_line.section('-',1,1).section(',',0,0).toUtf8().constData());
                 continue;
             }
-            std::vector<cv::Mat> _variants = makeVariants(_leftmat,_rightmat);
+            std::vector<std::array<dlib::matrix<float>,2>> _variants = makeVariants<2>(_leftmat,_rightmat);
             std::vector<float>   _probs(_variants.size(),0.0f);
+            dlib::matrix<float,8,2> _prediction = dlib::mat(snet(_variants.begin(),_variants.end()));
             for(size_t k = 0; k < _variants.size(); ++k) {
-                dlib::matrix<float,1,2> _p = dlib::mat(snet(cvmatF2arrayofFdlibmatrix<2>(_variants[k])));
-                _probs[k] = _p(1);
+                _probs[k] = _prediction(k,1);
                 qInfo("     %.4f", _probs[k]);
             }
             float _kinshipsprob = std::accumulate(_probs.begin(),_probs.end(),0.0f) / _variants.size();

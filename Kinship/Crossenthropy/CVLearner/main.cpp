@@ -196,7 +196,7 @@ void augment(cv::Mat &_tmpmat, dlib::rand& rnd,cv::RNG & cvrng) {
     if(rnd.get_random_float() > 0.1f)
         _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.07,0.07,7,cv::BORDER_REFLECT101,false);
     if(rnd.get_random_float() > 0.5f)
-        _tmpmat = distortimage(_tmpmat,cvrng,0.03,cv::INTER_CUBIC,cv::BORDER_REPLICATE);
+        _tmpmat = distortimage(_tmpmat,cvrng,0.05,cv::INTER_CUBIC,cv::BORDER_REPLICATE);
 
     if(rnd.get_random_float() > 0.1f)
         _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.3f,0.3f,rnd.get_random_float()*180.0f);
@@ -211,7 +211,7 @@ void augment(cv::Mat &_tmpmat, dlib::rand& rnd,cv::RNG & cvrng) {
         _tmpmat = cutoutRect(_tmpmat,1,rnd.get_random_float(),0.3f,0.3f,rnd.get_random_float()*180.0f);
 
     if(rnd.get_random_float() > 0.1f)
-        _tmpmat = addNoise(_tmpmat,cvrng,0,0.05);
+        _tmpmat = addNoise(_tmpmat,cvrng,0,0.07);
 
     if(rnd.get_random_float() > 0.5f)
         cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
@@ -425,7 +425,7 @@ int main(int argc, char** argv)
         net_type net;
         set_all_bn_running_stats_window_sizes(net, cmdparser.get<unsigned>("bnwsize"));
 
-        dnn_trainer<net_type> trainer(net,sgd(0.0003f,0.9f));
+        dnn_trainer<net_type> trainer(net,sgd(0.0001f,0.9f));
         trainer.set_learning_rate(0.1);
         trainer.be_verbose();
         trainer.set_synchronization_file(cmdparser.get<string>("outputdir") + string("/trainer_") + sessionguid + std::string("_split_") + std::to_string(_fold) + string("_sync") , std::chrono::minutes(10));
