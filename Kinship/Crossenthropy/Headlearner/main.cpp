@@ -68,13 +68,39 @@ struct Family {
             std::vector<bool> _vrelated(_vkeys.size(),false);
             for(size_t i = 0; i < _vkeys.size(); ++i)
                 for(size_t j = 0; j < _vkinships.size(); ++j)
-                    if((_vkeys[i]).compare(_vkinships[j]) == 0)
+                    if((_vkeys[i]).compare(_vkinships[j]) == 0) {
                         _vrelated[i] = true;
+                        break;
+                    }
             for(size_t i = 0; i < _vrelated.size(); ++i)
                 if((_vrelated[i] == false) && (_key.compare(_vkeys[i]) != 0))
                     _notrelatedpairs.push_back(std::make_pair(_key,_vkeys[i]));
         }
         return _notrelatedpairs;
+    }
+
+    static std::vector<string> findnotrelated(const Family &_family, const string &_name) {
+        std::vector<string> _vkeys;
+        _vkeys.reserve(_family.relationsmap.size());
+        foreach (const auto &_person, _family.relationsmap)
+            _vkeys.push_back(_person.first);
+
+        std::vector<string> _notrelated;
+        const std::vector<string> &_vkinships = _family.relationsmap.at(_name);
+        std::vector<bool> _vrelated(_vkeys.size(),false);
+
+        for(size_t i = 0; i < _vkeys.size(); ++i)
+            for(size_t j = 0; j < _vkinships.size(); ++j)
+                if((_vkeys[i]).compare(_vkinships[j]) == 0) {
+                    _vrelated[i] = true;
+                    break;
+                }
+
+        for(size_t i = 0; i < _vrelated.size(); ++i)
+            if((_vrelated[i] == false) && (_name.compare(_vkeys[i]) != 0))
+                _notrelated.push_back(_vkeys[i]);
+
+        return _notrelated;
     }
 
     static std::vector<string> allphotos(const Family &_family) {
@@ -134,8 +160,14 @@ std::vector<Family> load_families(const string &_traindirname, const string &_re
                 std::cout << _family << std::endl;
                 std::vector<std::pair<string,string>> _vnr = Family::findnotrelated(_family);
                 std::cout << "NOT RELATED PAIRS:" << std::endl;
-                foreach (const auto &_pair, _vnr)
+                foreach (const auto &_pair, _vnr) {
                     std::cout << _pair.first << " - " << _pair.second << std::endl;
+                    std::vector<string> notrelated = Family::findnotrelated(_family,_pair.first);
+                    std::cout << "NOT RELATED WITH " << _pair.first << ": ";
+                    foreach (const auto &_name, notrelated)
+                        std::cout << _name < " ";
+                    std::cout << std::endl;
+                }
                 std::cout << std::endl;*/
                 _vfamilies.push_back(std::move(_family));
             } else {
@@ -194,30 +226,30 @@ void augment(cv::Mat &_tmpmat, dlib::rand& rnd,cv::RNG & cvrng) {
         cv::flip(_tmpmat,_tmpmat,1);
 
     if(rnd.get_random_float() > 0.1f)
-        _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.07,0.07,7,cv::BORDER_REFLECT101,false);
+        _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.06,0.06,6,cv::BORDER_REFLECT101,false);
     if(rnd.get_random_float() > 0.5f)
-        _tmpmat = distortimage(_tmpmat,cvrng,0.05,cv::INTER_CUBIC,cv::BORDER_REPLICATE);
+        _tmpmat = distortimage(_tmpmat,cvrng,0.04,cv::INTER_CUBIC,cv::BORDER_REPLICATE);
 
     if(rnd.get_random_float() > 0.1f)
-        _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.3f,0.3f,rnd.get_random_float()*180.0f);
+        _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.5f,0.5f,rnd.get_random_float()*180.0f);
 
-    if(rnd.get_random_float() > 0.1f)
+    /*if(rnd.get_random_float() > 0.1f)
         _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),0,0.3f,0.3f,rnd.get_random_float()*180.0f);
     if(rnd.get_random_float() > 0.1f)
         _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),1,0.3f,0.3f,rnd.get_random_float()*180.0f);
     if(rnd.get_random_float() > 0.1f)
         _tmpmat = cutoutRect(_tmpmat,0,rnd.get_random_float(),0.3f,0.3f,rnd.get_random_float()*180.0f);
     if(rnd.get_random_float() > 0.1f)
-        _tmpmat = cutoutRect(_tmpmat,1,rnd.get_random_float(),0.3f,0.3f,rnd.get_random_float()*180.0f);
+        _tmpmat = cutoutRect(_tmpmat,1,rnd.get_random_float(),0.3f,0.3f,rnd.get_random_float()*180.0f);*/
 
     if(rnd.get_random_float() > 0.1f)
-        _tmpmat = addNoise(_tmpmat,cvrng,0,13);
+        _tmpmat = addNoise(_tmpmat,cvrng,0,11);
 
     if(rnd.get_random_float() > 0.5f)
         cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
 
     if(rnd.get_random_float() > 0.1f)
-        _tmpmat *= static_cast<double>((0.75f + 0.25f*rnd.get_random_float()));
+        _tmpmat *= static_cast<double>((0.8f + 0.4f*rnd.get_random_float()));
 }
 
 void load_mini_batch (
@@ -263,6 +295,12 @@ void load_mini_batch (
         while(id2 == id)
             id2 = rnd.get_random_32bit_number() % objs.size();
         std::vector<string> imposters = Family::allphotos(objs[id2]);
+        // and add nonrelated persons to imposters
+        std::vector<string> distractors = Family::findnotrelated(family_one,person_one);
+        foreach(const auto &_person, distractors) {
+            const std::vector<string> &_photos = family_one.photosmap.at(_person);
+            imposters.insert(imposters.end(),_photos.begin(),_photos.end());
+        }
 
         size_t samples_selected = 0;       
         while(samples_selected < num_samples) {

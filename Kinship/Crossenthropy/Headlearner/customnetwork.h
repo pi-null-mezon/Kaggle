@@ -35,10 +35,10 @@ template <typename SUBNET> using alevel3 = ares<64,ares<64,ares<64,ares_down<64,
 template <typename SUBNET> using alevel4 = ares<32,ares<32,ares<32,SUBNET>>>;
 
 // training network type
-using net_type = loss_multiclass_log< fc<2, relu<fc<16,input<matrix<float>>> >> >;
+using net_type =  loss_multiclass_log< fc<2, relu<bn_fc  <fc<128,input<matrix<float>>> >>> >;
 
 // testing network type (replaced batch normalization with fixed affine transforms)
-using anet_type = loss_multiclass_log< fc<2, relu<fc<16,input<matrix<float>>> >> >;
+using anet_type = loss_multiclass_log< fc<2, relu<affine <fc<128,input<matrix<float>>> >>> >;
 
 
 // testing network type (replaced batch normalization with fixed affine transforms)
