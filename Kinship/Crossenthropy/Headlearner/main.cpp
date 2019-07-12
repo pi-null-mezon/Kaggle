@@ -10,6 +10,7 @@
 #include <dlib/misc_api.h>
 
 #include <opencv2/core.hpp>
+#include <opencv2/dnn.hpp>
 
 #include "dlibimgaugment.h"
 #include "opencvimgaugment.h"
@@ -226,12 +227,12 @@ void augment(cv::Mat &_tmpmat, dlib::rand& rnd,cv::RNG & cvrng) {
         cv::flip(_tmpmat,_tmpmat,1);
 
     if(rnd.get_random_float() > 0.1f)
-        _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.06,0.06,6,cv::BORDER_REFLECT101,false);
+        _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.04,0.04,4,cv::BORDER_REFLECT101,false);
     if(rnd.get_random_float() > 0.5f)
-        _tmpmat = distortimage(_tmpmat,cvrng,0.04,cv::INTER_CUBIC,cv::BORDER_REPLICATE);
+        _tmpmat = distortimage(_tmpmat,cvrng,0.02,cv::INTER_CUBIC,cv::BORDER_REPLICATE);
 
-    if(rnd.get_random_float() > 0.1f)
-        _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.5f,0.5f,rnd.get_random_float()*180.0f);
+    /*if(rnd.get_random_float() > 0.1f)
+        _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.5f,0.5f,rnd.get_random_float()*180.0f);*/
 
     /*if(rnd.get_random_float() > 0.1f)
         _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),0,0.3f,0.3f,rnd.get_random_float()*180.0f);
@@ -243,17 +244,18 @@ void augment(cv::Mat &_tmpmat, dlib::rand& rnd,cv::RNG & cvrng) {
         _tmpmat = cutoutRect(_tmpmat,1,rnd.get_random_float(),0.3f,0.3f,rnd.get_random_float()*180.0f);*/
 
     if(rnd.get_random_float() > 0.1f)
-        _tmpmat = addNoise(_tmpmat,cvrng,0,11);
+        _tmpmat = addNoise(_tmpmat,cvrng,0,7);
 
     if(rnd.get_random_float() > 0.5f)
         cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
 
     if(rnd.get_random_float() > 0.1f)
-        _tmpmat *= static_cast<double>((0.8f + 0.4f*rnd.get_random_float()));
+        _tmpmat *= static_cast<double>((0.9f + 0.2f*rnd.get_random_float()));
 }
 
 void load_mini_batch (
-    dlib::dlib_face_dscr_type &_fdnet,
+    dlib::dlib_face_dscr_type &_dlibfacedscr,
+    cv::dnn::Net &_cvfacedscr,
     const size_t num_classes,
     const size_t num_samples,
     dlib::rand& rnd,
@@ -267,7 +269,7 @@ void load_mini_batch (
     images.clear();
     labels.clear();
 
-    cv::Mat _tmpmat, _leftmat, _rightmat;
+    cv::Mat _leftmat, _rightmat;
     bool _isloaded;
     Family family_one;
     string first_filename, second_filename;
@@ -317,40 +319,40 @@ void load_mini_batch (
             if(rnd.get_random_float() > 0.5f)
                 std::swap(first_filename,second_filename);
 
-            if(_doaugmentation) {
+            _leftmat = loadIbgrmatWsize(first_filename,224,224,false,&_isloaded);
+            assert(_isloaded);
+            _rightmat = loadIbgrmatWsize(second_filename,224,224,false,&_isloaded);
+            assert(_isloaded);
 
-                _leftmat = loadIbgrmatWsize(first_filename,IMG_WIDTH,IMG_HEIGHT,false,&_isloaded);
-                assert(_isloaded);                
-                _rightmat = loadIbgrmatWsize(second_filename,IMG_WIDTH,IMG_HEIGHT,false,&_isloaded);
-                assert(_isloaded);                
+            if(_doaugmentation) {
                 augment(_leftmat,rnd,cvrng);
                 augment(_rightmat,rnd,cvrng);
-
-                matrix<float,0,1> _leftdscr  = _fdnet(cvmat2dlibmatrix<dlib::rgb_pixel>(_leftmat)); // bgr 2 rgb convertion embedded
-                matrix<float,0,1> _rightdscr = _fdnet(cvmat2dlibmatrix<dlib::rgb_pixel>(_rightmat)); // bgr 2 rgb convertion embedded
-                matrix<float,0,1> _features;
-                _features.set_size(dlib::num_rows(_leftdscr));
-                for(int i = 0; i < dlib::num_rows(_leftdscr); ++i)
-                    _features(i) = (_leftdscr(i) - _rightdscr(i))*(_leftdscr(i) - _rightdscr(i));
-
-
-                images.push_back(_features);
-            } else {
-                _leftmat = loadIbgrmatWsize(first_filename,IMG_WIDTH,IMG_HEIGHT,false,&_isloaded);
-                assert(_isloaded);
-                _rightmat = loadIbgrmatWsize(second_filename,IMG_WIDTH,IMG_HEIGHT,false,&_isloaded);
-                assert(_isloaded);
-
-                matrix<float,0,1> _leftdscr  = _fdnet(cvmat2dlibmatrix<dlib::rgb_pixel>(_leftmat)); // bgr 2 rgb convertion embedded
-                matrix<float,0,1> _rightdscr = _fdnet(cvmat2dlibmatrix<dlib::rgb_pixel>(_rightmat)); // bgr 2 rgb convertion embedded
-                matrix<float,0,1> _features;
-                _features.set_size(dlib::num_rows(_leftdscr));
-                for(int i = 0; i < dlib::num_rows(_leftdscr); ++i)
-                    _features(i) = (_leftdscr(i) - _rightdscr(i))*(_leftdscr(i) - _rightdscr(i));
-
-
-                images.push_back(_features);
             }
+
+            _cvfacedscr.setInput(cv::dnn::blobFromImage(_leftmat), "data");
+            cv::Mat _leftcvdscrmat = _cvfacedscr.forward("feat_extract").reshape(1,1);
+            float *_leftcvdscr = _leftcvdscrmat.ptr<float>(0);
+            _cvfacedscr.setInput(cv::dnn::blobFromImage(_rightmat), "data");
+            cv::Mat _rightcvdscrmat = _cvfacedscr.forward("feat_extract").reshape(1,1);
+            float *_rightcvdscr = _rightcvdscrmat.ptr<float>(0);
+
+            cv::resize(_leftmat,_leftmat,cv::Size(IMG_WIDTH,IMG_HEIGHT),0,0,CV_INTER_AREA);
+            cv::resize(_rightmat,_rightmat,cv::Size(IMG_WIDTH,IMG_HEIGHT),0,0,CV_INTER_AREA);
+            matrix<float,0,1> _leftdscr  = _dlibfacedscr(cvmat2dlibmatrix<dlib::rgb_pixel>(_leftmat)); // bgr 2 rgb convertion embedded
+            matrix<float,0,1> _rightdscr = _dlibfacedscr(cvmat2dlibmatrix<dlib::rgb_pixel>(_rightmat)); // bgr 2 rgb convertion embedded
+
+            matrix<float,0,1> _features;
+            _features.set_size(6*128);
+            for(int i = 0; i < 4*128; ++i) {
+                _features(i)       = (_leftdscr(i) - _rightdscr(i))*(_leftdscr(i) - _rightdscr(i));
+                _features(i+  128) = _leftdscr(i);
+                _features(i+2*128) = _rightdscr(i);
+                _features(i+3*128) = _leftcvdscr[i];
+                _features(i+4*128) = _rightcvdscr[i];
+                _features(i+5*128) = (_leftcvdscr[i] - _rightcvdscr[i])*(_leftcvdscr[i] - _rightcvdscr[i]);
+            }
+
+            images.push_back(_features);
             labels.push_back(label);
             samples_selected++;
         }
@@ -359,7 +361,8 @@ void load_mini_batch (
 }
 
 float test_metric_accuracy_on_set(const std::vector<Family> &_testobjs,
-                                  dlib::dlib_face_dscr_type &_fdnet,
+                                  dlib::dlib_face_dscr_type &_dlibfacedscr,
+                                  cv::dnn::Net &_cvfacedscr,
                                   dlib::net_type &_net,
                                   bool _beverbose,
                                   const size_t _classes,
@@ -381,7 +384,7 @@ float test_metric_accuracy_on_set(const std::vector<Family> &_testobjs,
     std::vector<matrix<float>> images;
     std::vector<unsigned long> labels;
     for(size_t i = 0; i < _iterations; ++i) {
-        load_mini_batch(_fdnet,_classes, _samples, rnd, cvrng, _testobjs, images, labels, _doaugmentation);
+        load_mini_batch(_dlibfacedscr,_cvfacedscr,_classes, _samples, rnd, cvrng, _testobjs, images, labels, _doaugmentation);
         std::vector<unsigned long> predictions = anet(images);
         for(size_t k = 0; k < images.size(); ++k) {
             if(labels[k] == 1) {
@@ -410,7 +413,6 @@ float test_metric_accuracy_on_set(const std::vector<Family> &_testobjs,
 
 const cv::String options = "{traindir  t  |      | path to directory with training data}"
                            "{pairsfile p  |      | path to train_relationships.csv}"
-                           "{model m      |      | path to dlib_face_recognition_resnet_model_v1.dat}"
                            "{cvfolds      |   5  | folds to use for cross validation training}"
                            "{splitseed    |   1  | seed for data folds split}"
                            "{testdir      |      | path to directory with test data}"
@@ -418,8 +420,8 @@ const cv::String options = "{traindir  t  |      | path to directory with traini
                            "{minlrthresh  | 1E-5 | path to directory with output data}"
                            "{sessionguid  |      | session guid}"
                            "{learningrate |      | initial learning rate}"                          
-                           "{classes      | 30   | classes per minibatch}"
-                           "{samples      | 15   | samples per class in minibatch}"
+                           "{classes      | 20   | classes per minibatch}"
+                           "{samples      | 30   | samples per class in minibatch}"
                            "{bnwsize      | 100  | will be passed in set_all_bn_running_stats_window_sizes before net training}"
                            "{tiwp         | 5000 | train iterations without progress}"
                            "{viwp         | 1000 | validation iterations without progress}"
@@ -445,11 +447,21 @@ int main(int argc, char** argv)
         cout << "No output directory provided! Abort..." << std::endl;
         return 3;
     }
-    if(!cmdparser.has("model")) {
-        cout << "No face descriptor model file provided! Abort..." << std::endl;
+    QFileInfo _finfo("dlib_face_recognition_resnet_model_v1.dat");
+    if(!_finfo.exists()) {
+        cout << "Can not find '" << _finfo.fileName().toStdString() <<  "' in run directory! Abort...";
         return 4;
     }
-    string facedscr_model_filename = cmdparser.get<string>("model");
+    _finfo.setFile("resnet50_128.caffemodel");
+    if(!_finfo.exists()) {
+        cout << "Can not find '" << _finfo.fileName().toStdString() <<  "' in run directory! Abort...";
+        return 5;
+    }
+    _finfo.setFile("resnet50_128.prototxt");
+    if(!_finfo.exists()) {
+        cout << "Can not find '" << _finfo.fileName().toStdString() <<  "' in run directory! Abort...";
+        return 5;
+    }
     string sessionguid = std::to_string(0);
     if(cmdparser.has("sessionguid")) {
         sessionguid = cmdparser.get<string>("sessionguid");
@@ -496,15 +508,17 @@ int main(int argc, char** argv)
 
         dlib::pipe<std::vector<matrix<float>>> qimages(5);
         dlib::pipe<std::vector<unsigned long>> qlabels(5);
-        auto data_loader = [classes_per_minibatch,samples_per_class,facedscr_model_filename,&qimages,&qlabels,&trainobjs](time_t seed)  {
+        auto data_loader = [classes_per_minibatch,samples_per_class,&qimages,&qlabels,&trainobjs](time_t seed)  {
 
-            dlib::dlib_face_dscr_type facedescriptor;
+            dlib::dlib_face_dscr_type dlibfacedscr;
             try {
-                dlib::deserialize(facedscr_model_filename) >> facedescriptor;
+                dlib::deserialize("dlib_face_recognition_resnet_model_v1.dat") >> dlibfacedscr;
             } catch(std::exception& e) {
                 cout << "EXCEPTION IN LOADING FACE DESCRIPTOR MODEL DATA" << endl;
                 cout << e.what() << endl;
             }
+
+            cv::dnn::Net cvfacedscr = cv::dnn::readNetFromCaffe("resnet50_128.prototxt","resnet50_128.caffemodel");
 
             dlib::rand rnd(time(nullptr)+seed);
             cv::RNG cvrng(static_cast<uint64_t>(time(nullptr) + seed));
@@ -514,7 +528,7 @@ int main(int argc, char** argv)
 
             while(qimages.is_enabled()) {
                 try {                    
-                    load_mini_batch(facedescriptor, classes_per_minibatch, samples_per_class, rnd, cvrng, trainobjs, images, labels, true);
+                    load_mini_batch(dlibfacedscr, cvfacedscr, classes_per_minibatch, samples_per_class, rnd, cvrng, trainobjs, images, labels, true);
                     qimages.enqueue(images);
                     qlabels.enqueue(labels);
                 }
@@ -532,15 +546,17 @@ int main(int argc, char** argv)
         // Same for the test
         dlib::pipe<std::vector<matrix<float>>> testqimages(1);
         dlib::pipe<std::vector<unsigned long>> testqlabels(1);
-        auto testdata_loader = [classes_per_minibatch, samples_per_class,&testqimages, facedscr_model_filename,&testqlabels, &validobjs](time_t seed) {
+        auto testdata_loader = [classes_per_minibatch, samples_per_class,&testqimages, &testqlabels, &validobjs](time_t seed) {
 
-            dlib::dlib_face_dscr_type facedescriptor;
+            dlib::dlib_face_dscr_type dlibfacedscr;
             try {
-                dlib::deserialize(facedscr_model_filename) >> facedescriptor;
+                dlib::deserialize("dlib_face_recognition_resnet_model_v1.dat") >> dlibfacedscr;
             } catch(std::exception& e) {
                 cout << "EXCEPTION IN LOADING FACE DESCRIPTOR MODEL DATA" << endl;
                 cout << e.what() << endl;
             }
+
+            cv::dnn::Net cvfacedscr = cv::dnn::readNetFromCaffe("resnet50_128.prototxt","resnet50_128.caffemodel");
 
             dlib::rand rnd(time(nullptr)+seed);
             cv::RNG cvrng(static_cast<uint64_t>(time(nullptr) + seed));
@@ -550,7 +566,7 @@ int main(int argc, char** argv)
 
             while(testqimages.is_enabled()) {
                 try {
-                    load_mini_batch(facedescriptor, classes_per_minibatch, samples_per_class, rnd, cvrng, validobjs, images, labels, false);
+                    load_mini_batch(dlibfacedscr, cvfacedscr, classes_per_minibatch, samples_per_class, rnd, cvrng, validobjs, images, labels, false);
                     testqimages.enqueue(images);
                     testqlabels.enqueue(labels);
                 }
@@ -607,18 +623,20 @@ int main(int argc, char** argv)
         trainer.get_net();
         net.clean();
 
-        dlib::dlib_face_dscr_type facedscrnet;
+        dlib::dlib_face_dscr_type dlibfacedscr;
         try {
-            dlib::deserialize(facedscr_model_filename) >> facedscrnet;
+            dlib::deserialize("dlib_face_recognition_resnet_model_v1.dat") >> dlibfacedscr;
         } catch(std::exception& e) {
             cout << "EXCEPTION IN LOADING FACE DESCRIPTOR MODEL DATA" << endl;
             cout << e.what() << endl;
         }
 
+        cv::dnn::Net cvfacedscr = cv::dnn::readNetFromCaffe("resnet50_128.prototxt","resnet50_128.caffemodel");
+
         float acc = -1.0f;
         if(validobjs.size() > 0) {
             cout << "Accuracy evaluation on validation set:" << endl;
-            acc = test_metric_accuracy_on_set(validobjs,facedscrnet,net,true,classes_per_minibatch,2*samples_per_class,20);
+            acc = test_metric_accuracy_on_set(validobjs,dlibfacedscr,cvfacedscr,net,true,classes_per_minibatch,2*samples_per_class,20);
             cout << "Average validation accuracy: " << acc << endl;
         }
 

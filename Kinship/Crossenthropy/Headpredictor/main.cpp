@@ -4,6 +4,7 @@
 
 #include <opencv2/core.hpp>
 #include <opencv2/highgui.hpp>
+#include <opencv2/dnn.hpp>
 
 #include "dlibopencvconverter.h"
 #include "opencvimgaugment.h"
@@ -12,7 +13,7 @@
 
 
 const cv::String options = "{m model         |       | - name to cnn model file}"
-                           "{f facedscrmodel |       | - path to dlib_face_recognition_resnet_model_v1.dat}"
+                           "{d resdir        |       | - path to directory with dlib_face_recognition_resnet_model_v1.dat and resnet50_128.caffemodel and resnet50_128.prototxt}"
                            "{t testdir       |       | - name of the test directory}"
                            "{p pairs         |       | - path to the sample_submission.csv file}"
                            "{o output        |       | - name of the output file}"
@@ -36,18 +37,35 @@ int main(int argc, char *argv[])
         qInfo("Model file '%s' does not exist! Abort...",_cmdp.get<cv::String>("model").c_str());
         return 2;
     }
-    if(!_cmdp.has("facedscrmodel")) {
-        qInfo("You have not provided model for face descriptor! Abort...");
+    if(!_cmdp.has("resdir")) {
+        qInfo("You have not provided directory with resources for face descriptors! Abort...");
         return 11;
     }
-    qInfo("Trying to load face descriptor model, please wait...");
-    dlib::dlib_face_dscr_type fdscrnet;
+    QFileInfo _finfo((_cmdp.get<string>("resdir") + string("/dlib_face_recognition_resnet_model_v1.dat")).c_str());
+    if(!_finfo.exists()) {
+        cout << "Can not find '" << _finfo.fileName().toStdString() <<  "' in run directory! Abort...";
+        return 12;
+    }
+    _finfo.setFile((_cmdp.get<string>("resdir") + string("/resnet50_128.caffemodel")).c_str());
+    if(!_finfo.exists()) {
+        cout << "Can not find '" << _finfo.fileName().toStdString() <<  "' in run directory! Abort...";
+        return 13;
+    }
+    _finfo.setFile((_cmdp.get<string>("resdir") + string("/resnet50_128.prototxt")).c_str());
+    if(!_finfo.exists()) {
+        cout << "Can not find '" << _finfo.fileName().toStdString() <<  "' in run directory! Abort...";
+        return 14;
+    }
+    qInfo("Trying to load face descriptor models, please wait...");
+    dlib::dlib_face_dscr_type dlibfacedscr;
     try{
-        dlib::deserialize(_cmdp.get<string>("facedscrmodel"))>> fdscrnet;
+        dlib::deserialize(_cmdp.get<string>("resdir") + string("/dlib_face_recognition_resnet_model_v1.dat"))>> dlibfacedscr;
     } catch(std::exception &e) {
         qInfo("EXCEPTION WHILE LOADING FACE DESCRIPTOR MODEL");
         qInfo("%s",e.what());
     }
+    cv::dnn::Net cvfacedscr = cv::dnn::readNetFromCaffe(_cmdp.get<string>("resdir") + string("/resnet50_128.prototxt"),
+                                                        _cmdp.get<string>("resdir") + string("/resnet50_128.caffemodel"));
     qInfo("Success");
     if(!_cmdp.has("testdir")) {
         qInfo("You have not provided testdir for prediction! Abort...");
@@ -108,25 +126,41 @@ int main(int argc, char *argv[])
         } else {
 
             cv::Mat _leftmat = loadIbgrmatWsize(_testdir.absoluteFilePath(_line.section('-',0,0)).toStdString(),
-                                                  IMG_WIDTH,IMG_HEIGHT,false,&_isloaded);
+                                                  224,224,false,&_isloaded);
             if(!_isloaded) {
                 qInfo("  WARNING: file '%s' can not be loaded!",_line.section('-',0,0).toUtf8().constData());
                 continue;
             }
 
             cv::Mat _rightmat = loadIbgrmatWsize(_testdir.absoluteFilePath(_line.section('-',1,1).section(',',0,0)).toStdString(),
-                                                   IMG_WIDTH,IMG_HEIGHT,false,&_isloaded);
+                                                   224,224,false,&_isloaded);
             if(!_isloaded) {
                 qInfo("  WARNING: file '%s' can not be loaded!",_line.section('-',1,1).section(',',0,0).toUtf8().constData());
                 continue;
             }
 
-            dlib::matrix<float,0,1> _leftdscr = fdscrnet(cvmat2dlibmatrix<dlib::rgb_pixel>(_leftmat));
-            dlib::matrix<float,0,1> _rightdscr = fdscrnet(cvmat2dlibmatrix<dlib::rgb_pixel>(_rightmat));
-            dlib::matrix<float,0,1> _features;
-            _features.set_size(dlib::num_rows(_leftdscr));
-            for(int i = 0; i < dlib::num_rows(_leftdscr); ++i)
-                _features(i) = (_leftdscr(i)-_rightdscr(i))*(_leftdscr(i)-_rightdscr(i));
+            cvfacedscr.setInput(cv::dnn::blobFromImage(_leftmat), "data");
+            cv::Mat _leftcvdscrmat = cvfacedscr.forward("feat_extract").reshape(1,1);
+            float *_leftcvdscr = _leftcvdscrmat.ptr<float>(0);
+            cvfacedscr.setInput(cv::dnn::blobFromImage(_rightmat), "data");
+            cv::Mat _rightcvdscrmat = cvfacedscr.forward("feat_extract").reshape(1,1);
+            float *_rightcvdscr = _rightcvdscrmat.ptr<float>(0);
+
+            cv::resize(_leftmat,_leftmat,cv::Size(IMG_WIDTH,IMG_HEIGHT),0,0,CV_INTER_AREA);
+            cv::resize(_rightmat,_rightmat,cv::Size(IMG_WIDTH,IMG_HEIGHT),0,0,CV_INTER_AREA);
+            dlib::matrix<float,0,1> _leftdscr  = dlibfacedscr(cvmat2dlibmatrix<dlib::rgb_pixel>(_leftmat)); // bgr 2 rgb convertion embedded
+            dlib::matrix<float,0,1> _rightdscr = dlibfacedscr(cvmat2dlibmatrix<dlib::rgb_pixel>(_rightmat)); // bgr 2 rgb convertion embedded
+
+           dlib::matrix<float,0,1> _features;
+            _features.set_size(6*128);
+            for(int i = 0; i < 4*128; ++i) {
+                _features(i)       = (_leftdscr(i) - _rightdscr(i))*(_leftdscr(i) - _rightdscr(i));
+                _features(i+  128) = _leftdscr(i);
+                _features(i+2*128) = _rightdscr(i);
+                _features(i+3*128) = _leftcvdscr[i];
+                _features(i+4*128) = _rightcvdscr[i];
+                _features(i+5*128) = (_leftcvdscr[i] - _rightcvdscr[i])*(_leftcvdscr[i] - _rightcvdscr[i]);
+            }
 
             dlib::matrix<float,1,2> _prob = dlib::mat(snet(_features));
             float _kinshipsprob = _prob(1);
