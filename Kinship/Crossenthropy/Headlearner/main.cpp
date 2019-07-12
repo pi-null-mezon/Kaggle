@@ -227,30 +227,30 @@ void augment(cv::Mat &_tmpmat, dlib::rand& rnd,cv::RNG & cvrng) {
         cv::flip(_tmpmat,_tmpmat,1);
 
     if(rnd.get_random_float() > 0.1f)
-        _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.04,0.04,4,cv::BORDER_REFLECT101,false);
-    if(rnd.get_random_float() > 0.5f)
-        _tmpmat = distortimage(_tmpmat,cvrng,0.02,cv::INTER_CUBIC,cv::BORDER_REPLICATE);
+        _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.06,0.06,7,cv::BORDER_REFLECT101,false);
+    if(rnd.get_random_float() > 0.1f)
+        _tmpmat = distortimage(_tmpmat,cvrng,0.04,cv::INTER_CUBIC,cv::BORDER_REPLICATE);
 
     /*if(rnd.get_random_float() > 0.1f)
         _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.5f,0.5f,rnd.get_random_float()*180.0f);*/
 
-    /*if(rnd.get_random_float() > 0.1f)
+    if(rnd.get_random_float() > 0.1f)
         _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),0,0.3f,0.3f,rnd.get_random_float()*180.0f);
     if(rnd.get_random_float() > 0.1f)
         _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),1,0.3f,0.3f,rnd.get_random_float()*180.0f);
     if(rnd.get_random_float() > 0.1f)
         _tmpmat = cutoutRect(_tmpmat,0,rnd.get_random_float(),0.3f,0.3f,rnd.get_random_float()*180.0f);
     if(rnd.get_random_float() > 0.1f)
-        _tmpmat = cutoutRect(_tmpmat,1,rnd.get_random_float(),0.3f,0.3f,rnd.get_random_float()*180.0f);*/
+        _tmpmat = cutoutRect(_tmpmat,1,rnd.get_random_float(),0.3f,0.3f,rnd.get_random_float()*180.0f);
 
     if(rnd.get_random_float() > 0.1f)
-        _tmpmat = addNoise(_tmpmat,cvrng,0,7);
+        _tmpmat = addNoise(_tmpmat,cvrng,0,9);
 
     if(rnd.get_random_float() > 0.5f)
         cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
 
     if(rnd.get_random_float() > 0.1f)
-        _tmpmat *= static_cast<double>((0.9f + 0.2f*rnd.get_random_float()));
+        _tmpmat *= static_cast<double>((0.8f + 0.4f*rnd.get_random_float()));
 }
 
 void load_mini_batch (
@@ -343,7 +343,7 @@ void load_mini_batch (
 
             matrix<float,0,1> _features;
             _features.set_size(6*128);
-            for(int i = 0; i < 4*128; ++i) {
+            for(int i = 0; i < 128; ++i) {
                 _features(i)       = (_leftdscr(i) - _rightdscr(i))*(_leftdscr(i) - _rightdscr(i));
                 _features(i+  128) = _leftdscr(i);
                 _features(i+2*128) = _rightdscr(i);
@@ -475,7 +475,7 @@ int main(int argc, char** argv)
     auto allobjsfolds = split_into_folds(trainobjs,cmdparser.get<unsigned int>("cvfolds"),_foldsplitrnd);
 
     const size_t classes_per_minibatch = static_cast<unsigned long>(cmdparser.get<int>("classes"));
-    cout << "Classes per minibatch will be used:" << classes_per_minibatch << endl;
+    cout << "Classes per minibatch will be used: " << classes_per_minibatch << endl;
     const size_t samples_per_class = static_cast<unsigned long>(cmdparser.get<int>("samples"));
     cout << "Samples per class in minibatch will be used: " << samples_per_class << endl;
 

@@ -153,7 +153,7 @@ int main(int argc, char *argv[])
 
            dlib::matrix<float,0,1> _features;
             _features.set_size(6*128);
-            for(int i = 0; i < 4*128; ++i) {
+            for(int i = 0; i < 128; ++i) {
                 _features(i)       = (_leftdscr(i) - _rightdscr(i))*(_leftdscr(i) - _rightdscr(i));
                 _features(i+  128) = _leftdscr(i);
                 _features(i+2*128) = _rightdscr(i);
