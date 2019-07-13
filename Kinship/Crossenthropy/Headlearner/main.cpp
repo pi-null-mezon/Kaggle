@@ -228,7 +228,7 @@ void augment(cv::Mat &_tmpmat, dlib::rand& rnd,cv::RNG & cvrng) {
 
     if(rnd.get_random_float() > 0.1f)
         _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.06,0.06,7,cv::BORDER_REFLECT101,false);
-    if(rnd.get_random_float() > 0.5f)
+    if(rnd.get_random_float() > 0.1f)
         _tmpmat = distortimage(_tmpmat,cvrng,0.04,cv::INTER_CUBIC,cv::BORDER_REPLICATE);
 
     /*if(rnd.get_random_float() > 0.1f)
@@ -329,7 +329,6 @@ void load_mini_batch (
                 augment(_rightmat,rnd,cvrng);
             }
 
-
             /*cv::Mat _leftblob = cv::dnn::blobFromImage(_leftmat);
             _cvfacedscr.setInput(_leftblob, "data");
             cv::Mat _leftcvdscrmat = _cvfacedscr.forward("feat_extract").reshape(1,1).clone();
@@ -350,11 +349,16 @@ void load_mini_batch (
             matrix<float,0,1> _rightdscr = _dlibfacedscr(cvmat2dlibmatrix<dlib::rgb_pixel>(_rightmat)); // bgr 2 rgb convertion embedded
 
             matrix<float,0,1> _features;
-            _features.set_size(3*128);
+            _features.set_size(8*128);
             for(int i = 0; i < 128; ++i) {
-                _features(i)     = (_leftdscr(i) - _rightdscr(i))*(_leftdscr(i) - _rightdscr(i));
-                _features(i+128) = std::abs(_leftdscr(i) - _rightdscr(i));
-                _features(i+256) = _leftdscr(i)*_rightdscr(i)/(_leftdscr(i)*_leftdscr(i) + _rightdscr(i)*_rightdscr(i));
+                _features(i)       = (_leftdscr(i) - _rightdscr(i))*(_leftdscr(i) - _rightdscr(i));
+                _features(i+128)   = std::abs(_leftdscr(i)*_leftdscr(i) - _rightdscr(i)*_rightdscr(i));
+                _features(i+2*128) = std::abs(_leftdscr(i) - _rightdscr(i));
+                _features(i+3*128) = std::abs(_leftdscr(i) + _rightdscr(i));
+                _features(i+4*128) = _leftdscr(i);
+                _features(i+5*128) = _rightdscr(i);
+                _features(i+6*128) = _leftdscr(i)*_rightdscr(i)/(_leftdscr(i)*_leftdscr(i) + _rightdscr(i)*_rightdscr(i));
+                _features(i+7*128) = (_leftdscr(i) + _rightdscr(i))*(_leftdscr(i) - _rightdscr(i));
             }
 
             images.push_back(_features);
