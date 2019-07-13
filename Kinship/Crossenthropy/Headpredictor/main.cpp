@@ -153,22 +153,25 @@ int main(int argc, char *argv[])
             dlib::matrix<float,0,1> _rightdscr = dlibfacedscr(cvmat2dlibmatrix<dlib::rgb_pixel>(_rightmat)); // bgr 2 rgb convertion embedded
 
             matrix<float,0,1> _features;
-            _features.set_size(8*128);
+            _features.set_size(11*128);
             for(int i = 0; i < 128; ++i) {
                 _features(i)       = (_leftdscr(i) - _rightdscr(i))*(_leftdscr(i) - _rightdscr(i));
-                _features(i+128)   = std::abs(_leftdscr(i)*_leftdscr(i) - _rightdscr(i)*_rightdscr(i));
-                _features(i+2*128) = std::abs(_leftdscr(i) - _rightdscr(i));
-                _features(i+3*128) = std::abs(_leftdscr(i) + _rightdscr(i));
-                _features(i+4*128) = _leftdscr(i);
-                _features(i+5*128) = _rightdscr(i);
-                _features(i+6*128) = _leftdscr(i)*_rightdscr(i)/(_leftdscr(i)*_leftdscr(i) + _rightdscr(i)*_rightdscr(i));
-                _features(i+7*128) = (_leftdscr(i) + _rightdscr(i))*(_leftdscr(i) - _rightdscr(i));
+                _features(i+128)   = (_leftdscr(i) + _rightdscr(i))*(_leftdscr(i) + _rightdscr(i));
+                _features(i+2*128) = std::abs(_leftdscr(i)*_leftdscr(i) - _rightdscr(i)*_rightdscr(i));
+                _features(i+3*128) = std::abs(_leftdscr(i)*_leftdscr(i) + _rightdscr(i)*_rightdscr(i));
+                _features(i+4*128) = std::abs(_leftdscr(i) - _rightdscr(i));
+                _features(i+5*128) = std::abs(_leftdscr(i) + _rightdscr(i));
+                _features(i+6*128) = 2.0f / (1.0f / _leftdscr(i) + 1.0f / _rightdscr(i));
+                _features(i+7*128) = 2.0f / std::abs(1.0f / _leftdscr(i) - 1.0f / _rightdscr(i));
+                _features(i+8*128) = _leftdscr(i)*_rightdscr(i)/(_leftdscr(i)*_leftdscr(i) + _rightdscr(i)*_rightdscr(i));
+                _features(i+9*128) = _leftdscr(i)*_rightdscr(i)/std::abs(_leftdscr(i)*_leftdscr(i) - _rightdscr(i)*_rightdscr(i));
+                _features(i+10*128) = (_leftdscr(i) + _rightdscr(i))*std::abs(_leftdscr(i) - _rightdscr(i));
             }
 
             dlib::matrix<float,1,2> _prob = dlib::mat(snet(_features));
             float _kinshipsprob = _prob(1);
 
-            qInfo("  %lu) kinship prob estimation: %.4f",_lines,_kinshipsprob);
+            qInfo("  %lu) kinship prob estimation: %.4f",_lines,static_cast<double>(_kinshipsprob));
             if(_visualize) {
                 cv::imshow("left",loadIbgrmatWsize(_testdir.absoluteFilePath(_line.section('-',0,0)).toStdString(),IMG_WIDTH,IMG_HEIGHT,false));
                 cv::imshow("right",loadIbgrmatWsize(_testdir.absoluteFilePath(_line.section('-',1,1).section(',',0,0)).toStdString(),IMG_WIDTH,IMG_HEIGHT,false));

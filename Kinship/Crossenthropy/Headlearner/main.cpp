@@ -226,31 +226,38 @@ void augment(cv::Mat &_tmpmat, dlib::rand& rnd,cv::RNG & cvrng) {
     if(rnd.get_random_float() > 0.5f)
         cv::flip(_tmpmat,_tmpmat,1);
 
-    if(rnd.get_random_float() > 0.1f)
+    if(rnd.get_random_float() > 0.01f)
         _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.06,0.06,7,cv::BORDER_REFLECT101,false);
-    if(rnd.get_random_float() > 0.1f)
+    if(rnd.get_random_float() > 0.01f)
         _tmpmat = distortimage(_tmpmat,cvrng,0.04,cv::INTER_CUBIC,cv::BORDER_REPLICATE);
 
     /*if(rnd.get_random_float() > 0.1f)
         _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.5f,0.5f,rnd.get_random_float()*180.0f);*/
 
-    if(rnd.get_random_float() > 0.1f)
-        _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),0,0.3f,0.3f,rnd.get_random_float()*180.0f);
-    if(rnd.get_random_float() > 0.1f)
-        _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),1,0.3f,0.3f,rnd.get_random_float()*180.0f);
-    if(rnd.get_random_float() > 0.1f)
-        _tmpmat = cutoutRect(_tmpmat,0,rnd.get_random_float(),0.3f,0.3f,rnd.get_random_float()*180.0f);
-    if(rnd.get_random_float() > 0.1f)
-        _tmpmat = cutoutRect(_tmpmat,1,rnd.get_random_float(),0.3f,0.3f,rnd.get_random_float()*180.0f);
+    if(rnd.get_random_float() > 0.01f)
+        _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),0,0.35f,0.35f,rnd.get_random_float()*180.0f);
+    if(rnd.get_random_float() > 0.01f)
+        _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),1,0.35f,0.35f,rnd.get_random_float()*180.0f);
+    if(rnd.get_random_float() > 0.01f)
+        _tmpmat = cutoutRect(_tmpmat,0,rnd.get_random_float(),0.35f,0.35f,rnd.get_random_float()*180.0f);
+    if(rnd.get_random_float() > 0.01f)
+        _tmpmat = cutoutRect(_tmpmat,1,rnd.get_random_float(),0.35f,0.35f,rnd.get_random_float()*180.0f);
 
-    if(rnd.get_random_float() > 0.1f)
+    if(rnd.get_random_float() > 0.01f)
         _tmpmat = addNoise(_tmpmat,cvrng,0,9);
 
     if(rnd.get_random_float() > 0.5f)
         cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
 
-    if(rnd.get_random_float() > 0.1f)
-        _tmpmat *= static_cast<double>((0.8f + 0.4f*rnd.get_random_float()));
+    if(rnd.get_random_float() > 0.01f)
+        _tmpmat *= static_cast<double>((0.75f + 0.5f*rnd.get_random_float()));
+
+    if(rnd.get_random_float() > 0.5f) {
+        cv::cvtColor(_tmpmat,_tmpmat,CV_BGR2GRAY);
+        cv::Mat _chmat[] = {_tmpmat, _tmpmat, _tmpmat};
+        cv::merge(_chmat,3,_tmpmat);
+    }
+
 }
 
 void load_mini_batch (
@@ -349,16 +356,19 @@ void load_mini_batch (
             matrix<float,0,1> _rightdscr = _dlibfacedscr(cvmat2dlibmatrix<dlib::rgb_pixel>(_rightmat)); // bgr 2 rgb convertion embedded
 
             matrix<float,0,1> _features;
-            _features.set_size(8*128);
+            _features.set_size(11*128);
             for(int i = 0; i < 128; ++i) {
                 _features(i)       = (_leftdscr(i) - _rightdscr(i))*(_leftdscr(i) - _rightdscr(i));
-                _features(i+128)   = std::abs(_leftdscr(i)*_leftdscr(i) - _rightdscr(i)*_rightdscr(i));
-                _features(i+2*128) = std::abs(_leftdscr(i) - _rightdscr(i));
-                _features(i+3*128) = std::abs(_leftdscr(i) + _rightdscr(i));
-                _features(i+4*128) = _leftdscr(i);
-                _features(i+5*128) = _rightdscr(i);
-                _features(i+6*128) = _leftdscr(i)*_rightdscr(i)/(_leftdscr(i)*_leftdscr(i) + _rightdscr(i)*_rightdscr(i));
-                _features(i+7*128) = (_leftdscr(i) + _rightdscr(i))*(_leftdscr(i) - _rightdscr(i));
+                _features(i+128)   = (_leftdscr(i) + _rightdscr(i))*(_leftdscr(i) + _rightdscr(i));
+                _features(i+2*128) = std::abs(_leftdscr(i)*_leftdscr(i) - _rightdscr(i)*_rightdscr(i));
+                _features(i+3*128) = std::abs(_leftdscr(i)*_leftdscr(i) + _rightdscr(i)*_rightdscr(i));
+                _features(i+4*128) = std::abs(_leftdscr(i) - _rightdscr(i));
+                _features(i+5*128) = std::abs(_leftdscr(i) + _rightdscr(i));
+                _features(i+6*128) = 2.0f / (1.0f / _leftdscr(i) + 1.0f / _rightdscr(i));
+                _features(i+7*128) = 2.0f / std::abs(1.0f / _leftdscr(i) - 1.0f / _rightdscr(i));
+                _features(i+8*128) = _leftdscr(i)*_rightdscr(i)/(_leftdscr(i)*_leftdscr(i) + _rightdscr(i)*_rightdscr(i));
+                _features(i+9*128) = _leftdscr(i)*_rightdscr(i)/std::abs(_leftdscr(i)*_leftdscr(i) - _rightdscr(i)*_rightdscr(i));
+                _features(i+10*128) = (_leftdscr(i) + _rightdscr(i))*std::abs(_leftdscr(i) - _rightdscr(i));
             }
 
             images.push_back(_features);
@@ -423,19 +433,20 @@ float test_metric_accuracy_on_set(const std::vector<Family> &_testobjs,
 const cv::String options = "{traindir  t  |      | path to directory with training data}"
                            "{pairsfile p  |      | path to train_relationships.csv}"
                            "{resdir r     |      | path to directory with resources}"
-                           "{cvfolds      |   5  | folds to use for cross validation training}"
-                           "{splitseed    |   1  | seed for data folds split}"
+                           "{cvfolds      | 10   | folds to use for cross validation training}"
+                           "{splitseed    | 1    | seed for data folds split}"
                            "{testdir      |      | path to directory with test data}"
                            "{outputdir o  |      | path to directory with output data}"
-                           "{minlrthresh  | 1E-5 | path to directory with output data}"
+                           "{minlrthresh  | 1E-2 | path to directory with output data}"
                            "{sessionguid  |      | session guid}"
                            "{learningrate |      | initial learning rate}"                          
-                           "{classes      | 20   | classes per minibatch}"
-                           "{samples      | 30   | samples per class in minibatch}"
-                           "{bnwsize      | 100  | will be passed in set_all_bn_running_stats_window_sizes before net training}"
-                           "{tiwp         | 5000 | train iterations without progress}"
-                           "{viwp         | 1000 | validation iterations without progress}"
-                           "{psalgo       | true | set prefer smallest algorithms}";
+                           "{classes      | 50   | classes per minibatch}"
+                           "{samples      | 50   | samples per class in minibatch}"
+                           "{bnwsize      | 1024 | will be passed in set_all_bn_running_stats_window_sizes before net training}"
+                           "{tiwp         | 9999 | train iterations without progress}"
+                           "{viwp         | 20   | validation iterations without progress}"
+                           "{psalgo       | true | set prefer smallest algorithms}"
+                           "{tta          | true | set test time augmentation}";
 
 int main(int argc, char** argv)
 {
@@ -498,6 +509,8 @@ int main(int argc, char** argv)
         set_dnn_prefer_smallest_algorithms(); // larger minibatches will be available
     else
         set_dnn_prefer_fastest_algorithms();
+
+    bool ttaflag = cmdparser.get<bool>("tta");
 
     for(size_t _fold = 0; _fold < allobjsfolds.size(); ++_fold) {
         cout << endl << "Split # " << _fold << endl;
@@ -562,7 +575,7 @@ int main(int argc, char** argv)
         // Same for the test
         dlib::pipe<std::vector<matrix<float>>> testqimages(1);
         dlib::pipe<std::vector<unsigned long>> testqlabels(1);
-        auto testdata_loader = [classes_per_minibatch, samples_per_class,&testqimages, &testqlabels, &validobjs, &resourceslocation](time_t seed) {
+        auto testdata_loader = [classes_per_minibatch, samples_per_class,&testqimages, &testqlabels, &validobjs, &resourceslocation, ttaflag](time_t seed) {
 
             dlib::dlib_face_dscr_type dlibfacedscr;
             try {
@@ -583,7 +596,7 @@ int main(int argc, char** argv)
 
             while(testqimages.is_enabled()) {
                 try {
-                    load_mini_batch(dlibfacedscr, cvfacedscr, classes_per_minibatch, samples_per_class, rnd, cvrng, validobjs, images, labels, false);
+                    load_mini_batch(dlibfacedscr, cvfacedscr, classes_per_minibatch, samples_per_class, rnd, cvrng, validobjs, images, labels, ttaflag);
                     testqimages.enqueue(images);
                     testqlabels.enqueue(labels);
                 }
@@ -611,7 +624,7 @@ int main(int argc, char** argv)
             qimages.dequeue(images);
             qlabels.dequeue(labels);
             trainer.train_one_step(images, labels);
-            if((validobjs.size() > 0) && ((trainer.get_train_one_step_calls() % 10) == 0)) {
+            if((validobjs.size() > 0) && ((trainer.get_train_one_step_calls() % 5) == 0)) {
                 vimages.clear();
                 vlabels.clear();
                 testqimages.dequeue(vimages);

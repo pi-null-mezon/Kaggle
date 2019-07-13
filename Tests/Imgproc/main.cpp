@@ -37,7 +37,10 @@ int main(int argc, char *argv[])
         if(_mat.empty() == false) {
             for(int j = 0; j < 10; ++j) {
 
-                _tmpmat = _mat.clone();
+                cv::cvtColor(_mat,_tmpmat,CV_BGR2GRAY);
+                cv::Mat _chmat[] = {_tmpmat, _tmpmat, _tmpmat};
+                cv::merge(_chmat,3,_tmpmat);
+                cout << "_tmpmat channels: " << _tmpmat.channels() << endl;
                 //_tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.2f,0.4f,180.0f*rnd.get_random_float());
                 /*_dlibmatrix = cvmat2dlibmatrix<float>(_tmpmat);
                 dlib::disturb_colors(_dlibmatrix,rnd);
