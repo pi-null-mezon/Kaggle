@@ -356,19 +356,16 @@ void load_mini_batch (
             matrix<float,0,1> _rightdscr = _dlibfacedscr(cvmat2dlibmatrix<dlib::rgb_pixel>(_rightmat)); // bgr 2 rgb convertion embedded
 
             matrix<float,0,1> _features;
-            _features.set_size(11*128);
+            _features.set_size(8*128);
             for(int i = 0; i < 128; ++i) {
                 _features(i)       = (_leftdscr(i) - _rightdscr(i))*(_leftdscr(i) - _rightdscr(i));
-                _features(i+128)   = (_leftdscr(i) + _rightdscr(i))*(_leftdscr(i) + _rightdscr(i));
-                _features(i+2*128) = std::abs(_leftdscr(i)*_leftdscr(i) - _rightdscr(i)*_rightdscr(i));
-                _features(i+3*128) = std::abs(_leftdscr(i)*_leftdscr(i) + _rightdscr(i)*_rightdscr(i));
-                _features(i+4*128) = std::abs(_leftdscr(i) - _rightdscr(i));
-                _features(i+5*128) = std::abs(_leftdscr(i) + _rightdscr(i));
-                _features(i+6*128) = 2.0f / (1.0f / _leftdscr(i) + 1.0f / _rightdscr(i));
-                _features(i+7*128) = 2.0f / std::abs(1.0f / _leftdscr(i) - 1.0f / _rightdscr(i));
-                _features(i+8*128) = _leftdscr(i)*_rightdscr(i)/(_leftdscr(i)*_leftdscr(i) + _rightdscr(i)*_rightdscr(i));
-                _features(i+9*128) = _leftdscr(i)*_rightdscr(i)/std::abs(_leftdscr(i)*_leftdscr(i) - _rightdscr(i)*_rightdscr(i));
-                _features(i+10*128) = (_leftdscr(i) + _rightdscr(i))*std::abs(_leftdscr(i) - _rightdscr(i));
+                _features(i+128)   = std::abs(_leftdscr(i)*_leftdscr(i) - _rightdscr(i)*_rightdscr(i));
+                _features(i+2*128) = std::abs(_leftdscr(i) - _rightdscr(i));
+                _features(i+3*128) = std::abs(_leftdscr(i) + _rightdscr(i));
+                _features(i+4*128) = _leftdscr(i);
+                _features(i+5*128) = _rightdscr(i);
+                _features(i+6*128) = _leftdscr(i)*_rightdscr(i)/(_leftdscr(i)*_leftdscr(i) + _rightdscr(i)*_rightdscr(i));
+                _features(i+7*128) = (_leftdscr(i) + _rightdscr(i))*(_leftdscr(i) - _rightdscr(i));
             }
 
             images.push_back(_features);
@@ -433,7 +430,7 @@ float test_metric_accuracy_on_set(const std::vector<Family> &_testobjs,
 const cv::String options = "{traindir  t  |      | path to directory with training data}"
                            "{pairsfile p  |      | path to train_relationships.csv}"
                            "{resdir r     |      | path to directory with resources}"
-                           "{cvfolds      | 10   | folds to use for cross validation training}"
+                           "{cvfolds      | 7    | folds to use for cross validation training}"
                            "{splitseed    | 1    | seed for data folds split}"
                            "{testdir      |      | path to directory with test data}"
                            "{outputdir o  |      | path to directory with output data}"
@@ -444,7 +441,7 @@ const cv::String options = "{traindir  t  |      | path to directory with traini
                            "{samples      | 50   | samples per class in minibatch}"
                            "{bnwsize      | 1024 | will be passed in set_all_bn_running_stats_window_sizes before net training}"
                            "{tiwp         | 9999 | train iterations without progress}"
-                           "{viwp         | 20   | validation iterations without progress}"
+                           "{viwp         | 25   | validation iterations without progress}"
                            "{psalgo       | true | set prefer smallest algorithms}"
                            "{tta          | true | set test time augmentation}";
 

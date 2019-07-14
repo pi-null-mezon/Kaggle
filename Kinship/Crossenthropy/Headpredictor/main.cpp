@@ -21,6 +21,24 @@ const cv::String options = "{m model         |       | - name to cnn model file}
                            "{v               | false | - data visualization}"
                            "{h help          |       | - flag to show help}";
 
+
+matrix<float,0,1> joinfeatures(const matrix<float,0,1> &_leftdscr, const matrix<float,0,1> &_rightdscr)
+{
+    matrix<float,0,1> _features;
+    _features.set_size(8*128);
+    for(int i = 0; i < 128; ++i) {
+        _features(i)       = (_leftdscr(i) - _rightdscr(i))*(_leftdscr(i) - _rightdscr(i));
+        _features(i+128)   = std::abs(_leftdscr(i)*_leftdscr(i) - _rightdscr(i)*_rightdscr(i));
+        _features(i+2*128) = std::abs(_leftdscr(i) - _rightdscr(i));
+        _features(i+3*128) = std::abs(_leftdscr(i) + _rightdscr(i));
+        _features(i+4*128) = _leftdscr(i);
+        _features(i+5*128) = _rightdscr(i);
+        _features(i+6*128) = _leftdscr(i)*_rightdscr(i)/(_leftdscr(i)*_leftdscr(i) + _rightdscr(i)*_rightdscr(i));
+        _features(i+7*128) = (_leftdscr(i) + _rightdscr(i))*(_leftdscr(i) - _rightdscr(i));
+    }
+    return _features;
+}
+
 int main(int argc, char *argv[])
 {
     cv::CommandLineParser _cmdp(argc,argv,options);
@@ -148,27 +166,15 @@ int main(int argc, char *argv[])
             float *_rightcvdscr = _rightcvdscrmat.ptr<float>(0);
 
             cv::resize(_leftmat,_leftmat,cv::Size(IMG_WIDTH,IMG_HEIGHT),0,0,CV_INTER_AREA);
-            cv::resize(_rightmat,_rightmat,cv::Size(IMG_WIDTH,IMG_HEIGHT),0,0,CV_INTER_AREA);*/
+            cv::resize(_rightmat,_rightmat,cv::Size(IMG_WIDTH,IMG_HEIGHT),0,0,CV_INTER_AREA);*/            
             dlib::matrix<float,0,1> _leftdscr  = dlibfacedscr(cvmat2dlibmatrix<dlib::rgb_pixel>(_leftmat)); // bgr 2 rgb convertion embedded
             dlib::matrix<float,0,1> _rightdscr = dlibfacedscr(cvmat2dlibmatrix<dlib::rgb_pixel>(_rightmat)); // bgr 2 rgb convertion embedded
 
-            matrix<float,0,1> _features;
-            _features.set_size(11*128);
-            for(int i = 0; i < 128; ++i) {
-                _features(i)       = (_leftdscr(i) - _rightdscr(i))*(_leftdscr(i) - _rightdscr(i));
-                _features(i+128)   = (_leftdscr(i) + _rightdscr(i))*(_leftdscr(i) + _rightdscr(i));
-                _features(i+2*128) = std::abs(_leftdscr(i)*_leftdscr(i) - _rightdscr(i)*_rightdscr(i));
-                _features(i+3*128) = std::abs(_leftdscr(i)*_leftdscr(i) + _rightdscr(i)*_rightdscr(i));
-                _features(i+4*128) = std::abs(_leftdscr(i) - _rightdscr(i));
-                _features(i+5*128) = std::abs(_leftdscr(i) + _rightdscr(i));
-                _features(i+6*128) = 2.0f / (1.0f / _leftdscr(i) + 1.0f / _rightdscr(i));
-                _features(i+7*128) = 2.0f / std::abs(1.0f / _leftdscr(i) - 1.0f / _rightdscr(i));
-                _features(i+8*128) = _leftdscr(i)*_rightdscr(i)/(_leftdscr(i)*_leftdscr(i) + _rightdscr(i)*_rightdscr(i));
-                _features(i+9*128) = _leftdscr(i)*_rightdscr(i)/std::abs(_leftdscr(i)*_leftdscr(i) - _rightdscr(i)*_rightdscr(i));
-                _features(i+10*128) = (_leftdscr(i) + _rightdscr(i))*std::abs(_leftdscr(i) - _rightdscr(i));
-            }
+            std::vector<matrix<float,0,1>> _vjoindscr;
+            _vjoindscr.push_back(joinfeatures(_leftdscr,_rightdscr));
+            _vjoindscr.push_back(joinfeatures(_rightdscr,_leftdscr));
 
-            dlib::matrix<float,1,2> _prob = dlib::mat(snet(_features));
+            dlib::matrix<float,1,2> _prob = sum_rows(dlib::mat(snet(_vjoindscr.begin(),_vjoindscr.end())))/_vjoindscr.size();
             float _kinshipsprob = _prob(1);
 
             qInfo("  %lu) kinship prob estimation: %.4f",_lines,static_cast<double>(_kinshipsprob));
