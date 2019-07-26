@@ -436,12 +436,12 @@ const cv::String options = "{traindir  t  |      | path to directory with traini
                            "{outputdir o  |      | path to directory with output data}"
                            "{minlrthresh  | 1E-2 | path to directory with output data}"
                            "{sessionguid  |      | session guid}"
-                           "{learningrate |      | initial learning rate}"                          
-                           "{classes      | 50   | classes per minibatch}"
-                           "{samples      | 50   | samples per class in minibatch}"
-                           "{bnwsize      | 1024 | will be passed in set_all_bn_running_stats_window_sizes before net training}"
+                           "{learningrate |      | initial learning rate}"
+                           "{classes      | 46   | classes per minibatch}"
+                           "{samples      | 46   | samples per class in minibatch}"
+                           "{bnwsize      | 512  | will be passed in set_all_bn_running_stats_window_sizes before net training}"
                            "{tiwp         | 9999 | train iterations without progress}"
-                           "{viwp         | 25   | validation iterations without progress}"
+                           "{viwp         | 30   | validation iterations without progress}"
                            "{psalgo       | true | set prefer smallest algorithms}"
                            "{tta          | true | set test time augmentation}";
 

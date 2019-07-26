@@ -64,6 +64,15 @@ void makeaugmentation(cv::Mat &_tmpmat, dlib::rand& rnd, cv::RNG & cvrng)
 
     if(rnd.get_random_float() > 0.1f)
         _tmpmat = addNoise(_tmpmat,cvrng,0,11);
+
+    if(rnd.get_random_float() > 0.5f)
+        cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
+
+    if(rnd.get_random_float() > 0.5f) {
+        cv::cvtColor(_tmpmat,_tmpmat,CV_BGR2GRAY);
+        cv::Mat _chmat[] = {_tmpmat, _tmpmat, _tmpmat};
+        cv::merge(_chmat,3,_tmpmat);
+    }
 }
 
 void load_mini_batch (
@@ -80,7 +89,7 @@ void load_mini_batch (
 {
     images.clear();
     labels.clear();
-    DLIB_CASSERT(num_rersons <= objs.size(), "The dataset doesn't have that many whales in it.");
+    DLIB_CASSERT(num_rersons <= objs.size(), "The dataset doesn't have that many persons in it.");
 
     string obj;
     cv::Mat _tmpmat;
