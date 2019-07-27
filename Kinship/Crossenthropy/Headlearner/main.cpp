@@ -537,7 +537,7 @@ int main(int argc, char** argv)
 
             dlib::dlib_face_dscr_type dlibfacedscr;
             try {
-                dlib::deserialize(resourceslocation + "/dlib_face_recognition_resnet_model_v1.dat") >> dlibfacedscr;
+                dlib::deserialize(resourceslocation + "/dlib_face_sgd.dat") >> dlibfacedscr;
             } catch(std::exception& e) {
                 cout << "EXCEPTION IN LOADING FACE DESCRIPTOR MODEL DATA" << endl;
                 cout << e.what() << endl;
@@ -576,7 +576,7 @@ int main(int argc, char** argv)
 
             dlib::dlib_face_dscr_type dlibfacedscr;
             try {
-                dlib::deserialize(resourceslocation + "/dlib_face_recognition_resnet_model_v1.dat") >> dlibfacedscr;
+                dlib::deserialize(resourceslocation + "/dlib_face_sgd.dat") >> dlibfacedscr;
             } catch(std::exception& e) {
                 cout << "EXCEPTION IN LOADING FACE DESCRIPTOR MODEL DATA" << endl;
                 cout << e.what() << endl;

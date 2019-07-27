@@ -78,7 +78,7 @@ int main(int argc, char *argv[])
     qInfo("Trying to load face descriptor models, please wait...");
     dlib::dlib_face_dscr_type dlibfacedscr;
     try{
-        dlib::deserialize(_cmdp.get<string>("resdir") + string("/dlib_face_recognition_resnet_model_v1.dat"))>> dlibfacedscr;
+        dlib::deserialize(_cmdp.get<string>("resdir") + string("/dlib_face_sgd_2.dat")) >> dlibfacedscr;
     } catch(std::exception &e) {
         qInfo("EXCEPTION WHILE LOADING FACE DESCRIPTOR MODEL");
         qInfo("%s",e.what());
@@ -113,8 +113,8 @@ int main(int argc, char *argv[])
         return 8;
     }
     QTextStream _ots(&_outputfile);
-    _ots.setRealNumberNotation(QTextStream::FixedNotation);
-    _ots.setRealNumberPrecision(6);
+    /*_ots.setRealNumberNotation(QTextStream::FixedNotation);
+    _ots.setRealNumberPrecision(6);*/
 
     bool _visualize = _cmdp.get<bool>("v");
 

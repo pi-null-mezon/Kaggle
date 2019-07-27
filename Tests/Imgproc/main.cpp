@@ -33,19 +33,47 @@ int main(int argc, char *argv[])
         cout << "Img depth (opencv enum 0 - CV_8U, ...): " << _mat.depth() << endl;
         cout << "Img channels: " << _mat.channels() << endl;
         cv::Mat _tmpmat;
-        dlib::matrix<float> _dlibmatrix;
+        dlib::matrix<dlib::rgb_pixel> _dlibmatrix;
         if(_mat.empty() == false) {
             for(int j = 0; j < 10; ++j) {
 
-                cv::cvtColor(_mat,_tmpmat,CV_BGR2GRAY);
-                cv::Mat _chmat[] = {_tmpmat, _tmpmat, _tmpmat};
-                cv::merge(_chmat,3,_tmpmat);
-                cout << "_tmpmat channels: " << _tmpmat.channels() << endl;
-                //_tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.2f,0.4f,180.0f*rnd.get_random_float());
-                /*_dlibmatrix = cvmat2dlibmatrix<float>(_tmpmat);
+                _tmpmat = _mat.clone();
+
+                if(rnd.get_random_float() > 0.1f)
+                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.05,0.05,11,cv::BORDER_REFLECT101);
+                if(rnd.get_random_float() > 0.1f)
+                    _tmpmat = distortimage(_tmpmat,cvrng,0.05,cv::INTER_CUBIC,cv::BORDER_REFLECT101);
+
+                if(rnd.get_random_float() > 0.5f)
+                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),0,0.4f,0.4f,rnd.get_random_float()*180.0f);
+                if(rnd.get_random_float() > 0.5f)
+                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),1,0.4f,0.4f,rnd.get_random_float()*180.0f);
+                if(rnd.get_random_float() > 0.5f)
+                    _tmpmat = cutoutRect(_tmpmat,0,rnd.get_random_float(),0.4f,0.4f,rnd.get_random_float()*180.0f);
+                if(rnd.get_random_float() > 0.5f)
+                    _tmpmat = cutoutRect(_tmpmat,1,rnd.get_random_float(),0.4f,0.4f,rnd.get_random_float()*180.0f);
+
+                if(rnd.get_random_float() > 0.5f)
+                    cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
+
+                if(rnd.get_random_float() > 0.1f)
+                    _tmpmat *= 0.5 + 1.0*rnd.get_random_double();
+
+                if(rnd.get_random_float() > 0.1f)
+                    _tmpmat = addNoise(_tmpmat,cvrng,0,11);
+
+                if(rnd.get_random_float() > 0.5f)
+                    cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
+
+                if(rnd.get_random_float() > 0.5f) {
+                    cv::cvtColor(_tmpmat,_tmpmat,CV_BGR2GRAY);
+                    cv::Mat _chmat[] = {_tmpmat, _tmpmat, _tmpmat};
+                    cv::merge(_chmat,3,_tmpmat);
+                }
+                _dlibmatrix = cvmat2dlibmatrix<dlib::rgb_pixel>(_tmpmat);
                 dlib::disturb_colors(_dlibmatrix,rnd);
-                _tmpmat = dlibmatrix2cvmat<float>(_dlibmatrix);*/
-                cv::imshow("Probe", _tmpmat);
+
+                cv::imshow("Probe", dlibmatrix2cvmat(_dlibmatrix));
                 cv::imshow("Original", _mat);
                 cv::waitKey(0);
             }

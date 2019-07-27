@@ -30,25 +30,25 @@ std::vector<std::vector<string>> load_objects_list (const string& dir)
 }
 
 
-void makeaugmentation(cv::Mat &_tmpmat, dlib::rand& rnd, cv::RNG & cvrng)
+dlib::matrix<dlib::rgb_pixel> makeaugmentation(cv::Mat &_tmpmat, dlib::rand& rnd, cv::RNG & cvrng)
 {
     if(rnd.get_random_float() > 0.1f)
-        _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.05,0.05,11,cv::BORDER_REFLECT101);
+        _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.07,0.07,11,cv::BORDER_REFLECT101);
     if(rnd.get_random_float() > 0.1f)
-        _tmpmat = distortimage(_tmpmat,cvrng,0.05,cv::INTER_CUBIC,cv::BORDER_REFLECT101);
+        _tmpmat = distortimage(_tmpmat,cvrng,0.07,cv::INTER_CUBIC,cv::BORDER_WRAP);
 
     /*if(rnd.get_random_float() > 0.1f)
         _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.3f,0.3f,rnd.get_random_float()*180.0f);
     if(rnd.get_random_float() > 0.1f)
         _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.3f,0.3f,rnd.get_random_float()*180.0f);*/
 
-    if(rnd.get_random_float() > 0.1f)
+    if(rnd.get_random_float() > 0.5f)
         _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),0,0.4f,0.4f,rnd.get_random_float()*180.0f);
-    if(rnd.get_random_float() > 0.1f)
+    if(rnd.get_random_float() > 0.5f)
         _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),1,0.4f,0.4f,rnd.get_random_float()*180.0f);
-    if(rnd.get_random_float() > 0.1f)
+    if(rnd.get_random_float() > 0.5f)
         _tmpmat = cutoutRect(_tmpmat,0,rnd.get_random_float(),0.4f,0.4f,rnd.get_random_float()*180.0f);
-    if(rnd.get_random_float() > 0.1f)
+    if(rnd.get_random_float() > 0.5f)
         _tmpmat = cutoutRect(_tmpmat,1,rnd.get_random_float(),0.4f,0.4f,rnd.get_random_float()*180.0f);
 
     /*if(rnd.get_random_float() > 0.1f)
@@ -60,7 +60,7 @@ void makeaugmentation(cv::Mat &_tmpmat, dlib::rand& rnd, cv::RNG & cvrng)
         cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
 
     if(rnd.get_random_float() > 0.1f)
-        _tmpmat *= 0.75 + 0.5*rnd.get_random_double();
+        _tmpmat *= 0.6 + 0.8*rnd.get_random_double();
 
     if(rnd.get_random_float() > 0.1f)
         _tmpmat = addNoise(_tmpmat,cvrng,0,11);
@@ -73,6 +73,10 @@ void makeaugmentation(cv::Mat &_tmpmat, dlib::rand& rnd, cv::RNG & cvrng)
         cv::Mat _chmat[] = {_tmpmat, _tmpmat, _tmpmat};
         cv::merge(_chmat,3,_tmpmat);
     }
+
+    dlib::matrix<dlib::rgb_pixel> _dlibmatrix = cvmat2dlibmatrix<dlib::rgb_pixel>(_tmpmat);
+    dlib::disturb_colors(_dlibmatrix,rnd);
+    return _dlibmatrix;
 }
 
 void load_mini_batch (
@@ -111,10 +115,11 @@ void load_mini_batch (
 
             _tmpmat = loadIbgrmatWsize(obj,IMG_WIDTH,IMG_HEIGHT,false,&_isloaded);
             assert(_isloaded);
-            if(_doaugmentation)
-                makeaugmentation(_tmpmat,rnd,cvrng);
-
-            images.push_back(cvmat2dlibmatrix<dlib::rgb_pixel>(_tmpmat));
+            if(_doaugmentation) {
+                images.push_back(makeaugmentation(_tmpmat,rnd,cvrng));;
+            } else {
+                images.push_back(cvmat2dlibmatrix<dlib::rgb_pixel>(_tmpmat));
+            }
             labels.push_back(id);
         }
     }    
@@ -123,13 +128,13 @@ void load_mini_batch (
 const cv::String options = "{traindir  t  |      | path to directory with training data}"
                            "{validdir  v  |      | path to directory with validation data}"
                            "{outputdir o  |      | path to directory with output data}"
-                           "{classes   c  |  30  | number of unique persons in minibatch}"
+                           "{classes   c  |  35  | number of unique persons in minibatch}"
                            "{samples   s  |  15  | number of samples per class in minibatch}"
                            "{model     m  |      | path to a model (to make hard mining from training set before training)}"
-                           "{minlrthresh  | 1E-4 | path to directory with output data}"
+                           "{minlrthresh  | 1E-5 | path to directory with output data}"
                            "{sessionguid  |      | session guid}"
                            "{learningrate |      | initial learning rate}"
-                           "{tiwp         | 5000 | train iterations without progress}"
+                           "{tiwp         | 10000 | train iterations without progress}"
                            "{viwp         | 1000 | validation iterations without progress}"
                            "{bnwsize      | 100  | batch normalization window size}"
                            "{delayms      | 0    | delay of visualization}";
@@ -156,7 +161,7 @@ int main(int argc, char** argv)
         return 3;
     }
     if(cmdparser.get<int>("samples") < 1) {
-        cout << "Insufficient number of samples pe rclass in minibatch selected. Abort..." << std::endl;
+        cout << "Insufficient number of samples per class in minibatch selected. Abort..." << std::endl;
         return 4;
     }
     string sessionguid = "default";
@@ -201,7 +206,7 @@ int main(int argc, char** argv)
             _vdlibimages.reserve(trainobjs[i].size());
             for(size_t j = 0; j < trainobjs[i].size(); ++j) {
                 _vfilename.push_back(trainobjs[i][j]);
-                _vdlibimages.push_back(cvmat2dlibmatrix<dlib::rgb_pixel>(loadIFgraymatWsize(trainobjs[i][j],IMG_WIDTH,IMG_HEIGHT,false,true,true,&_isloaded)));
+                _vdlibimages.push_back(cvmat2dlibmatrix<dlib::rgb_pixel>(loadIbgrmatWsize(trainobjs[i][j],IMG_WIDTH,IMG_HEIGHT,false,&_isloaded)));
                 assert(_isloaded);
             }
             std::vector<matrix<float,0,1>> _vdscrmatrices = _anet(_vdlibimages);
@@ -297,8 +302,8 @@ int main(int argc, char** argv)
 
     set_all_bn_running_stats_window_sizes(net, static_cast<unsigned long>(cmdparser.get<int>("bnwsize")));
 
-    dlib::pipe<std::vector<matrix<rgb_pixel>>> qimages(4);
-    dlib::pipe<std::vector<unsigned long>> qlabels(4);
+    dlib::pipe<std::vector<matrix<rgb_pixel>>> qimages(5);
+    dlib::pipe<std::vector<unsigned long>> qlabels(5);
     auto data_loader = [&qimages, &qlabels, &trainobjs, classes, samples](time_t seed)  {
 
         dlib::rand rnd(time(nullptr)+seed);
@@ -399,10 +404,10 @@ int main(int argc, char** argv)
         dlib::rand rnd(0);
         cv::RNG cvrng(0);
 
-        int testsnum = 100;
+        int testsnum = 50;
         float _valMinF1 = 1.0f;
         for(int n = 0; n < testsnum; ++n) {
-            load_mini_batch(classes, samples, rnd, cvrng, validobjs, vimages, vlabels, true);
+            load_mini_batch(classes, samples, rnd, cvrng, validobjs, vimages, vlabels, false);
             std::vector<matrix<float,0,1>> embedded = anet(vimages);
 
             // Now, check if the embedding puts images with the same labels near each other and
@@ -443,7 +448,7 @@ int main(int argc, char** argv)
                 _valMinF1 = _F1;
         }
 
-        string _outputfilename = string("net_") + sessionguid + string("_VF") + std::to_string(_valMinF1) + string(".dat");
+        string _outputfilename = string("net_") + sessionguid + string("_MVF") + std::to_string(_valMinF1) + string(".dat");
         cout << "Wait untill weights will be serialized to " << _outputfilename << endl;
         serialize(cmdparser.get<string>("outputdir") + string("/") + _outputfilename) << net;
         cout << "Done" << endl;
