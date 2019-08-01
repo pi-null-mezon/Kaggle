@@ -390,7 +390,7 @@ cv::Mat FaceTracker::getResizedFaceImage(const cv::Mat &img, const cv::Size &siz
             cv::Mat croppedImg(faceImg, roiRect);
             int interpolationMethod = 0;
             if(size.area() > roiRect.area())
-                interpolationMethod = CV_INTER_CUBIC;
+                interpolationMethod = CV_INTER_LANCZOS4;
             else
                 interpolationMethod = CV_INTER_AREA;
             cv::resize(croppedImg, output, size, 0, 0, interpolationMethod);

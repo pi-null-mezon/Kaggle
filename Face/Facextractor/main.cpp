@@ -13,8 +13,12 @@ const cv::String _options = "{help h            |     | this help               
                             "{outputdir o       |     | output directory with images        }"
                             "{faceshapemodel m  |     | Dlib's face shape model file        }"
                             "{facedetcascade c  |     | opencv's face detector (if not specified Dlib's HOG detector will be used)}"
-                            "{targetwidth w     | 150 | target image width                  }"
-                            "{targetheight h    | 150 | target image height                 }"
+                            "{targetwidth       | 150 | target image width                  }"
+                            "{targetheight      | 150 | target image height                 }"
+                            "{hportion          | 1.2 | target horizontal face portion      }"
+                            "{vportion          | 1.2 | target vertical face portion        }"
+                            "{hshift            | 0   | target horizontal face shift        }"
+                            "{vshift            | 0   | target vertical face shift          }"
                             "{visualize v       |false| enable/disable visualization option }";
 
 int main(int argc, char *argv[])
@@ -79,8 +83,8 @@ int main(int argc, char *argv[])
     if(detectortype == FaceTracker::ViolaJones)
         _facetracker.setFaceClassifier(&_facedetector);
     _facetracker.setPrimaryFaceDetectorType(detectortype);
-    _facetracker.setFaceRectPortions(1.2f,1.2f);
-    _facetracker.setFaceRectShifts(0.0,0.0);
+    _facetracker.setFaceRectPortions(_cmdparser.get<float>("hportion"),_cmdparser.get<float>("vportion"));
+    _facetracker.setFaceRectShifts(_cmdparser.get<float>("hshift"),_cmdparser.get<float>("vshift"));
 
     const cv::Size _targetsize(_cmdparser.get<int>("targetwidth"),_cmdparser.get<int>("targetheight"));
     int _facenotfound = 0;
