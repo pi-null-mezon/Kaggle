@@ -32,10 +32,13 @@ std::vector<std::vector<string>> load_objects_list (const string& dir)
 
 dlib::matrix<dlib::rgb_pixel> makeaugmentation(cv::Mat &_tmpmat, dlib::rand& rnd, cv::RNG & cvrng)
 {
+    if(rnd.get_random_float() > 0.5f)
+        cv::flip(_tmpmat,_tmpmat,1);
+
     if(rnd.get_random_float() > 0.1f)
-        _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.07,0.07,11,cv::BORDER_REFLECT101);
+        _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.06,0.06,7,cv::BORDER_REFLECT101);
     if(rnd.get_random_float() > 0.1f)
-        _tmpmat = distortimage(_tmpmat,cvrng,0.07,cv::INTER_CUBIC,cv::BORDER_WRAP);
+        _tmpmat = distortimage(_tmpmat,cvrng,0.06,cv::INTER_CUBIC,cv::BORDER_WRAP);
 
     /*if(rnd.get_random_float() > 0.1f)
         _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.3f,0.3f,rnd.get_random_float()*180.0f);
@@ -73,6 +76,13 @@ dlib::matrix<dlib::rgb_pixel> makeaugmentation(cv::Mat &_tmpmat, dlib::rand& rnd
         cv::Mat _chmat[] = {_tmpmat, _tmpmat, _tmpmat};
         cv::merge(_chmat,3,_tmpmat);
     }
+
+    std::vector<unsigned char> _bytes;
+    std::vector<int> compression_params;
+    compression_params.push_back(cv::IMWRITE_JPEG_QUALITY);
+    compression_params.push_back(rnd.get_integer_in_range(20,100));
+    cv::imencode("*.jpg",_tmpmat,_bytes,compression_params);
+    _tmpmat = cv::imdecode(_bytes,cv::IMREAD_UNCHANGED);
 
     dlib::matrix<dlib::rgb_pixel> _dlibmatrix = cvmat2dlibmatrix<dlib::rgb_pixel>(_tmpmat);
     dlib::disturb_colors(_dlibmatrix,rnd);

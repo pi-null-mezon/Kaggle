@@ -15,7 +15,7 @@
  * @param _angledeg - angle of the cutout rect
  * @return input image copy with the cutout rect on top of it
  */
-cv::Mat cutoutRect(const cv::Mat &_mat, float _cx=0.5f, float _cy=0.5f, float _px=0.5f, float _py=0.5f, float _angledeg=0.0f)
+cv::Mat cutoutRect(const cv::Mat &_mat, float _cx=0.5f, float _cy=0.5f, float _px=0.5f, float _py=0.5f, float _angledeg=0.0f, bool _meancolor=true, const cv::Scalar &_constcolor=cv::Scalar(104,117,123))
 {
     cv::RotatedRect _rrect(cv::Point2f(_mat.cols*_cx,_mat.rows*_cy),cv::Size(_mat.cols*_px,_mat.rows*_py),_angledeg);
     cv::Point2f _verticiesf[4];
@@ -24,7 +24,7 @@ cv::Mat cutoutRect(const cv::Mat &_mat, float _cx=0.5f, float _cy=0.5f, float _p
     for(int i = 0; i < 4; ++i)
         _vert[i] = _verticiesf[i];
     cv::Mat _omat = _mat.clone();
-    cv::fillConvexPoly(_omat,_vert,4,cv::mean(_mat));
+    cv::fillConvexPoly(_omat,_vert,4,_meancolor ? cv::mean(_mat) : _constcolor);
     return _omat;
 }
 
@@ -126,7 +126,7 @@ cv::Mat cropFromCenterAndResize(const cv::Mat &input, cv::Size size)
  * @param _bordertype - opencv border type
  * @return transformed image
  */
-cv::Mat jitterimage(const cv::Mat &_inmat, cv::RNG &_cvrng, const cv::Size &_targetsize=cv::Size(0,0), double _maxscale=0.05, double _maxshift=0.02, double _maxangle=3, int _bordertype=cv::BORDER_CONSTANT, bool _alwaysshrink=false)
+cv::Mat jitterimage(const cv::Mat &_inmat, cv::RNG &_cvrng, const cv::Size &_targetsize=cv::Size(0,0), double _maxscale=0.05, double _maxshift=0.02, double _maxangle=3, int _bordertype=cv::BORDER_CONSTANT, const cv::Scalar &_constcolor=cv::Scalar(104,117,123), bool _alwaysshrink=false)
 {
     cv::Mat _outmat;
     const cv::Size _insize(_inmat.cols,_inmat.rows);
@@ -145,7 +145,7 @@ cv::Mat jitterimage(const cv::Mat &_inmat, cv::RNG &_cvrng, const cv::Size &_tar
     cv::warpAffine(_inmat,_outmat,_matrix,
                    _targetsize,
                    _insize.area() > _targetsize.area() ? CV_INTER_AREA : CV_INTER_CUBIC,
-                   _bordertype,cv::Scalar(104,117,123));
+                   _bordertype,_constcolor);
     return _outmat;
 }
 
@@ -155,7 +155,7 @@ cv::Mat jitterimage(const cv::Mat &_inmat, cv::RNG &_cvrng, const cv::Size &_tar
  * @param _cvrng - random number generator
  * @return transformed image
  */
-cv::Mat distortimage(const cv::Mat&_inmat, cv::RNG &_cvrng, double _maxportion=0.05, int _interp_method=CV_INTER_LINEAR, int _bordertype=cv::BORDER_DEFAULT)
+cv::Mat distortimage(const cv::Mat&_inmat, cv::RNG &_cvrng, double _maxportion=0.05, int _interp_method=CV_INTER_LINEAR, int _bordertype=cv::BORDER_DEFAULT, const cv::Scalar &_constcolor=cv::Scalar(104,117,123))
 {   
     cv::Point2f pts1[]={
                         cv::Point2f(0,0),
@@ -170,7 +170,7 @@ cv::Mat distortimage(const cv::Mat&_inmat, cv::RNG &_cvrng, double _maxportion=0
                         cv::Point2f(-_inmat.cols*_cvrng.uniform(-_maxportion,_maxportion),_inmat.rows*_cvrng.uniform(1.-_maxportion,1.+_maxportion))
                        };
     cv::Mat _outmat;
-    cv::warpPerspective(_inmat,_outmat,cv::getPerspectiveTransform(pts1,pts2),cv::Size(_inmat.cols,_inmat.rows),_interp_method,_bordertype,cv::Scalar(104,117,123));
+    cv::warpPerspective(_inmat,_outmat,cv::getPerspectiveTransform(pts1,pts2),cv::Size(_inmat.cols,_inmat.rows),_interp_method,_bordertype,_constcolor);
     return _outmat;
 }
 
