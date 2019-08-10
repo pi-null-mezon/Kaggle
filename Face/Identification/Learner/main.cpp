@@ -68,9 +68,6 @@ dlib::matrix<dlib::rgb_pixel> makeaugmentation(cv::Mat &_tmpmat, dlib::rand& rnd
     if(rnd.get_random_float() > 0.1f)
         _tmpmat = addNoise(_tmpmat,cvrng,0,11);
 
-    if(rnd.get_random_float() > 0.5f)
-        cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
-
     if(rnd.get_random_float() > 0.5f) {
         cv::cvtColor(_tmpmat,_tmpmat,CV_BGR2GRAY);
         cv::Mat _chmat[] = {_tmpmat, _tmpmat, _tmpmat};
@@ -80,7 +77,7 @@ dlib::matrix<dlib::rgb_pixel> makeaugmentation(cv::Mat &_tmpmat, dlib::rand& rnd
     std::vector<unsigned char> _bytes;
     std::vector<int> compression_params;
     compression_params.push_back(cv::IMWRITE_JPEG_QUALITY);
-    compression_params.push_back(rnd.get_integer_in_range(20,100));
+    compression_params.push_back(rnd.get_integer_in_range(50,100));
     cv::imencode("*.jpg",_tmpmat,_bytes,compression_params);
     _tmpmat = cv::imdecode(_bytes,cv::IMREAD_UNCHANGED);
 
@@ -135,19 +132,21 @@ void load_mini_batch (
     }    
 }
 
-const cv::String options = "{traindir  t  |      | path to directory with training data}"
-                           "{validdir  v  |      | path to directory with validation data}"
-                           "{outputdir o  |      | path to directory with output data}"
-                           "{classes   c  |  35  | number of unique persons in minibatch}"
-                           "{samples   s  |  15  | number of samples per class in minibatch}"
-                           "{model     m  |      | path to a model (to make hard mining from training set before training)}"
-                           "{minlrthresh  | 1E-5 | path to directory with output data}"
-                           "{sessionguid  |      | session guid}"
-                           "{learningrate |      | initial learning rate}"
+const cv::String options = "{traindir  t  |       | path to directory with training data}"
+                           "{validdir  v  |       | path to directory with validation data}"
+                           "{outputdir o  |       | path to directory with output data}"
+                           "{classes   c  |  55   | number of unique persons in minibatch}"
+                           "{samples   s  |  10   | number of samples per class in minibatch}"
+			   "{trainaugm    | true  | augmentation for train data}"
+			   "{validaugm    | false | augmentation for validation data}"
+                           "{model     m  |       | path to a model (to make hard mining from training set before training)}"
+                           "{minlrthresh  | 1E-5  | path to directory with output data}"
+                           "{sessionguid  |       | session guid}"
+                           "{learningrate |       | initial learning rate}"
                            "{tiwp         | 10000 | train iterations without progress}"
-                           "{viwp         | 1000 | validation iterations without progress}"
-                           "{bnwsize      | 100  | batch normalization window size}"
-                           "{delayms      | 0    | delay of visualization}";
+                           "{viwp         | 1000  | validation iterations without progress}"
+                           "{bnwsize      | 100   | batch normalization window size}"
+                           "{delayms      | 0     | delay of visualization}";
 
 
 int main(int argc, char** argv)
@@ -296,11 +295,15 @@ int main(int argc, char** argv)
     const size_t samples = static_cast<size_t>(cmdparser.get<int>("samples"));
     cout << "Number of classes per minibatch: " << classes << endl;
     cout << "Number of samples per class in minibatch: " << samples << endl;
+    const bool trainaugm  = cmdparser.get<bool>("trainaugm");
+    const bool validaugm = cmdparser.get<bool>("validaugm");
+    cout << "Train data augmentation: " << trainaugm << endl;
+    cout << "Validation data augmentation: " << validaugm << endl; 
 
     set_dnn_prefer_smallest_algorithms();
 
     net_type net;
-    dnn_trainer<net_type> trainer(net, sgd(0.0001f,0.9f));
+    dnn_trainer<net_type> trainer(net, sgd(0.0001f,0.9f),{0,1});
     trainer.set_learning_rate(0.1);
     trainer.be_verbose();
     trainer.set_synchronization_file(cmdparser.get<string>("outputdir") + string("/trainer_") + sessionguid + string("_sync") , std::chrono::minutes(10));
@@ -314,7 +317,7 @@ int main(int argc, char** argv)
 
     dlib::pipe<std::vector<matrix<rgb_pixel>>> qimages(5);
     dlib::pipe<std::vector<unsigned long>> qlabels(5);
-    auto data_loader = [&qimages, &qlabels, &trainobjs, classes, samples](time_t seed)  {
+    auto data_loader = [&qimages, &qlabels, &trainobjs, classes, samples, trainaugm](time_t seed)  {
 
         dlib::rand rnd(time(nullptr)+seed);
         cv::RNG cvrng(static_cast<uint64_t>(time(nullptr) + seed));
@@ -324,7 +327,7 @@ int main(int argc, char** argv)
 
         while(qimages.is_enabled()) {
             try {               
-                load_mini_batch(classes, samples, rnd, cvrng, trainobjs, images, labels, true);
+                load_mini_batch(classes, samples, rnd, cvrng, trainobjs, images, labels, trainaugm);
                 qimages.enqueue(images);
                 qlabels.enqueue(labels);
             }
@@ -342,7 +345,7 @@ int main(int argc, char** argv)
     // Same for the test
     dlib::pipe<std::vector<matrix<rgb_pixel>>> testqimages(1);
     dlib::pipe<std::vector<unsigned long>> testqlabels(1);
-    auto testdata_loader = [&testqimages, &testqlabels, &validobjs, classes, samples](time_t seed) {
+    auto testdata_loader = [&testqimages, &testqlabels, &validobjs, classes, samples, validaugm](time_t seed) {
 
         dlib::rand rnd(time(nullptr)+seed);
         cv::RNG cvrng(static_cast<uint64_t>(time(nullptr) + seed));
@@ -352,7 +355,7 @@ int main(int argc, char** argv)
 
         while(testqimages.is_enabled()) {
             try {
-                load_mini_batch(classes, samples, rnd, cvrng, validobjs, images, labels, false);
+                load_mini_batch(classes, samples, rnd, cvrng, validobjs, images, labels, validaugm);
                 testqimages.enqueue(images);
                 testqlabels.enqueue(labels);
             }
@@ -417,7 +420,7 @@ int main(int argc, char** argv)
         int testsnum = 50;
         float _valMinF1 = 1.0f;
         for(int n = 0; n < testsnum; ++n) {
-            load_mini_batch(classes, samples, rnd, cvrng, validobjs, vimages, vlabels, false);
+            load_mini_batch(110, 10, rnd, cvrng, validobjs, vimages, vlabels, false);
             std::vector<matrix<float,0,1>> embedded = anet(vimages);
 
             // Now, check if the embedding puts images with the same labels near each other and
