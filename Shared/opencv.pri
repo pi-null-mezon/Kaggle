@@ -45,7 +45,7 @@ win32 {
 }
 
 linux {
-
+    INCLUDEPATH += /usr/local/include/opencv4
     LIBS += -L/usr/local/lib
 
     LIBS += -lopencv_core \

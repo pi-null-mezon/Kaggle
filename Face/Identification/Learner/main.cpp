@@ -36,14 +36,14 @@ dlib::matrix<dlib::rgb_pixel> makeaugmentation(cv::Mat &_tmpmat, dlib::rand& rnd
         cv::flip(_tmpmat,_tmpmat,1);
 
     if(rnd.get_random_float() > 0.1f)
-        _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.06,0.06,7,cv::BORDER_REFLECT101);
+        _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.03,0.03,3,cv::BORDER_REFLECT101);
     if(rnd.get_random_float() > 0.1f)
-        _tmpmat = distortimage(_tmpmat,cvrng,0.06,cv::INTER_CUBIC,cv::BORDER_WRAP);
+        _tmpmat = distortimage(_tmpmat,cvrng,0.03,cv::INTER_CUBIC,cv::BORDER_WRAP);
 
-    /*if(rnd.get_random_float() > 0.1f)
+    if(rnd.get_random_float() > 0.1f)
         _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.3f,0.3f,rnd.get_random_float()*180.0f);
     if(rnd.get_random_float() > 0.1f)
-        _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.3f,0.3f,rnd.get_random_float()*180.0f);*/
+        _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.3f,0.3f,rnd.get_random_float()*180.0f);
 
     if(rnd.get_random_float() > 0.5f)
         _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),0,0.4f,0.4f,rnd.get_random_float()*180.0f);
@@ -53,11 +53,6 @@ dlib::matrix<dlib::rgb_pixel> makeaugmentation(cv::Mat &_tmpmat, dlib::rand& rnd
         _tmpmat = cutoutRect(_tmpmat,0,rnd.get_random_float(),0.4f,0.4f,rnd.get_random_float()*180.0f);
     if(rnd.get_random_float() > 0.5f)
         _tmpmat = cutoutRect(_tmpmat,1,rnd.get_random_float(),0.4f,0.4f,rnd.get_random_float()*180.0f);
-
-    /*if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.1f,0.3f,rnd.get_random_float()*180.0f);*/
-    /* if(rnd.get_random_float() > 0.1f)
-                   _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.1f,0.3f,rnd.get_random_float()*180.0f);*/
 
     if(rnd.get_random_float() > 0.5f)
         cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
@@ -69,17 +64,17 @@ dlib::matrix<dlib::rgb_pixel> makeaugmentation(cv::Mat &_tmpmat, dlib::rand& rnd
         _tmpmat = addNoise(_tmpmat,cvrng,0,11);
 
     if(rnd.get_random_float() > 0.5f) {
-        cv::cvtColor(_tmpmat,_tmpmat,CV_BGR2GRAY);
+        cv::cvtColor(_tmpmat,_tmpmat,cv::COLOR_BGR2GRAY);
         cv::Mat _chmat[] = {_tmpmat, _tmpmat, _tmpmat};
         cv::merge(_chmat,3,_tmpmat);
     }
 
-    std::vector<unsigned char> _bytes;
+    /*std::vector<unsigned char> _bytes;
     std::vector<int> compression_params;
     compression_params.push_back(cv::IMWRITE_JPEG_QUALITY);
     compression_params.push_back(rnd.get_integer_in_range(50,100));
     cv::imencode("*.jpg",_tmpmat,_bytes,compression_params);
-    _tmpmat = cv::imdecode(_bytes,cv::IMREAD_UNCHANGED);
+    _tmpmat = cv::imdecode(_bytes,cv::IMREAD_UNCHANGED);*/
 
     dlib::matrix<dlib::rgb_pixel> _dlibmatrix = cvmat2dlibmatrix<dlib::rgb_pixel>(_tmpmat);
     dlib::disturb_colors(_dlibmatrix,rnd);
@@ -137,8 +132,8 @@ const cv::String options = "{traindir  t  |       | path to directory with train
                            "{outputdir o  |       | path to directory with output data}"
                            "{classes   c  |  55   | number of unique persons in minibatch}"
                            "{samples   s  |  10   | number of samples per class in minibatch}"
-			   "{trainaugm    | true  | augmentation for train data}"
-			   "{validaugm    | false | augmentation for validation data}"
+                           "{trainaugm    | true  | augmentation for train data}"
+                           "{validaugm    | false | augmentation for validation data}"
                            "{model     m  |       | path to a model (to make hard mining from training set before training)}"
                            "{minlrthresh  | 1E-5  | path to directory with output data}"
                            "{sessionguid  |       | session guid}"
@@ -303,7 +298,7 @@ int main(int argc, char** argv)
     set_dnn_prefer_smallest_algorithms();
 
     net_type net;
-    dnn_trainer<net_type> trainer(net, sgd(0.0001f,0.9f),{0,1});
+    dnn_trainer<net_type> trainer(net, sgd(0.0001f,0.9f));
     trainer.set_learning_rate(0.1);
     trainer.be_verbose();
     trainer.set_synchronization_file(cmdparser.get<string>("outputdir") + string("/trainer_") + sessionguid + string("_sync") , std::chrono::minutes(10));

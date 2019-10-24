@@ -5,14 +5,14 @@ CONFIG -= qt
 
 SOURCES += main.cpp
 
-include($${PWD}/../../../Kaggle/Shared/dlib.pri)
-include($${PWD}/../../../Kaggle/Shared/opencv.pri)
+include($${PWD}/../../Shared/dlib.pri)
+include($${PWD}/../../Shared/opencv.pri)
 
 HEADERS += customnetwork.h
 
-INCLUDEPATH += $${PWD}/../../../Kaggle/Shared/dlibimgaugment \
-               $${PWD}/../../../Kaggle/Shared/opencvimgaugment \
-               $${PWD}/../../../Kaggle/Shared/dlibopencvconverter
+INCLUDEPATH += $${PWD}/../../Shared/dlibimgaugment \
+               $${PWD}/../../Shared/opencvimgaugment \
+               $${PWD}/../../Shared/dlibopencvconverter
 
 unix {
    target.path = /usr/local/bin

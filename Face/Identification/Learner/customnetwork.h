@@ -15,8 +15,7 @@ template <template <int,template<typename>class,int,typename> class block, int N
 using residual_down = add_prev2<avg_pool<2,2,2,2,skip1<tag2<block<N,BN,2,tag1<SUBNET>>>>>>;
 
 template <int N, template <typename> class BN, int stride, typename SUBNET>
-using block  = BN<con<N,3,3,1,1,relu<BN<con<N,3,3,stride,stride,SUBNET>>>>>;
-
+using block  = BN<con<N,3,3,1,1,relu<BN<con<2*N,1,1,stride,stride,SUBNET>>>>>;
 
 template <int N, typename SUBNET> using res       = relu<residual<block,N,bn_con,SUBNET>>;
 template <int N, typename SUBNET> using ares      = relu<residual<block,N,affine,SUBNET>>;

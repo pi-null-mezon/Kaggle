@@ -3,10 +3,10 @@
 
 #include <dlib/dnn.h>
 
-#define IMG_WIDTH  400
-#define IMG_HEIGHT 400
+#define IMG_WIDTH  200
+#define IMG_HEIGHT 200
 
-#define FNUM 8
+#define FNUM 16
 
 namespace dlib {
 
@@ -38,19 +38,21 @@ template <typename SUBNET> using alevel4 = ares<2*FNUM,ares_down<2*FNUM,SUBNET>>
 
 // training network type
 using net_type = loss_multiclass_log<fc<2,avg_pool_everything<
+                            level2<
                             level3<
                             level4<
                             relu<bn_con<con<FNUM,7,7,2,2,
                             input_rgb_image
-                            >>>>>>>>;
+                            >>>>>>>>>;
 
 // testing network type (replaced batch normalization with fixed affine transforms)
 using anet_type = loss_multiclass_log<fc<2,avg_pool_everything<
+                            alevel2<
                             alevel3<
                             alevel4<
                             relu<affine<con<FNUM,7,7,2,2,
                             input_rgb_image
-                            >>>>>>>>;
+                            >>>>>>>>>;
 
 /*template <int N, template <typename> class BN, typename SUBNET>
 using block  = relu<BN<con<N,3,3,1,1,relu<BN<con<4*N,1,1,1,1,SUBNET>>>>>>;

@@ -9,12 +9,12 @@ FaceTracker::FaceTracker(uchar length, AlignMethod method) :
     m_framesFaceFound(0),
     m_pos(0),
     m_angle(0.0),    
-    m_method(method),    
-    m_minNeighbours(7),
-    m_xPortion(0.8f),
+    m_method(method),
+    m_minNeighbours(5),
+    m_xPortion(1.0f),
     m_yPortion(1.0f),
     m_xShift(0.0f),
-    m_yShift(0.1f),
+    m_yShift(0.0f),
     m_primaryfacedetectortype(FaceTracker::ViolaJones)
 {
     v_rectHistory = new cv::Rect[m_historyLength];

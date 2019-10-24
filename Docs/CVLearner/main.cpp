@@ -33,24 +33,21 @@ std::vector<std::vector<std::vector<string>>> split_into_folds(const std::vector
     for(size_t i = 0; i < _output.size(); ++i)
         _output[i] = std::vector<std::vector<string>>(_objs.size());
 
-    for(size_t i = 0; i < _objs.size(); ++i) {
-        for(size_t j = 0; j < _objs[i].size(); ++j) {
-            _output[_rnd.get_integer(_folds)][i].push_back(_objs[i][j]);
-        }
-    }
+    for(size_t i = 0; i < _objs.size(); ++i)
+        for(size_t j = 0; j < _objs[i].size(); ++j)
+            _output[static_cast<size_t>(_rnd.get_integer(_folds))][i].push_back(_objs[i][j]);
+
     return _output;
 }
 
 std::vector<std::vector<string>> merge_except(const std::vector<std::vector<std::vector<string>>> &_objs, size_t _index)
 {
     std::vector<std::vector<string>> _mergedobjs(_objs[0].size());
-    for(size_t i = 0; i < _objs.size(); ++i) {
-        if(i != _index) {
-            for(size_t j = 0; j < _mergedobjs.size(); ++j) {
+    for(size_t i = 0; i < _objs.size(); ++i)
+        if(i != _index)
+            for(size_t j = 0; j < _mergedobjs.size(); ++j)
                 _mergedobjs[j].insert(_mergedobjs[j].end(),_objs[i][j].begin(),_objs[i][j].end());
-            }
-        }
-    }
+
     return _mergedobjs;
 }
 
@@ -101,11 +98,11 @@ void load_mini_batch (
                 if(rnd.get_random_float() > 0.1f)
                     _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.02,0.03,5,cv::BORDER_CONSTANT,cv::Scalar(0),false);
                 if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = distortimage(_tmpmat,cvrng,0.015,cv::INTER_CUBIC,cv::BORDER_CONSTANT,cv::Scalar(0));
+                    _tmpmat = distortimage(_tmpmat,cvrng,0.02,cv::INTER_CUBIC,cv::BORDER_CONSTANT,cv::Scalar(0));
 
-                /*if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.1f,0.3f,rnd.get_random_float()*180.0f);
                 if(rnd.get_random_float() > 0.1f)
+                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.5f,0.5f,rnd.get_random_float()*180.0f);
+                /*if(rnd.get_random_float() > 0.1f)
                     _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.1f,0.3f,rnd.get_random_float()*180.0f);
 
                 if(rnd.get_random_float() > 0.1f)
@@ -117,14 +114,20 @@ void load_mini_batch (
                 if(rnd.get_random_float() > 0.1f)
                     _tmpmat = cutoutRect(_tmpmat,1,rnd.get_random_float(),0.3f,0.3f,rnd.get_random_float()*180.0f);*/
 
-                if(rnd.get_random_float() > 0.5f)
-                    cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
+                /*if(rnd.get_random_float() > 0.5f)
+                    cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));*/
 
                 if(rnd.get_random_float() > 0.1f)
-                    _tmpmat *= (0.9f + 0.2f*rnd.get_random_float());
+                    _tmpmat *= (0.9 + 0.2*rnd.get_random_double());
 
                 if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = addNoise(_tmpmat,cvrng,0,5);
+                    _tmpmat = addNoise(_tmpmat,cvrng,0,6);
+
+                if(rnd.get_random_float() > 0.5f) {
+                    cv::cvtColor(_tmpmat,_tmpmat,cv::COLOR_BGR2GRAY);
+                    cv::Mat _chmat[] = {_tmpmat, _tmpmat, _tmpmat};
+                    cv::merge(_chmat,3,_tmpmat);
+                }
 
                 /*std::vector<unsigned char> _bytes;
                 std::vector<int> compression_params;
@@ -154,12 +157,12 @@ void load_mini_batch (
 
 float test_accuracy_on_set(const std::vector<std::vector<string>> &_testobjs, dlib::net_type &_net, bool _beverbose,
                            const size_t _classes,
-                           const size_t _samples,
+                           const size_t _samples=25,
                            const size_t _iterations=10,
                            const size_t _seed=1)
 {
     anet_type   anet = _net;
-    dlib::rand  rnd(_seed);
+    dlib::rand  rnd(static_cast<long>(_seed));
     cv::RNG     cvrng(_seed);
     std::vector<float> vacc(_iterations,0.0f);
     std::vector<uint> vright(_iterations,0);
@@ -175,7 +178,7 @@ float test_accuracy_on_set(const std::vector<std::vector<string>> &_testobjs, dl
             else
                 (vwrong[i])++;
         }
-        vacc[i] = (float)vright[i] / (vright[i] + vwrong[i]);
+        vacc[i] = static_cast<float>(vright[i]) / (vright[i] + vwrong[i]);
         if(_beverbose)
             cout << "iteration #" << i << " - accuracy: " << vacc[i] << endl;
     }
@@ -198,10 +201,10 @@ const cv::String options = "{traindir  t  |      | path to directory with traini
                            "{sessionguid  |      | session guid}"
                            "{learningrate |      | initial learning rate}"
                            "{classes c    | 2    | classes per minibatch}"
-                           "{samples s    | 4    | samples per class in minibatch}"
+                           "{samples s    | 16   | samples per class in minibatch}"
                            "{bnwsize      | 100  | will be passed in set_all_bn_running_stats_window_sizes before net training}"
                            "{tiwp         | 5000 | train iterations without progress}"
-                           "{viwp         | 300  | validation iterations without progress}"
+                           "{viwp         | 250  | validation iterations without progress}"
                            "{psalgo       | true | set prefer smallest algorithms}";
 
 int main(int argc, char** argv)
@@ -234,9 +237,9 @@ int main(int argc, char** argv)
     dlib::rand _foldsplitrnd(cmdparser.get<unsigned int>("splitseed"));
     auto allobjsfolds = split_into_folds(trainobjs,cmdparser.get<unsigned int>("cvfolds"),_foldsplitrnd);
 
-    int classes_per_minibatch = cmdparser.get<int>("classes");
+    size_t classes_per_minibatch = static_cast<size_t>(cmdparser.get<int>("classes"));
     cout << "Classes per minibatch will be used:" << classes_per_minibatch << endl;
-    int samples_per_class = cmdparser.get<int>("samples");
+    size_t samples_per_class = static_cast<size_t>(cmdparser.get<int>("samples"));
     cout << "Samples per class in minibatch will be used: " << samples_per_class << endl;
 
     if(cmdparser.get<bool>("psalgo"))
@@ -260,16 +263,16 @@ int main(int argc, char** argv)
         set_all_bn_running_stats_window_sizes(net, cmdparser.get<unsigned>("bnwsize"));
         //cout << net << endl;
 
-        dnn_trainer<net_type> trainer(net,sgd(0.0001,0.9));
+        dnn_trainer<net_type> trainer(net,sgd(0.0001f,0.9f));
         trainer.set_learning_rate(0.1);
         trainer.be_verbose();
         trainer.set_synchronization_file(cmdparser.get<string>("outputdir") + string("/trainer_") + sessionguid + std::string("_split_") + std::to_string(_fold) + string("_sync") , std::chrono::minutes(10));
         if(cmdparser.has("learningrate"))
             trainer.set_learning_rate(cmdparser.get<double>("learningrate"));
         if(validobjs.size() > 0)
-            trainer.set_test_iterations_without_progress_threshold(cmdparser.get<int>("viwp"));
+            trainer.set_test_iterations_without_progress_threshold(static_cast<size_t>(cmdparser.get<int>("viwp")));
         else
-            trainer.set_iterations_without_progress_threshold(cmdparser.get<int>("tiwp"));
+            trainer.set_iterations_without_progress_threshold(static_cast<size_t>(cmdparser.get<int>("tiwp")));
 
         dlib::pipe<std::vector<matrix<dlib::rgb_pixel>>> qimages(5);
         dlib::pipe<std::vector<unsigned long>> qlabels(5);
@@ -371,7 +374,7 @@ int main(int argc, char** argv)
         float acc = -1.0f;
         if(validobjs.size() > 0) {
             cout << "Accuracy evaluation on validation set:" << endl;
-            acc = test_accuracy_on_set(validobjs,net,true,classes_per_minibatch,100);
+            acc = test_accuracy_on_set(validobjs,net,true,static_cast<size_t>(classes_per_minibatch));
             cout << "Average validation accuracy: " << acc << endl;
         }
         std::vector<std::vector<string>> testobjs;
@@ -381,7 +384,7 @@ int main(int argc, char** argv)
         }
         if(testobjs.size() > 0) {
             cout << "Accuracy evaluation on test set:" << endl;
-            acc = test_accuracy_on_set(testobjs,net,true,classes_per_minibatch,100);
+            acc = test_accuracy_on_set(testobjs,net,true,static_cast<size_t>(classes_per_minibatch));
             cout << "Average test accuracy: " << acc << endl;
         }
 
