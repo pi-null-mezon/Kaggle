@@ -107,9 +107,9 @@ cv::Mat cropFromCenterAndResize(const cv::Mat &input, cv::Size size)
         cv::Mat croppedImg(input, roiRect);
         int interpolationMethod = 0;
         if(size.area() > roiRect.area())
-            interpolationMethod = CV_INTER_LINEAR;
+            interpolationMethod = cv::INTER_LINEAR;
         else
-            interpolationMethod = CV_INTER_AREA;
+            interpolationMethod = cv::INTER_AREA;
         cv::resize(croppedImg, output, size, 0, 0, interpolationMethod);
     }
     return output;
@@ -144,7 +144,7 @@ cv::Mat jitterimage(const cv::Mat &_inmat, cv::RNG &_cvrng, const cv::Size &_tar
     _matrix.at<double>(1,2) += (_insize.height * _maxshift * _scale * (_cvrng.uniform(0.,2.) - 1.));
     cv::warpAffine(_inmat,_outmat,_matrix,
                    _targetsize,
-                   _insize.area() > _targetsize.area() ? CV_INTER_AREA : CV_INTER_CUBIC,
+                   _insize.area() > _targetsize.area() ? cv::INTER_AREA : cv::INTER_CUBIC,
                    _bordertype,_constcolor);
     return _outmat;
 }
@@ -155,7 +155,7 @@ cv::Mat jitterimage(const cv::Mat &_inmat, cv::RNG &_cvrng, const cv::Size &_tar
  * @param _cvrng - random number generator
  * @return transformed image
  */
-cv::Mat distortimage(const cv::Mat&_inmat, cv::RNG &_cvrng, double _maxportion=0.05, int _interp_method=CV_INTER_LINEAR, int _bordertype=cv::BORDER_DEFAULT, const cv::Scalar &_constcolor=cv::Scalar(104,117,123))
+cv::Mat distortimage(const cv::Mat&_inmat, cv::RNG &_cvrng, double _maxportion=0.05, int _interp_method=cv::INTER_LINEAR, int _bordertype=cv::BORDER_DEFAULT, const cv::Scalar &_constcolor=cv::Scalar(104,117,123))
 {   
     cv::Point2f pts1[]={
                         cv::Point2f(0,0),
@@ -187,9 +187,9 @@ cv::Mat loadIbgrmatWsize(std::string _filename, int _tcols, int _trows, bool _cr
         return cropFromCenterAndResize(_originalimgmat,cv::Size(_tcols,_trows));
 
     if((_originalimgmat.cols != _tcols) || (_originalimgmat.rows != _trows)) {
-        int resizetype = CV_INTER_AREA;
+        int resizetype = cv::INTER_AREA;
         if(_originalimgmat.cols*_originalimgmat.rows < _tcols*_trows)
-            resizetype = CV_INTER_LINEAR;
+            resizetype = cv::INTER_LINEAR;
         cv::resize(_originalimgmat,_originalimgmat,cv::Size(_tcols,_trows),0,0,resizetype);
     }
     return _originalimgmat;
@@ -207,9 +207,9 @@ cv::Mat loadIFgraymatWsize(std::string _filename, int _tcols, int _trows, bool _
     if(_crop == true) {
         _originalimgmat = cropFromCenterAndResize(_originalimgmat,cv::Size(_tcols,_trows));
     } else if((_originalimgmat.cols != _tcols) || (_originalimgmat.rows != _trows)) {
-        int resizetype = CV_INTER_AREA;
+        int resizetype = cv::INTER_AREA;
         if(_originalimgmat.cols*_originalimgmat.rows < _tcols*_trows)
-            resizetype = CV_INTER_CUBIC;
+            resizetype = cv::INTER_CUBIC;
         cv::resize(_originalimgmat,_originalimgmat,cv::Size(_tcols,_trows),0,0,resizetype);
     }
 
@@ -239,9 +239,9 @@ cv::Mat loadIFbgrmatWsize(std::string _filename, int _tcols, int _trows, bool _c
     if(_crop == true) {
         _originalimgmat = cropFromCenterAndResize(_originalimgmat,cv::Size(_tcols,_trows));
     } else if((_originalimgmat.cols != _tcols) || (_originalimgmat.rows != _trows)) {
-        int resizetype = CV_INTER_AREA;
+        int resizetype = cv::INTER_AREA;
         if(_originalimgmat.cols*_originalimgmat.rows < _tcols*_trows)
-            resizetype = CV_INTER_CUBIC;
+            resizetype = cv::INTER_CUBIC;
         cv::resize(_originalimgmat,_originalimgmat,cv::Size(_tcols,_trows),0,0,resizetype);
     }
 

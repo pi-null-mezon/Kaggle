@@ -103,7 +103,7 @@ void randomly_cutout_rect(const matrix<image_type>& img, dlib::array<matrix<imag
 
 dlib::matrix<dlib::rgb_pixel> load_rgb_image_with_fixed_size(std::string _filename, int _tcols, int _trows, bool _crop, bool *_isloadded=0)
 {
-    cv::Mat _originalimgmat = cv::imread(_filename, CV_LOAD_IMAGE_COLOR);
+    cv::Mat _originalimgmat = cv::imread(_filename, cv::IMREAD_COLOR);
     if(_isloadded)
         *_isloadded = !_originalimgmat.empty();
 
@@ -114,9 +114,9 @@ dlib::matrix<dlib::rgb_pixel> load_rgb_image_with_fixed_size(std::string _filena
         return cvmat2dlibmatrix<dlib::rgb_pixel>(cropFromCenterAndResize(_originalimgmat,cv::Size(_tcols,_trows)));
 
     if((_originalimgmat.cols != _tcols) || (_originalimgmat.rows != _trows)) {
-        int resizetype = CV_INTER_AREA;
+        int resizetype = cv::INTER_AREA;
         if(_originalimgmat.cols*_originalimgmat.rows < _tcols*_trows)
-            resizetype = CV_INTER_LINEAR;
+            resizetype = cv::INTER_LINEAR;
         cv::resize(_originalimgmat,_originalimgmat,cv::Size(_tcols,_trows),0,0,resizetype);
     }
     return cvmat2dlibmatrix<dlib::rgb_pixel>(_originalimgmat);
@@ -124,7 +124,7 @@ dlib::matrix<dlib::rgb_pixel> load_rgb_image_with_fixed_size(std::string _filena
 
 dlib::matrix<uchar> load_grayscale_image_with_fixed_size(std::string _filename, int _tcols, int _trows, bool _crop, bool *_isloadded=0)
 {
-    cv::Mat _originalimgmat = cv::imread(_filename, CV_LOAD_IMAGE_GRAYSCALE);
+    cv::Mat _originalimgmat = cv::imread(_filename, cv::IMREAD_GRAYSCALE);
     if(_isloadded)
         *_isloadded = !_originalimgmat.empty();
 
@@ -135,9 +135,9 @@ dlib::matrix<uchar> load_grayscale_image_with_fixed_size(std::string _filename, 
         return cvmat2dlibmatrix<uchar>(cropFromCenterAndResize(_originalimgmat,cv::Size(_tcols,_trows)));
 
     if((_originalimgmat.cols != _tcols) || (_originalimgmat.rows != _trows)) {
-        int resizetype = CV_INTER_AREA;
+        int resizetype = cv::INTER_AREA;
         if(_originalimgmat.cols*_originalimgmat.rows < _tcols*_trows)
-            resizetype = CV_INTER_CUBIC;
+            resizetype = cv::INTER_CUBIC;
         cv::resize(_originalimgmat,_originalimgmat,cv::Size(_tcols,_trows),0,0,resizetype);
     }
     return cvmat2dlibmatrix<uchar>(_originalimgmat);
@@ -145,7 +145,7 @@ dlib::matrix<uchar> load_grayscale_image_with_fixed_size(std::string _filename, 
 
 dlib::matrix<float> load_grayscale_image_with_fixed_size(const std::string& _filename, int _tcols, int _trows, bool _crop, bool _center, bool _normalize, bool *_isloadded=0)
 {
-    cv::Mat _originalimgmat = cv::imread(_filename, CV_LOAD_IMAGE_GRAYSCALE);
+    cv::Mat _originalimgmat = cv::imread(_filename, cv::IMREAD_GRAYSCALE);
 
     if(_isloadded)
         *_isloadded = !_originalimgmat.empty();
@@ -156,9 +156,9 @@ dlib::matrix<float> load_grayscale_image_with_fixed_size(const std::string& _fil
     if(_crop == true) {
         _originalimgmat = cropFromCenterAndResize(_originalimgmat,cv::Size(_tcols,_trows));
     } else if((_originalimgmat.cols != _tcols) || (_originalimgmat.rows != _trows)) {
-        int resizetype = CV_INTER_AREA;
+        int resizetype = cv::INTER_AREA;
         if(_originalimgmat.cols*_originalimgmat.rows < _tcols*_trows)
-            resizetype = CV_INTER_CUBIC;
+            resizetype = cv::INTER_CUBIC;
         cv::resize(_originalimgmat,_originalimgmat,cv::Size(_tcols,_trows),0,0,resizetype);
     }
 
