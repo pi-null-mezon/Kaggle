@@ -17,12 +17,16 @@ using namespace std;
 std::vector<std::vector<string>> load_classes_list (const string& dir)
 {
     std::vector<std::vector<string>> objects;
+    size_t _label = 0;
     for(auto subdir : directory(dir).get_dirs()) {
         std::vector<string> imgs;
         for(auto img : subdir.get_files())
             imgs.push_back(img);
-        if(imgs.size() != 0)
+        if(imgs.size() != 0) {
+            std::cout << "Label " << _label << " - '" << subdir.name() << "'" << std::endl;
             objects.push_back(imgs);
+            _label++;
+        }
     }
     return objects;
 }
@@ -90,6 +94,8 @@ void load_mini_batch (
 
             if(_doaugmentation) {
                 _tmpmat = loadIbgrmatWsize(obj,IMG_WIDTH,IMG_HEIGHT,false,&_isloaded);
+                if(!_isloaded)
+                    std::cout << "Can not load: " << obj << std::endl;
                 assert(_isloaded);
 
                 if(rnd.get_random_float() > 0.5f)
@@ -139,14 +145,16 @@ void load_mini_batch (
                 dlib::matrix<dlib::rgb_pixel> _dlibtmpimg = cvmat2dlibmatrix<dlib::rgb_pixel>(_tmpmat);
                 dlib::disturb_colors(_dlibtmpimg,rnd);
                 //cv::imshow(string("Augmented ") + to_string(std::hash<std::thread::id>{}(std::this_thread::get_id())),_tmpmat);
-                //cv::waitKey(0);
+                //cv::waitKey(100);
                 images.push_back(_dlibtmpimg);
             } else {
                 _tmpmat = loadIbgrmatWsize(obj,IMG_WIDTH,IMG_HEIGHT,false,&_isloaded);
+                if(!_isloaded)
+                    std::cout << "Can not load: " << obj << std::endl;
                 assert(_isloaded);
 
                 //cv::imshow(string("Ordinary ") + to_string(std::hash<std::thread::id>{}(std::this_thread::get_id())),_tmpmat);
-                //cv::waitKey(0);
+                //cv::waitKey(100);
                 images.push_back(cvmat2dlibmatrix<dlib::rgb_pixel>(_tmpmat));
             }
 
@@ -205,10 +213,12 @@ const cv::String options = "{traindir  t  |      | path to directory with traini
                            "{bnwsize      | 100  | will be passed in set_all_bn_running_stats_window_sizes before net training}"
                            "{tiwp         | 5000 | train iterations without progress}"
                            "{viwp         | 250  | validation iterations without progress}"
+                           "{trainaugm    | true | apply data augmentation at train data}"
                            "{psalgo       | true | set prefer smallest algorithms}";
 
 int main(int argc, char** argv)
 {
+    setlocale(LC_CTYPE,"Rus");
     cv::CommandLineParser cmdparser(argc,argv,options);
     cmdparser.about("This app was designed to train dlib's format neural network with cross validation training scheme");
     if(argc == 1) {
@@ -247,6 +257,8 @@ int main(int argc, char** argv)
     else
         set_dnn_prefer_fastest_algorithms();
 
+    const bool trainaugmentation = cmdparser.get<bool>("trainaugm");
+
     for(size_t _fold = 0; _fold < allobjsfolds.size(); ++_fold) {
         cout << endl << "Split # " << _fold << endl;
 
@@ -276,7 +288,7 @@ int main(int argc, char** argv)
 
         dlib::pipe<std::vector<matrix<dlib::rgb_pixel>>> qimages(5);
         dlib::pipe<std::vector<unsigned long>> qlabels(5);
-        auto data_loader = [classes_per_minibatch,samples_per_class,&qimages, &qlabels, &trainobjs](time_t seed)  {
+        auto data_loader = [classes_per_minibatch,samples_per_class,trainaugmentation,&qimages, &qlabels, &trainobjs](time_t seed)  {
 
             dlib::rand rnd(time(nullptr)+seed);
             cv::RNG cvrng(static_cast<uint64_t>(time(nullptr) + seed));
@@ -286,7 +298,7 @@ int main(int argc, char** argv)
 
             while(qimages.is_enabled()) {
                 try {
-                    load_mini_batch(classes_per_minibatch, samples_per_class, rnd, cvrng, trainobjs, images, labels, true);
+                    load_mini_batch(classes_per_minibatch, samples_per_class, rnd, cvrng, trainobjs, images, labels, trainaugmentation);
                     qimages.enqueue(images);
                     qlabels.enqueue(labels);
                 }
