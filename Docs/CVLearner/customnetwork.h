@@ -1,10 +1,10 @@
-#ifndef CUSTOMNETWORK_H
+11969#ifndef CUSTOMNETWORK_H
 #define CUSTOMNETWORK_H
 
 #include <dlib/dnn.h>
 
-#define IMG_WIDTH  200
-#define IMG_HEIGHT 150
+#define IMG_WIDTH  150
+#define IMG_HEIGHT 200
 
 #define FNUM 16
 
