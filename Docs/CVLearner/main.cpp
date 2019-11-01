@@ -86,11 +86,10 @@ void load_mini_batch (
 
         for(size_t j = 0; j < samples_per_class; ++j) {
 
-            if(objs[id].size() == samples_per_class) {
+            if(objs[id].size() == samples_per_class)
                 obj = objs[id][j];
-            } else {
-                obj = objs[id][rnd.get_random_32bit_number() % objs[id].size()];
-            }            
+            else
+                obj = objs[id][rnd.get_random_32bit_number() % objs[id].size()];                        
 
             if(_doaugmentation) {
                 _tmpmat = loadIbgrmatWsize(obj,IMG_WIDTH,IMG_HEIGHT,false,&_isloaded);
@@ -102,9 +101,9 @@ void load_mini_batch (
                     cv::rotate(_tmpmat,_tmpmat,1);
 
                 if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.02,0.03,5,cv::BORDER_CONSTANT,cv::Scalar(0),false);
+                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.03,0.04,6,cv::BORDER_REFLECT,cv::Scalar(0),false);
                 if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = distortimage(_tmpmat,cvrng,0.02,cv::INTER_CUBIC,cv::BORDER_CONSTANT,cv::Scalar(0));
+                    _tmpmat = distortimage(_tmpmat,cvrng,0.03,cv::INTER_CUBIC,cv::BORDER_WRAP,cv::Scalar(0));
 
                 if(rnd.get_random_float() > 0.1f)
                     _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.5f,0.5f,rnd.get_random_float()*180.0f);
@@ -124,10 +123,10 @@ void load_mini_batch (
                     cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));*/
 
                 if(rnd.get_random_float() > 0.1f)
-                    _tmpmat *= (0.9 + 0.2*rnd.get_random_double());
+                    _tmpmat *= (0.8 + 0.4*rnd.get_random_double());
 
                 if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = addNoise(_tmpmat,cvrng,0,6);
+                    _tmpmat = addNoise(_tmpmat,cvrng,0,7);
 
                 if(rnd.get_random_float() > 0.5f) {
                     cv::cvtColor(_tmpmat,_tmpmat,cv::COLOR_BGR2GRAY);
@@ -200,21 +199,22 @@ float test_accuracy_on_set(const std::vector<std::vector<string>> &_testobjs, dl
     return 0.0f;
 }
 
-const cv::String options = "{traindir  t  |      | path to directory with training data}"
-                           "{cvfolds      |   5  | folds to use for cross validation training}"
-                           "{splitseed    |   1  | seed for data folds split}"
-                           "{testdir      |      | path to directory with test data}"
-                           "{outputdir o  |      | path to directory with output data}"
-                           "{minlrthresh  | 1E-5 | path to directory with output data}"
-                           "{sessionguid  |      | session guid}"
-                           "{learningrate |      | initial learning rate}"
-                           "{classes c    | 2    | classes per minibatch}"
-                           "{samples s    | 16   | samples per class in minibatch}"
-                           "{bnwsize      | 100  | will be passed in set_all_bn_running_stats_window_sizes before net training}"
-                           "{tiwp         | 5000 | train iterations without progress}"
-                           "{viwp         | 250  | validation iterations without progress}"
-                           "{trainaugm    | true | apply data augmentation at train data}"
-                           "{psalgo       | true | set prefer smallest algorithms}";
+const cv::String options = "{traindir  t  |       | path to directory with training data}"
+                           "{cvfolds      |   5   | folds to use for cross validation training}"
+                           "{splitseed    |   1   | seed for data folds split}"
+                           "{testdir      |       | path to directory with test data}"
+                           "{outputdir o  |       | path to directory with output data}"
+                           "{minlrthresh  | 1E-5  | path to directory with output data}"
+                           "{sessionguid  |       | session guid}"
+                           "{learningrate |       | initial learning rate}"
+                           "{classes c    | 2     | classes per minibatch}"
+                           "{samples s    | 16    | samples per class in minibatch}"
+                           "{bnwsize      | 100   | will be passed in set_all_bn_running_stats_window_sizes before net training}"
+                           "{tiwp         | 5000  | train iterations without progress}"
+                           "{viwp         | 250   | validation iterations without progress}"
+                           "{trainaugm    | true  | apply data augmentation at train data}"
+                           "{validaugm    | false | apply data augmentation at validation data}"
+                           "{psalgo       | true  | set prefer smallest algorithms}";
 
 int main(int argc, char** argv)
 {
@@ -258,6 +258,7 @@ int main(int argc, char** argv)
         set_dnn_prefer_fastest_algorithms();
 
     const bool trainaugmentation = cmdparser.get<bool>("trainaugm");
+    const bool validaugmentation = cmdparser.get<bool>("validaugm");
 
     for(size_t _fold = 0; _fold < allobjsfolds.size(); ++_fold) {
         cout << endl << "Split # " << _fold << endl;
@@ -288,7 +289,7 @@ int main(int argc, char** argv)
 
         dlib::pipe<std::vector<matrix<dlib::rgb_pixel>>> qimages(5);
         dlib::pipe<std::vector<unsigned long>> qlabels(5);
-        auto data_loader = [classes_per_minibatch,samples_per_class,trainaugmentation,&qimages, &qlabels, &trainobjs](time_t seed)  {
+        auto data_loader = [classes_per_minibatch, samples_per_class, trainaugmentation, &qimages, &qlabels, &trainobjs](time_t seed)  {
 
             dlib::rand rnd(time(nullptr)+seed);
             cv::RNG cvrng(static_cast<uint64_t>(time(nullptr) + seed));
@@ -316,7 +317,7 @@ int main(int argc, char** argv)
         // Same for the test
         dlib::pipe<std::vector<matrix<dlib::rgb_pixel>>> testqimages(1);
         dlib::pipe<std::vector<unsigned long>> testqlabels(1);
-        auto testdata_loader = [classes_per_minibatch, samples_per_class,&testqimages, &testqlabels, &validobjs](time_t seed) {
+        auto testdata_loader = [classes_per_minibatch, samples_per_class, validaugmentation, &testqimages, &testqlabels, &validobjs](time_t seed) {
 
             dlib::rand rnd(time(nullptr)+seed);
             cv::RNG cvrng(static_cast<uint64_t>(time(nullptr) + seed));
@@ -326,7 +327,7 @@ int main(int argc, char** argv)
 
             while(testqimages.is_enabled()) {
                 try {
-                    load_mini_batch(classes_per_minibatch, samples_per_class, rnd, cvrng, validobjs, images, labels, false);
+                    load_mini_batch(classes_per_minibatch, samples_per_class, rnd, cvrng, validobjs, images, labels, validaugmentation);
                     testqimages.enqueue(images);
                     testqlabels.enqueue(labels);
                 }
