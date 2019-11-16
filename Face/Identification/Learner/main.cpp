@@ -298,7 +298,7 @@ int main(int argc, char** argv)
     set_dnn_prefer_smallest_algorithms();
 
     net_type net;
-    dnn_trainer<net_type> trainer(net, sgd(0.0001f,0.9f));
+    dnn_trainer<net_type> trainer(net, sgd(0.0001f,0.9f),{0,1});
     trainer.set_learning_rate(0.1);
     trainer.be_verbose();
     trainer.set_synchronization_file(cmdparser.get<string>("outputdir") + string("/trainer_") + sessionguid + string("_sync") , std::chrono::minutes(10));
