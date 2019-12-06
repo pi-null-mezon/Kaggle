@@ -82,7 +82,7 @@ dlib::matrix<dlib::rgb_pixel> makeaugmentation(cv::Mat &_tmpmat, dlib::rand& rnd
 }
 
 void load_mini_batch (
-    const size_t num_rersons,
+    const size_t num_persons,
     const size_t samples_per_id,
     dlib::rand& rnd,
     cv::RNG & cvrng,
@@ -95,13 +95,13 @@ void load_mini_batch (
 {
     images.clear();
     labels.clear();
-    DLIB_CASSERT(num_rersons <= objs.size(), "The dataset doesn't have that many persons in it.");
+    DLIB_CASSERT(num_persons <= objs.size(), "The dataset doesn't have that many persons in it.")
 
     string obj;
     cv::Mat _tmpmat;
     bool _isloaded;
     std::vector<bool> already_selected(objs.size(), false); // as we can effectivelly enlarge training set by horizontal flip operation
-    for (size_t i = 0; i < num_rersons; ++i) {
+    for (size_t i = 0; i < num_persons; ++i) {
 
         size_t id = rnd.get_random_32bit_number() % objs.size();
         while(already_selected[id] || (objs[id % objs.size()].size() < min_samples))
@@ -118,7 +118,7 @@ void load_mini_batch (
             _tmpmat = loadIbgrmatWsize(obj,IMG_WIDTH,IMG_HEIGHT,false,&_isloaded);
             assert(_isloaded);
             if(_doaugmentation) {
-                images.push_back(makeaugmentation(_tmpmat,rnd,cvrng));;
+                images.push_back(makeaugmentation(_tmpmat,rnd,cvrng));
             } else {
                 images.push_back(cvmat2dlibmatrix<dlib::rgb_pixel>(_tmpmat));
             }
@@ -233,8 +233,8 @@ int main(int argc, char** argv)
                         std::cout << " Reference " << _valllabels[i]
                                   << " vs Test " << _valllabels[j]
                                   << " - dst: " << length(_valldescriptions[i] - _valldescriptions[j]) << std::endl;
-                        cv::imshow("Ref.",cv::imread(_vfilename[i],CV_LOAD_IMAGE_UNCHANGED));
-                        cv::imshow("Test",cv::imread(_vfilename[j],CV_LOAD_IMAGE_UNCHANGED));
+                        cv::imshow("Ref.",cv::imread(_vfilename[i],cv::IMREAD_UNCHANGED));
+                        cv::imshow("Test",cv::imread(_vfilename[j],cv::IMREAD_UNCHANGED));
                         cv::waitKey(_delayms);
                         if(alreadyselected[_valllabels[i]] == false) {
                             hardtrainobjs.push_back(trainobjs[_valllabels[i]]);
@@ -253,8 +253,8 @@ int main(int argc, char** argv)
                         std::cout << " Reference " << _valllabels[i]
                                   << " vs Test " << _valllabels[j]
                                   << " - dst: " << length(_valldescriptions[i] - _valldescriptions[j]) << std::endl;
-                        cv::imshow("Ref.",cv::imread(_vfilename[i],CV_LOAD_IMAGE_UNCHANGED));
-                        cv::imshow("Test",cv::imread(_vfilename[j],CV_LOAD_IMAGE_UNCHANGED));
+                        cv::imshow("Ref.",cv::imread(_vfilename[i],cv::IMREAD_UNCHANGED));
+                        cv::imshow("Test",cv::imread(_vfilename[j],cv::IMREAD_UNCHANGED));
                         cv::waitKey(_delayms);
                         if(alreadyselected[_valllabels[i]] == false) {
                             hardtrainobjs.push_back(trainobjs[_valllabels[i]]);
