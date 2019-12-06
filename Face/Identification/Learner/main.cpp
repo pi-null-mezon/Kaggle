@@ -310,8 +310,8 @@ int main(int argc, char** argv)
 
     set_all_bn_running_stats_window_sizes(net, static_cast<unsigned long>(cmdparser.get<int>("bnwsize")));
 
-    dlib::pipe<std::vector<matrix<rgb_pixel>>> qimages(5);
-    dlib::pipe<std::vector<unsigned long>> qlabels(5);
+    dlib::pipe<std::vector<matrix<rgb_pixel>>> qimages(6);
+    dlib::pipe<std::vector<unsigned long>> qlabels(6);
     auto data_loader = [&qimages, &qlabels, &trainobjs, classes, samples, trainaugm](time_t seed)  {
 
         dlib::rand rnd(time(nullptr)+seed);
@@ -336,10 +336,11 @@ int main(int argc, char** argv)
     std::thread data_loader2([data_loader](){ data_loader(2); });
     std::thread data_loader3([data_loader](){ data_loader(3); });
     std::thread data_loader4([data_loader](){ data_loader(4); });
+    std::thread data_loader5([data_loader](){ data_loader(5); });
 
     // Same for the test
-    dlib::pipe<std::vector<matrix<rgb_pixel>>> testqimages(1);
-    dlib::pipe<std::vector<unsigned long>> testqlabels(1);
+    dlib::pipe<std::vector<matrix<rgb_pixel>>> testqimages(2);
+    dlib::pipe<std::vector<unsigned long>> testqlabels(2);
     auto testdata_loader = [&testqimages, &testqlabels, &validobjs, classes, samples, validaugm](time_t seed) {
 
         dlib::rand rnd(time(nullptr)+seed);
@@ -392,6 +393,7 @@ int main(int argc, char** argv)
     data_loader2.join();
     data_loader3.join();
     data_loader4.join();
+    data_loader5.join();
 
     if(validobjs.size() > 0) {
         testqimages.disable();

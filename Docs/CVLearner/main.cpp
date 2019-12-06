@@ -313,7 +313,8 @@ int main(int argc, char** argv)
         std::thread data_loader2([data_loader](){ data_loader(2); });
         std::thread data_loader3([data_loader](){ data_loader(3); });
         std::thread data_loader4([data_loader](){ data_loader(4); });
-
+        std::thread data_loader5([data_loader](){ data_loader(5); });
+        std::thread data_loader6([data_loader](){ data_loader(6); });
         // Same for the test
         dlib::pipe<std::vector<matrix<dlib::rgb_pixel>>> testqimages(1);
         dlib::pipe<std::vector<unsigned long>> testqlabels(1);
@@ -371,7 +372,9 @@ int main(int argc, char** argv)
         data_loader2.join();
         data_loader3.join();
         data_loader4.join();
-
+        data_loader5.join();
+        data_loader6.join();
+        
         if(validobjs.size() > 0) {
             testqimages.disable();
             testqlabels.disable();
