@@ -100,7 +100,7 @@ cv::Mat dlibmatrix2cvmat(const dlib::matrix<image_type> &_img);
 // function template specialization
 template <>
 cv::Mat dlibmatrix2cvmat(const dlib::matrix<dlib::rgb_pixel> &_img)
-{   
+{
     cv::Mat _tmpmat(dlib::num_rows(_img), dlib::num_columns(_img), CV_8UC3, const_cast<void*>(dlib::image_data(_img)));
     cv::Mat _outmat;
     cv::cvtColor(_tmpmat,_outmat,cv::COLOR_BGR2RGB);
