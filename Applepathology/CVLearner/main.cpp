@@ -170,7 +170,7 @@ void load_mini_batch (
 
 float test_accuracy_on_set(const std::vector<std::vector<string>> &_testobjs, dlib::net_type &_net, bool _beverbose,
                            const size_t _classes,
-                           const size_t _samples=11,
+                           const size_t _samples=10,
                            const size_t _iterations=10,
                            const size_t _seed=1)
 {
@@ -207,7 +207,6 @@ float test_accuracy_on_set(const std::vector<std::vector<string>> &_testobjs, dl
 
 const cv::String options = "{traindir  t  |       | path to directory with training data}"
                            "{cvfolds      |   5   | folds to use for cross validation training}"
-                           "{splitseed    |   1   | seed for data folds split}"
                            "{testdir      |       | path to directory with test data}"
                            "{outputdir o  |       | path to directory with output data}"
                            "{minlrthresh  | 1E-5  | path to directory with output data}"
@@ -220,6 +219,7 @@ const cv::String options = "{traindir  t  |       | path to directory with train
                            "{viwp         | 250   | validation iterations without progress}"
                            "{trainaugm    | true  | apply data augmentation at train data}"
                            "{validaugm    | false | apply data augmentation at validation data}"
+                           "{seed         |   1   | seed number for random generators (if equal to 0 than current time will be used)}"
                            "{psalgo       | true  | set prefer smallest algorithms}";
 
 int main(int argc, char** argv)
@@ -243,14 +243,19 @@ int main(int argc, char** argv)
     if(cmdparser.has("sessionguid")) {
         sessionguid = cmdparser.get<string>("sessionguid");
     }
+    time_t seed = time(nullptr);
+    if(cmdparser.get<unsigned int>("seed") != 0)
+        seed = static_cast<time_t>(cmdparser.get<unsigned int>("seed"));
+
     cout << "Trainig session guid: " << sessionguid << endl;
+    cout << "Trainig session seed: " << seed << endl;
     cout << "-------------" << endl;
 
     auto trainobjs = load_classes_list(cmdparser.get<string>("traindir"));
     cout << "trainobjs.size(): "<< trainobjs.size() << endl;
     for(size_t i = 0; i < trainobjs.size(); ++i)
         cout << "  label " << i << " - unique samples - " << trainobjs[i].size() << endl;
-    dlib::rand _foldsplitrnd(cmdparser.get<unsigned int>("splitseed"));
+    dlib::rand _foldsplitrnd(seed);
     auto allobjsfolds = split_into_folds(trainobjs,cmdparser.get<unsigned int>("cvfolds"),_foldsplitrnd);
 
     size_t classes_per_minibatch = static_cast<size_t>(cmdparser.get<int>("classes"));
@@ -264,7 +269,7 @@ int main(int argc, char** argv)
         set_dnn_prefer_fastest_algorithms();
 
     const bool trainaugmentation = cmdparser.get<bool>("trainaugm");
-    const bool validaugmentation = cmdparser.get<bool>("validaugm");
+    const bool validaugmentation = cmdparser.get<bool>("validaugm");   
 
     for(size_t _fold = 0; _fold < allobjsfolds.size(); ++_fold) {
         cout << endl << "Split # " << _fold << endl;
@@ -295,10 +300,10 @@ int main(int argc, char** argv)
 
         dlib::pipe<std::vector<matrix<dlib::rgb_pixel>>> qimages(5);
         dlib::pipe<std::vector<unsigned long>> qlabels(5);
-        auto data_loader = [classes_per_minibatch, samples_per_class, trainaugmentation, &qimages, &qlabels, &trainobjs](time_t seed)  {
+        auto data_loader = [classes_per_minibatch, samples_per_class, trainaugmentation, &qimages, &qlabels, &trainobjs, &seed](time_t _seed)  {
 
-            dlib::rand rnd(time(nullptr)+seed);
-            cv::RNG cvrng(static_cast<uint64_t>(time(nullptr) + seed));
+            dlib::rand rnd(seed + _seed);
+            cv::RNG cvrng(static_cast<uint64_t>(seed + _seed));
 
             std::vector<matrix<dlib::rgb_pixel>> images;
             std::vector<unsigned long> labels;
@@ -323,10 +328,9 @@ int main(int argc, char** argv)
         // Same for the test
         dlib::pipe<std::vector<matrix<dlib::rgb_pixel>>> testqimages(1);
         dlib::pipe<std::vector<unsigned long>> testqlabels(1);
-        auto testdata_loader = [classes_per_minibatch, samples_per_class, validaugmentation, &testqimages, &testqlabels, &validobjs](time_t seed) {
-
-            dlib::rand rnd(time(nullptr)+seed);
-            cv::RNG cvrng(static_cast<uint64_t>(time(nullptr) + seed));
+        auto testdata_loader = [classes_per_minibatch, samples_per_class, validaugmentation, &testqimages, &testqlabels, &validobjs, &seed](time_t _seed) {
+            dlib::rand rnd(seed + _seed);
+            cv::RNG cvrng(static_cast<uint64_t>(seed + _seed));
 
             std::vector<matrix<dlib::rgb_pixel>> images;
             std::vector<unsigned long> labels;

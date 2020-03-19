@@ -29,6 +29,7 @@
 
 # Paths
 *.pro.user*
-**/Install
-**/build
-**/bin
+Install
+build
+bin
+.idea
