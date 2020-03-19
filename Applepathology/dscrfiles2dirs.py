@@ -15,11 +15,10 @@ for name in traindata.columns:
     if name != "image_id":
         classeslist.append(name)
         try:
-            os.mkdir(os.path.join(targetpath,name))
+            os.makedirs(os.path.join(targetpath,name))
         except Exception as exc:
             # do nothing if directory already exists
             pass
-
 
 for i in range(len(traindata)):
     for classname in classeslist:

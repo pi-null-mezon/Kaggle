@@ -213,7 +213,7 @@ const cv::String options = "{traindir  t  |       | path to directory with train
                            "{minlrthresh  | 1E-5  | path to directory with output data}"
                            "{sessionguid  |       | session guid}"
                            "{learningrate |       | initial learning rate}"
-                           "{classes c    | 2     | classes per minibatch}"
+                           "{classes c    | 4     | classes per minibatch}"
                            "{samples s    | 16    | samples per class in minibatch}"
                            "{bnwsize      | 100   | will be passed in set_all_bn_running_stats_window_sizes before net training}"
                            "{tiwp         | 5000  | train iterations without progress}"
