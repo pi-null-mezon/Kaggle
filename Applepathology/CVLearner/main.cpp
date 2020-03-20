@@ -107,12 +107,12 @@ void load_mini_batch (
                     cv::flip(_tmpmat,_tmpmat,0);
 
                 if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.1,0.1,45,cv::BORDER_REFLECT,cv::Scalar(0),false);
+                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.15,0.15,45,cv::BORDER_REFLECT,cv::Scalar(0),false);
                 if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = distortimage(_tmpmat,cvrng,0.1,cv::INTER_CUBIC,cv::BORDER_WRAP,cv::Scalar(0));
+                    _tmpmat = distortimage(_tmpmat,cvrng,0.2,cv::INTER_CUBIC,cv::BORDER_WRAP,cv::Scalar(0));
 
                 if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.1f,0.1f,rnd.get_random_float()*180.0f);
+                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.5f,0.5f,rnd.get_random_float()*180.0f);
                 /*if(rnd.get_random_float() > 0.1f)
                     _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.1f,0.3f,rnd.get_random_float()*180.0f);*/
 
@@ -126,13 +126,13 @@ void load_mini_batch (
                     _tmpmat = cutoutRect(_tmpmat,1,rnd.get_random_float(),0.3f,0.3f,rnd.get_random_float()*180.0f);
 
                 if(rnd.get_random_float() > 0.5f)
-                    cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
+                    cv::blur(_tmpmat,_tmpmat,cv::Size(5,5));
 
                 if(rnd.get_random_float() > 0.1f)
-                    _tmpmat *= (0.7 + 0.6*rnd.get_random_double());
+                    _tmpmat *= (0.6 + 0.8*rnd.get_random_double());
 
                 if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = addNoise(_tmpmat,cvrng,0,13);
+                    _tmpmat = addNoise(_tmpmat,cvrng,0,15);
 
                 /*if(rnd.get_random_float() > 0.5f) {
                     cv::cvtColor(_tmpmat,_tmpmat,cv::COLOR_BGR2GRAY);

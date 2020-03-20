@@ -13,10 +13,12 @@
 
 #include "customnetwork.h"
 
-const std::string options = "{samplesubmission     | | - file with sample submission}"
-                            "{imagesdir            | | - directory where images are stored}"
-                            "{networksdir          | | - directory where networks are stored}"
-                            "{outputfile           | | - file where result should be saved}";
+const std::string options = "{samplesubmission     |       | - file with sample submission}"
+                            "{imagesdir            |       | - directory where images are stored}"
+                            "{networksdir          |       | - directory where networks are stored}"
+                            "{key                  | net   | - name key to load networks}"
+                            "{visualize            | false | - control results visually}"
+                            "{outputfile           |       | - file where result should be saved}";
 
 int main(int argc, char *argv[])
 {
@@ -66,11 +68,11 @@ int main(int argc, char *argv[])
         return 4;
     }
 
-    std::vector<dlib::softmax<dlib::anet_type::subnet_type>*> scabnetworksvector;
-    std::vector<dlib::softmax<dlib::anet_type::subnet_type>*> rustnetworksvector;
+    std::vector<dlib::softmax<dlib::anet_type::subnet_type>*> networksvector;
     QStringList extensions;
     extensions << "*.dat";
     QStringList networksnames = ndir.entryList(extensions,QDir::Files | QDir::NoDotDot);
+    const QString key = cmdp.get<std::string>("key").c_str();
     for(const auto &filename: networksnames) {
         dlib::anet_type net;
         try {
@@ -80,14 +82,15 @@ int main(int argc, char *argv[])
         }
         dlib::softmax<dlib::anet_type::subnet_type> *snet = new dlib::softmax<dlib::anet_type::subnet_type>();
         snet->subnet() = net.subnet();
-        if(filename.contains("scab")) {
-            scabnetworksvector.push_back(snet);
-            qInfo(" - '%s' added to scab networks stack", filename.toUtf8().constData());
-        } else if(filename.contains("rust")) {
-            rustnetworksvector.push_back(snet);
-            qInfo(" - '%s'  added to rust networks stack", filename.toUtf8().constData());
+        if(filename.contains(key)) {
+            networksvector.push_back(snet);
+            qInfo(" - '%s' added to networks stack", filename.toUtf8().constData());
         }
+    }
 
+    if(networksvector.size() == 0) {
+        qInfo("No networks has been load! Check networks directory. Abort...");
+        return 5;
     }
 
     QFile outputfile(cmdp.get<std::string>("outputfile").c_str());
@@ -100,7 +103,8 @@ int main(int argc, char *argv[])
     bool _isloaded;
     cv::Mat _tmpmat;
     dlib::rand rnd(777);
-    const long crops = 8;
+    const long crops = 16;
+    bool visualize = cmdp.get<bool>("visualize");
 
     for(const auto &imagefilename: testfileslist) {
         qInfo("Test for '%s'",imagefilename.toUtf8().constData());
@@ -115,33 +119,34 @@ int main(int argc, char *argv[])
         dlib::array<dlib::matrix<dlib::rgb_pixel>> _imgvariants;
         dlib::randomly_crop_image(_dlibtmpimg,_imgvariants,rnd,crops,0.7f,0.999f,0,0,true,true);
 
-        std::vector<float> rustprobsvector, scabprobsvector;
-        for(auto snet: scabnetworksvector) {
-            dlib::matrix<float,1,2> p = dlib::sum_rows(dlib::mat((*snet)(_imgvariants.begin(), _imgvariants.end())))/_imgvariants.size();
-            scabprobsvector.push_back(p(0));
+        float scab = 0, rust = 0, healthy = 0, multiple = 0;
+        for(auto snet: networksvector) {
+            dlib::matrix<float,1,4> p = dlib::sum_rows(dlib::mat((*snet)(_imgvariants.begin(), _imgvariants.end())))/_imgvariants.size();
+            healthy     += p(2);
+            multiple    += p(1);
+            scab        += p(0);
+            rust        += p(3);
         }
-        float scabprob = std::accumulate(scabprobsvector.begin(),scabprobsvector.end(),0.0f) / scabprobsvector.size();
-        for(auto snet: rustnetworksvector) {
-            dlib::matrix<float,1,2> p = dlib::sum_rows(dlib::mat((*snet)(_imgvariants.begin(), _imgvariants.end())))/_imgvariants.size();
-            rustprobsvector.push_back(p(1));
-        }
-        float rustprob = std::accumulate(rustprobsvector.begin(),rustprobsvector.end(),0.0f) / rustprobsvector.size();
+        healthy      /= networksvector.size();
+        multiple    /= networksvector.size();
+        scab        /= networksvector.size();
+        rust        /= networksvector.size();
 
-        ts << imagefilename.section('.',0,0)    << ','
-           << 1.0f - (rustprob + scabprob)/2.0f << ','
-           << (rustprob + scabprob)/2.0f        << ','
-           << rustprob                          << ','
-           << scabprob                          << "\n";
-        qInfo("   rust: %.3f\n   scab: %.3f", rustprob,scabprob);
-        cv::imshow("probe",_tmpmat);
-        cv::waitKey(0);
+        ts << imagefilename.section('.',0,0)  << ','
+           << healthy    << ','
+           << multiple  << ','
+           << rust      << ','
+           << scab      << "\n";
+        qInfo("   healthy: %.3f\n   multiple: %.3f\n   rust: %.3f\n   scab: %.3f", healthy,multiple,rust,scab);
+        if(visualize) {
+            cv::imshow("probe",_tmpmat);
+            cv::waitKey(0);
+        }
     }
 
     // Free allocated heap memory
-    for(auto p: rustnetworksvector)
-        delete p;
-    for(auto p: scabnetworksvector)
-        delete p;
+    for(auto ptr: networksvector)
+        delete ptr;
 
     return 0;
 }
