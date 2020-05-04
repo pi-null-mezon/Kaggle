@@ -6,7 +6,7 @@
 #define IMG_WIDTH  512
 #define IMG_HEIGHT 512
 
-#define FNUM 4
+#define FNUM 8
 
 namespace dlib {
 

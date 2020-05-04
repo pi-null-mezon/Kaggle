@@ -96,8 +96,8 @@ int main(int argc, char *argv[])
     QFile outputfile(cmdp.get<std::string>("outputfile").c_str());
     outputfile.open(QIODevice::WriteOnly | QIODevice::Truncate);
     QTextStream ts(&outputfile);
-    ts.setRealNumberNotation(QTextStream::FixedNotation);
-    ts.setRealNumberPrecision(7);
+    //ts.setRealNumberNotation(QTextStream::FixedNotation);
+    //ts.setRealNumberPrecision(7);
     ts << submissionhead;
 
     bool _isloaded;
@@ -117,7 +117,7 @@ int main(int argc, char *argv[])
 
         dlib::matrix<dlib::rgb_pixel> _dlibtmpimg = cvmat2dlibmatrix<dlib::rgb_pixel>(_tmpmat);
         dlib::array<dlib::matrix<dlib::rgb_pixel>> _imgvariants;
-        dlib::randomly_crop_image(_dlibtmpimg,_imgvariants,rnd,crops,0.7f,0.999f,0,0,true,true);
+        dlib::randomly_crop_image(_dlibtmpimg,_imgvariants,rnd,crops,0.70f,0.9999f,0,0,true,true);
 
         float scab = 0, rust = 0, healthy = 0, multiple = 0;
         for(auto snet: networksvector) {
