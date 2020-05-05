@@ -27,24 +27,24 @@ template <int N, typename SUBNET> using ares_down = relu<residual_down<block,N,a
 
 // ----------------------------------------------------------------------------------------
 
-template <typename SUBNET> using level3 = res<32,res_down<32,SUBNET>>;
-template <typename SUBNET> using level4 = res<16,SUBNET>;
+template <typename SUBNET> using level3 = res<16,res_down<16,SUBNET>>;
+template <typename SUBNET> using level4 = res<8,SUBNET>;
 
-template <typename SUBNET> using alevel3 = ares<32,ares_down<32,SUBNET>>;
-template <typename SUBNET> using alevel4 = ares<16,SUBNET>;
+template <typename SUBNET> using alevel3 = ares<16,ares_down<16,SUBNET>>;
+template <typename SUBNET> using alevel4 = ares<8,SUBNET>;
 
 // training network type
 using net_type = loss_mean_squared_multioutput<fc<3,avg_pool_everything<
                                         level3<
                                         level4<
-                                        max_pool<3,3,2,2,relu<bn_con<con<8,3,3,1,1,
+                                        max_pool<3,3,2,2,relu<bn_con<con<4,3,3,1,1,
                                         input_rgb_image >>>>>>>>>;
 
 // testing network type (replaced batch normalization with fixed affine transforms)
 using anet_type = loss_mean_squared_multioutput<fc<3,avg_pool_everything<
                                          alevel3<
                                          alevel4<
-                                         max_pool<3,3,2,2,relu<affine<con<8,3,3,1,1,
+                                         max_pool<3,3,2,2,relu<affine<con<4,3,3,1,1,
                                          input_rgb_image >>>>>>>>>;
 
 #endif // CUSTOMNETWORK_H
