@@ -100,6 +100,12 @@ void load_image(const Pupil &pupil, matrix<rgb_pixel> &img, std::vector<float> &
         if(rnd.get_random_float() > 0.5)
             apply_random_clip(_tmpmat,_tmplbls,0.8f,1.0f,rnd);
 
+        if(rnd.get_random_float() > 0.9) {
+            cv::cvtColor(_tmpmat,_tmpmat,cv::COLOR_BGR2GRAY);
+            cv::Mat _chmat[] = {_tmpmat, _tmpmat, _tmpmat};
+            cv::merge(_chmat,3,_tmpmat);
+        }
+
         /*drawCircle(_tmpmat,_tmplbls,cv::Scalar(0,0,255));
         cv::imshow("aug",_tmpmat);
         cv::waitKey(0);*/

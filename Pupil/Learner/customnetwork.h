@@ -3,8 +3,8 @@
 
 #include <dlib/dnn.h>
 
-#define IMG_WIDTH 48
-#define IMG_HEIGHT 48
+#define IMG_WIDTH 40
+#define IMG_HEIGHT 40
 
 using namespace dlib;
 
@@ -27,11 +27,11 @@ template <int N, typename SUBNET> using ares_down = relu<residual_down<block,N,a
 
 // ----------------------------------------------------------------------------------------
 
-template <typename SUBNET> using level3 = res<32,res<32,res_down<32,SUBNET>>>;
-template <typename SUBNET> using level4 = res<16,res<16,SUBNET>>;
+template <typename SUBNET> using level3 = res<32,res_down<32,SUBNET>>;
+template <typename SUBNET> using level4 = res<16,SUBNET>;
 
-template <typename SUBNET> using alevel3 = ares<32,ares<32,ares_down<32,SUBNET>>>;
-template <typename SUBNET> using alevel4 = ares<16,ares<16,SUBNET>>;
+template <typename SUBNET> using alevel3 = ares<32,ares_down<32,SUBNET>>;
+template <typename SUBNET> using alevel4 = ares<16,SUBNET>;
 
 // training network type
 using net_type = loss_mean_squared_multioutput<fc<3,avg_pool_everything<
