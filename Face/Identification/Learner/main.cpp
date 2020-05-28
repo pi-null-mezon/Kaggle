@@ -130,8 +130,8 @@ void load_mini_batch (
 const cv::String options = "{traindir  t  |       | path to directory with training data}"
                            "{validdir  v  |       | path to directory with validation data}"
                            "{outputdir o  |       | path to directory with output data}"
-                           "{classes   c  |  55   | number of unique persons in minibatch}"
-                           "{samples   s  |  10   | number of samples per class in minibatch}"
+                           "{classes   c  |  220  | number of unique persons in minibatch}"
+                           "{samples   s  |  5    | number of samples per class in minibatch}"
                            "{trainaugm    | true  | augmentation for train data}"
                            "{validaugm    | false | augmentation for validation data}"
                            "{model     m  |       | path to a model (to make hard mining from training set before training)}"
@@ -140,7 +140,7 @@ const cv::String options = "{traindir  t  |       | path to directory with train
                            "{learningrate |       | initial learning rate}"
                            "{tiwp         | 10000 | train iterations without progress}"
                            "{viwp         | 1000  | validation iterations without progress}"
-                           "{bnwsize      | 100   | batch normalization window size}"
+                           "{bnwsize      | 1000  | batch normalization window size}"
                            "{delayms      | 0     | delay of visualization}";
 
 
