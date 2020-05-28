@@ -28,7 +28,7 @@ int main(int argc, char *argv[])
 #endif
 
     cv::CommandLineParser _cmdparser(argc,argv,_options);
-    if(_cmdparser.has("help")) {
+    if(_cmdparser.has("help") || argc == 1) {
         _cmdparser.printMessage();
         return 0;
     }

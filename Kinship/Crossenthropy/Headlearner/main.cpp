@@ -253,7 +253,7 @@ void augment(cv::Mat &_tmpmat, dlib::rand& rnd,cv::RNG & cvrng) {
         _tmpmat *= static_cast<double>((0.75f + 0.5f*rnd.get_random_float()));
 
     if(rnd.get_random_float() > 0.5f) {
-        cv::cvtColor(_tmpmat,_tmpmat,CV_BGR2GRAY);
+        cv::cvtColor(_tmpmat,_tmpmat,cv::COLOR_BGR2GRAY);
         cv::Mat _chmat[] = {_tmpmat, _tmpmat, _tmpmat};
         cv::merge(_chmat,3,_tmpmat);
     }
