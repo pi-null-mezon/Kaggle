@@ -43,15 +43,17 @@ using dscrnet_type = loss_metric<fc_no_bias<128,avg_pool_everything<
 
 // training network type
 using net_type =  loss_multiclass_log<fc<2,
-                                      relu<bn_fc<fc<2*3*128,
+                                      relu<bn_fc<fc<16,
+                                                      relu<bn_fc<fc<16,
                                       input<matrix<float>
-                                      >>>>>>;
+                                                                          >>>>>>>>>;
 
 // testing network type (replaced batch normalization with fixed affine transforms)
 using anet_type = loss_multiclass_log<fc<2,
-                                      relu<affine<fc<2*3*128,
+                                      relu<affine<fc<16,
+                                                        relu<affine<fc<16,
                                       input<matrix<float>
-                                      >>>>>>;
+                                                                             >>>>>>>>>;
 
 
 
