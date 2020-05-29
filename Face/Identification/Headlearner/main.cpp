@@ -86,12 +86,12 @@ dlib::matrix<float> make_description(const dlib::matrix<dlib::rgb_pixel> &firsti
                                        const dlib::matrix<dlib::rgb_pixel> &secondimage,
                                        std::vector<dlib::dscrnet_type> &inets)
 {
-    dlib::matrix<float,2*3*128,1> dscr;
+    dlib::matrix<float,3*128,1> dscr;
     for(size_t i = 0; i < inets.size(); ++i) {
         dlib::matrix<float,0,1> _firstdscr = inets[i](firstimage);
-        std::memcpy(dscr.begin() + 2*i*128,_firstdscr.begin(),dlib::num_rows(_firstdscr)*sizeof(float));
         dlib::matrix<float,0,1> _seconddscr = inets[i](secondimage);
-        std::memcpy(dscr.begin() + (2*i+1)*128,_seconddscr.begin(),dlib::num_rows(_seconddscr)*sizeof(float));
+        for(long int j = 0; j < 128; ++j)
+            dscr(j + i*128) = (_firstdscr(j) - _seconddscr(j))*(_firstdscr(j) - _seconddscr(j));
    }
    return dscr;
 }
@@ -244,8 +244,8 @@ int main(int argc, char** argv)
 
     set_all_bn_running_stats_window_sizes(net, static_cast<unsigned long>(cmdparser.get<int>("bnwsize")));
 
-    dlib::pipe<std::vector<matrix<float>>> train_dscr_pipe(6);
-    dlib::pipe<std::vector<unsigned long>> train_lbl_pipe(6);
+    dlib::pipe<std::vector<matrix<float>>> train_dscr_pipe(9);
+    dlib::pipe<std::vector<unsigned long>> train_lbl_pipe(9);
     auto data_loader = [&train_dscr_pipe, & train_lbl_pipe, &trainobjs, classes, samples, trainaugm, &cmdparser](time_t seed)  {
 
         dlib::rand rnd(time(nullptr)+seed);
@@ -281,10 +281,11 @@ int main(int argc, char** argv)
     std::thread data_loader3([data_loader](){ data_loader(3); });
     std::thread data_loader4([data_loader](){ data_loader(4); });
     std::thread data_loader5([data_loader](){ data_loader(5); });
+    std::thread data_loader6([data_loader](){ data_loader(6); });
 
     // Same for the test
-    dlib::pipe<std::vector<matrix<float>>> valid_dscr_pipe(2);
-    dlib::pipe<std::vector<unsigned long>> valid_lbl_pipe(2);
+    dlib::pipe<std::vector<matrix<float>>> valid_dscr_pipe(4);
+    dlib::pipe<std::vector<unsigned long>> valid_lbl_pipe(4);
     auto testdata_loader = [&valid_dscr_pipe, &valid_lbl_pipe, &validobjs, classes, samples, validaugm, &cmdparser](time_t seed) {
 
         dlib::rand rnd(time(nullptr)+seed);
@@ -317,10 +318,12 @@ int main(int argc, char** argv)
         }
     };
     std::thread testdata_loader1([testdata_loader](){ testdata_loader(1); });
+    std::thread testdata_loader2([testdata_loader](){ testdata_loader(2); });
     if(validobjs.size() == 0) {
         valid_dscr_pipe.disable();
         valid_lbl_pipe.disable();
         testdata_loader1.join();
+        testdata_loader2.join();
     }
 
     std::vector<dlib::matrix<float>> descriptions;
@@ -338,9 +341,7 @@ int main(int argc, char** argv)
             labels.clear();
             valid_dscr_pipe.dequeue(descriptions);
             valid_lbl_pipe.dequeue(labels);
-            trainer.test_one_step(descriptions,labels);
-            cout << "step " << _step << " train loss :" << trainer.get_average_loss()
-                 << ", validation loss :" << trainer.get_average_test_loss() << endl;
+            trainer.test_one_step(descriptions,labels);           
         }
     }
 
@@ -352,11 +353,13 @@ int main(int argc, char** argv)
     data_loader3.join();
     data_loader4.join();
     data_loader5.join();
+    data_loader6.join();
 
     if(validobjs.size() > 0) {
         valid_dscr_pipe.disable();
         valid_lbl_pipe.disable();
         testdata_loader1.join();
+        testdata_loader2.join();
     }
 
     cout << "Training has been accomplished" << endl;
@@ -382,10 +385,10 @@ int main(int argc, char** argv)
             }
         }
 
-        int testsnum = 50;
+        int testsnum = 10;
         float _valMinF1 = 1.0f;
         for(int n = 0; n < testsnum; ++n) {
-            load_mini_batch(110, 10, inets, rnd, cvrng, validobjs, descriptions, labels, false);
+            load_mini_batch(200, 10, inets, rnd, cvrng, validobjs, descriptions, labels, false);
             std::vector<unsigned long> predictions = anet(descriptions);
 
             // Now, check if the predictions for person pairs have label 1 and pair with imposter have label 0
