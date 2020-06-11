@@ -50,7 +50,6 @@ int main(int argc, char *argv[])
     QDir _outdir(_cmdparser.get<cv::String>("outputdir").c_str());
     if(_outdir.exists() == false) {
         _outdir.mkpath(_cmdparser.get<cv::String>("outputdir").c_str());
-        _outdir.cd(_cmdparser.get<cv::String>("outputdir").c_str());
     }
 
     if(!_cmdparser.has("faceshapemodel")) {
