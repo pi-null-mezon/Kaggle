@@ -5,6 +5,16 @@
 
 namespace dlib {
 
+template <
+    typename EXP
+    >
+typename disable_if_c<std::numeric_limits<typename EXP::type>::is_integer, const typename EXP::type>::type cosinedistance (
+    const matrix_exp<EXP>& m1,
+    const matrix_exp<EXP>& m2)
+{
+    return (1.0f - dot(m1,m2)/(length(m1)*length(m2)));
+}
+
 class loss_metric_cossim_
     {
 public:
