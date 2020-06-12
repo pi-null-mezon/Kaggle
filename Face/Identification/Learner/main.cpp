@@ -193,6 +193,8 @@ int main(int argc, char** argv)
             cout << _e.what() << endl;
             return 4;
         }
+        cout << endl << "Loss function distance thresh: " << _anet.loss_details().get_distance_threshold()
+             << endl << "Loss function distance margin: " << _anet.loss_details().get_margin() << endl << endl;
         std::vector<matrix<float,0,1>> _valldescriptions;
         std::vector<std::string> _vfilename;
         std::vector<size_t> _valllabels;
@@ -298,7 +300,7 @@ int main(int argc, char** argv)
     set_dnn_prefer_smallest_algorithms();
 
     net_type net;
-    dnn_trainer<net_type> trainer(net, sgd(0.0001f,0.9f),{0,1});
+    dnn_trainer<net_type> trainer(net, sgd(0.0001f,0.9f)/*,{0,1}*/);
     trainer.set_learning_rate(0.1);
     trainer.be_verbose();
     trainer.set_synchronization_file(cmdparser.get<string>("outputdir") + string("/trainer_") + sessionguid + string("_sync") , std::chrono::minutes(10));
@@ -309,6 +311,9 @@ int main(int argc, char** argv)
         trainer.set_test_iterations_without_progress_threshold(static_cast<unsigned long>(cmdparser.get<int>("viwp")));
 
     set_all_bn_running_stats_window_sizes(net, static_cast<unsigned long>(cmdparser.get<int>("bnwsize")));
+
+    cout << endl << "Loss function distance thresh: " << net.loss_details().get_distance_threshold()
+         << endl << "Loss function distance margin: " << net.loss_details().get_margin() << endl << endl;
 
     dlib::pipe<std::vector<matrix<rgb_pixel>>> qimages(6);
     dlib::pipe<std::vector<unsigned long>> qlabels(6);
