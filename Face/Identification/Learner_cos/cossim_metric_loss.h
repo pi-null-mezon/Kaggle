@@ -247,8 +247,8 @@ public:
     }
 
 private:
-    float margin = 0.15;
-    float dist_thresh = 0.6;
+    float margin = 0.08;
+    float dist_thresh = 0.5;
 
 
     // These variables are only here to avoid being reallocated over and over in

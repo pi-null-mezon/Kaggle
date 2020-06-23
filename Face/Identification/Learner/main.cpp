@@ -413,14 +413,14 @@ int main(int argc, char** argv)
     net.clean();    
 
     if(validobjs.size() > 0) {
+        cout << endl << "Validation started, please wait...." << endl;
         // Now, let's check how well it performs on the validation data
         anet_type anet = net;
 
         dlib::rand rnd(0);
         cv::RNG cvrng(0);
-
-        int testsnum = 50;
-        float _valMinF1 = 1.0f;
+        int testsnum = 5;
+        float _valMinF1 = 0.0f;
         for(int n = 0; n < testsnum; ++n) {
             load_mini_batch(110, 10, rnd, cvrng, validobjs, vimages, vlabels, false);
             std::vector<matrix<float,0,1>> embedded = anet(vimages);
@@ -435,7 +435,7 @@ int main(int argc, char** argv)
                         // The loss_metric layer will cause images with the same label to be less
                         // than net.loss_details().get_distance_threshold() distance from each
                         // other.  So we can use that distance value as our testing threshold.
-                        if (length(embedded[i] - embedded[j]) < _distancethresh) {
+                        if (length(embedded[i]-embedded[j]) < _distancethresh) {
                             ++true_positive;
                         } else {
                             ++false_negative;
@@ -459,9 +459,62 @@ int main(int argc, char** argv)
             cout << "false_positive: "<< false_positive << endl;
             cout << "false_negative: "<< false_negative << endl;
             cout << "F1 score: " << _F1 << endl << endl;
-            if(_F1 < _valMinF1)
-                _valMinF1 = _F1;
+            _valMinF1 += _F1;
         }
+        cout << "Average F1 score: " << _valMinF1 / testsnum << endl << endl;
+
+        cout << "Final test step (on entire validation set)" << endl
+             << "-----------------------" << endl
+             << "Preparing templates, please wait..." << endl;
+        std::vector<matrix<float,0,1>> embedded;
+        vlabels.clear();
+        for(size_t i = 0; i < validobjs.size(); ++i) {
+            //cout << "  label: " << i << endl;
+            vimages.clear();
+            bool _isloaded = false;
+            for(size_t j = 0; j < validobjs[i].size(); ++j) {
+                cv::Mat _tmpmat = loadIbgrmatWsize(validobjs[i][j],IMG_WIDTH,IMG_HEIGHT,false,&_isloaded);
+                assert(_isloaded);
+                vimages.push_back(cvmat2dlibmatrix<dlib::rgb_pixel>(_tmpmat));
+                vlabels.push_back(i);
+            }
+            std::vector<matrix<float,0,1>> _tmpembedded = anet(vimages);
+            embedded.insert(embedded.end(),_tmpembedded.begin(),_tmpembedded.end());
+        }
+
+        cout << "Matching templates, please wait..."  << endl;
+        // Now, check if the embedding puts images with the same labels near each other and
+        // images with different labels far apart.
+        unsigned long true_positive = 0, false_positive = 0, true_negative = 0, false_negative = 0;
+        const float _distancethresh = anet.loss_details().get_distance_threshold();
+        for (size_t i = 0; i < embedded.size(); ++i) {
+            for (size_t j = i+1; j < embedded.size(); ++j)  {
+                if (vlabels[i] == vlabels[j])  {
+                    // The loss_metric layer will cause images with the same label to be less
+                    // than net.loss_details().get_distance_threshold() distance from each
+                    // other.  So we can use that distance value as our testing threshold.
+                    if (length(embedded[i]-embedded[j]) < _distancethresh)
+                        ++true_positive;
+                    else
+                        ++false_negative;
+                } else {
+                    if (length(embedded[i]-embedded[j]) >= _distancethresh)
+                        ++true_negative;
+                    else
+                        ++false_positive;
+                }
+            }
+        }
+        const float _precision = static_cast<float>(true_positive) / (true_positive + false_positive);
+        const float _recall = static_cast<float>(true_positive) / (true_positive + false_negative);
+        _valMinF1 = 2.0f/(1.0f/_precision + 1.0f/_recall);
+        cout << "Final test on entire validation set" << endl;
+        cout << "-----------------------" << endl;
+        cout << "true_positive: "<< true_positive << endl;
+        cout << "true_negative: "<< true_negative << endl;
+        cout << "false_positive: "<< false_positive << endl;
+        cout << "false_negative: "<< false_negative << endl;
+        cout << "F1 score: " << _valMinF1 << endl << endl;
 
         string _outputfilename = string("net_") + sessionguid + string("_MVF") + std::to_string(_valMinF1) + string(".dat");
         cout << "Wait untill weights will be serialized to " << _outputfilename << endl;

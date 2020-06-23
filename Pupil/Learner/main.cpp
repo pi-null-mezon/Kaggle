@@ -17,7 +17,7 @@ const std::string options = "{traindir t  |       | - directory with training im
                             "{seed        |  7    | - random number generator seed value}"
                             "{split       |  0.2  | - validation portion of data}"
                             "{learningrate|       | - learning rate}"
-                            "{viwp        | 1000  | - validation iterations without progress}"
+                            "{viwp        | 200   | - validation iterations without progress}"
                             "{tiwp        | 10000 | - training iterations without progress}"
                             "{taug        | true  | - training time augmentation}"
                             "{minlrthresh | 1E-5  | - when learning should be stopped}"
@@ -87,20 +87,20 @@ void load_image(const Pupil &pupil, matrix<rgb_pixel> &img, std::vector<float> &
             _tmpmat *= (0.8 + 0.4*rnd.get_random_double());
         if(rnd.get_random_float() > 0.1f)
             _tmpmat = addNoise(_tmpmat,cvrng,0,7);
-        if(rnd.get_random_float() > 0.5) {
+        if(rnd.get_random_float() > 0.5f) {
             cv::flip(_tmpmat,_tmpmat,1);
             flip_lbls_horizontally(_tmplbls);
         }
-        if(rnd.get_random_float() > 0.5) {
+        if(rnd.get_random_float() > 0.5f) {
             cv::flip(_tmpmat,_tmpmat,0);
             flip_lbls_vertically(_tmplbls);
         }
-        if(rnd.get_random_float() > 0.5)
+        if(rnd.get_random_float() > 0.5f)
             apply_central_rotation(_tmpmat,_tmplbls,30,rnd);
         if(rnd.get_random_float() > 0.5)
-            apply_random_clip(_tmpmat,_tmplbls,0.8f,1.0f,rnd);
+            apply_random_clip(_tmpmat,_tmplbls,0.75f,1.0f,rnd);
 
-        if(rnd.get_random_float() > 0.9) {
+        if(rnd.get_random_float() > 0.5f) {
             cv::cvtColor(_tmpmat,_tmpmat,cv::COLOR_BGR2GRAY);
             cv::Mat _chmat[] = {_tmpmat, _tmpmat, _tmpmat};
             cv::merge(_chmat,3,_tmpmat);
@@ -153,13 +153,15 @@ int main(int argc, char *argv[])
         if(parts.size() == 5) {
             Pupil pupil;
             pupil.filename = traindir.absoluteFilePath(parts.at(0)).toStdString();
-            std::vector<float> values(3,0);
-            values[0] = (parts.at(1).toFloat() + parts.at(3).toFloat()) / 2.0f;
-            values[1] = (parts.at(2).toFloat() + parts.at(4).toFloat()) / 2.0f;
-            values[2] = (std::abs(parts.at(3).toFloat() - parts.at(1).toFloat()) +
-                         std::abs(parts.at(4).toFloat() - parts.at(2).toFloat())) / 2.0f;
-            pupil.points = std::move(values);
-            pupils.push_back(std::move(pupil));
+            if(QFileInfo(pupil.filename.c_str()).exists()) {
+                std::vector<float> values(3,0);
+                values[0] = (parts.at(1).toFloat() + parts.at(3).toFloat()) / 2.0f;
+                values[1] = (parts.at(2).toFloat() + parts.at(4).toFloat()) / 2.0f;
+                values[2] = (std::abs(parts.at(3).toFloat() - parts.at(1).toFloat()) +
+                             std::abs(parts.at(4).toFloat() - parts.at(2).toFloat())) / 2.0f;
+                pupil.points = std::move(values);
+                pupils.push_back(std::move(pupil));
+            }
         } else {
             qInfo("Line '%s' - insufficient data! Abort...", line.toUtf8().constData());
             return 4;
@@ -170,6 +172,7 @@ int main(int argc, char *argv[])
     const int seed = cmdp.get<int>("seed");
     const double split = cmdp.get<double>("split");
     const size_t minibatchsize = static_cast<size_t>(cmdp.get<uint>("mbs"));
+    qInfo(" \nminibatch size: %u", (unsigned int)minibatchsize);
 
     dlib::rand rnd(seed);
     std::vector<Pupil> trainingset, validationset;
@@ -184,7 +187,7 @@ int main(int argc, char *argv[])
     pupils.clear();
     pupils.shrink_to_fit();
     qInfo(" training: %lu",trainingset.size());
-    qInfo(" validation: %lu",validationset.size());
+    qInfo(" validation: %lu\n",validationset.size());
 
     //--------------------------------------------------------------------------------
     // DEBUGGING
