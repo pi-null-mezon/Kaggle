@@ -101,11 +101,11 @@ void randomly_cutout_rect(const matrix<image_type>& img, dlib::array<matrix<imag
     }
 }
 
-dlib::matrix<dlib::rgb_pixel> load_rgb_image_with_fixed_size(std::string _filename, int _tcols, int _trows, bool _crop, bool *_isloadded=0)
+dlib::matrix<dlib::rgb_pixel> load_rgb_image_with_fixed_size(std::string _filename, int _tcols, int _trows, bool _crop, bool *_isloaded=nullptr)
 {
     cv::Mat _originalimgmat = cv::imread(_filename, cv::IMREAD_COLOR);
-    if(_isloadded)
-        *_isloadded = !_originalimgmat.empty();
+    if(_isloaded)
+        *_isloaded = !_originalimgmat.empty();
 
     if(_originalimgmat.empty())
         return dlib::matrix<dlib::rgb_pixel>();
@@ -122,11 +122,11 @@ dlib::matrix<dlib::rgb_pixel> load_rgb_image_with_fixed_size(std::string _filena
     return cvmat2dlibmatrix<dlib::rgb_pixel>(_originalimgmat);
 }
 
-dlib::matrix<uchar> load_grayscale_image_with_fixed_size(std::string _filename, int _tcols, int _trows, bool _crop, bool *_isloadded=0)
+dlib::matrix<uchar> load_grayscale_image_with_fixed_size(std::string _filename, int _tcols, int _trows, bool _crop, bool *_isloaded=nullptr)
 {
     cv::Mat _originalimgmat = cv::imread(_filename, cv::IMREAD_GRAYSCALE);
-    if(_isloadded)
-        *_isloadded = !_originalimgmat.empty();
+    if(_isloaded)
+        *_isloaded = !_originalimgmat.empty();
 
     if(_originalimgmat.empty())
         return dlib::matrix<uchar>();
@@ -143,12 +143,12 @@ dlib::matrix<uchar> load_grayscale_image_with_fixed_size(std::string _filename, 
     return cvmat2dlibmatrix<uchar>(_originalimgmat);
 }
 
-dlib::matrix<float> load_grayscale_image_with_fixed_size(const std::string& _filename, int _tcols, int _trows, bool _crop, bool _center, bool _normalize, bool *_isloadded=0)
+dlib::matrix<float> load_grayscale_image_with_fixed_size(const std::string& _filename, int _tcols, int _trows, bool _crop, bool _center, bool _normalize, bool *_isloaded=nullptr)
 {
     cv::Mat _originalimgmat = cv::imread(_filename, cv::IMREAD_GRAYSCALE);
 
-    if(_isloadded)
-        *_isloadded = !_originalimgmat.empty();
+    if(_isloaded)
+        *_isloaded = !_originalimgmat.empty();
 
     if(_originalimgmat.empty())
         return dlib::matrix<float>();

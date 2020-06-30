@@ -130,7 +130,7 @@ public:
         }
         // The whole objective function is multiplied by this to scale the loss
         // relative to the number of things in the mini-batch.
-        const double scale = 0.5/num_pos_samps;
+        const double scale = 0.5/std::min(num_pos_samps,num_neg_samps);
         DLIB_CASSERT(num_pos_samps>=1, "Make sure each mini-batch contains both positive pairs and negative pairs");
         DLIB_CASSERT(num_neg_samps>=1, "Make sure each mini-batch contains both positive pairs and negative pairs");
 
@@ -156,9 +156,7 @@ public:
                 auto xy = d[r*temp.num_samples() + c];
 
                 // compute the distance between x and y samples.
-                auto cosdst = 1.0f - xy / (std::sqrt(xx * yy) + 0.0001f);
-                if (cosdst <= 0)
-                    cosdst = 0;
+                auto cosdst = 1.0f - xy / std::sqrt(xx * yy);
 
                 // It should be noted that the derivative of cosdist(x,y) = 1 - xy / (|x||y|) with respect
                 // to the x vector is the vector (xy*x - xx*y / (xx|x||y|)).
@@ -194,12 +192,6 @@ public:
                         loss += scale*((dist_thresh+margin) - cosdst);
                         auto _tmp = xx * std::sqrt(xx * yy);
                         // don't divide by zero (or a really small number)
-                        if(std::abs(_tmp) < 0.0001f) {
-                            if(_tmp >= 0)
-                                _tmp = 0.0001f;
-                            else
-                                _tmp = -0.0001f;
-                        }
                         gm[r*temp.num_samples() + r] -= scale * xy / _tmp;
                         gm[r*temp.num_samples() + c] = scale * xx / _tmp;
                     }

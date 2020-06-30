@@ -14,8 +14,6 @@ win32 {
         DLIB_ARCHITECTURE = x86
     }
 
-    PATH_TO_DLIB_RESOURCES = C:/Programming/3rdParties/Dlib/build_$${DLIB_COMPILER}$${DLIB_ARCHITECTURE}/etc/data
-
     DLIB_INSTALL_PATH = C:/Programming/3rdParties/Dlib/build_$${DLIB_COMPILER}$${DLIB_ARCHITECTURE}
     INCLUDEPATH += $${DLIB_INSTALL_PATH}/include
     LIBS += -L$${DLIB_INSTALL_PATH}/lib
@@ -39,9 +37,4 @@ linux {
             -ljpeg \
             -lpng
 }
-
-DEFINES += PATH_TO_DLIB_RES=\\\"$${PATH_TO_DLIB_RESOURCES}\\\"
-
-HEADERS += \
-    $$PWD/opencvmorph/opencvmorph.h
 
