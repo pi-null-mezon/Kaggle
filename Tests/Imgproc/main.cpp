@@ -38,18 +38,18 @@ int main(int argc, char *argv[])
 
                 _tmpmat = _mat.clone();
 
-                if(rnd.get_random_float() > 0.5f)
+                /*if(rnd.get_random_float() > 0.5f)
                     cv::rotate(_tmpmat,_tmpmat,1);
                 if(rnd.get_random_float() > 0.5f)
                     cv::rotate(_tmpmat,_tmpmat,0);
                 if(rnd.get_random_float() > 0.5f)
                     cv::flip(_tmpmat,_tmpmat,1);
                 if(rnd.get_random_float() > 0.5f)
-                    cv::flip(_tmpmat,_tmpmat,0);
+                    cv::flip(_tmpmat,_tmpmat,0);*/
 
                 if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.03,0.04,6,cv::BORDER_REFLECT,cv::Scalar(0),false);
-                if(rnd.get_random_float() > 0.1f)
+                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.03,0.04,0,cv::BORDER_REFLECT,cv::Scalar(0),false);
+                /*if(rnd.get_random_float() > 0.1f)
                     _tmpmat = distortimage(_tmpmat,cvrng,0.03,cv::INTER_CUBIC,cv::BORDER_WRAP,cv::Scalar(0));
 
                 if(rnd.get_random_float() > 0.1f)
@@ -68,7 +68,7 @@ int main(int argc, char *argv[])
                     _tmpmat *= (0.8 + 0.4*rnd.get_random_double());
 
                 if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = addNoise(_tmpmat,cvrng,0,7);
+                    _tmpmat = addNoise(_tmpmat,cvrng,0,7);*/
 
                 dlib::matrix<dlib::rgb_pixel> _dlibtmpimg = cvmat2dlibmatrix<dlib::rgb_pixel>(_tmpmat);
                 dlib::disturb_colors(_dlibtmpimg,rnd);
