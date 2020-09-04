@@ -18,7 +18,7 @@ std::vector<std::vector<string>> load_classes_list (const string& dir)
 {
     std::vector<directory> subdirs = directory(dir).get_dirs();
     std::sort(subdirs.begin(),subdirs.end());
-
+    std::cout << "Reading directory '" << dir << "'" << std::endl;
     std::vector<std::vector<string>> objects;
     size_t _label = 0;
     for(auto subdir : subdirs) {
@@ -159,7 +159,7 @@ void load_mini_batch (
     }
 }
 
-float test_accuracy_on_set(const std::vector<std::vector<string>> &_testobjs, dlib::net_type &_net, bool _beverbose,
+float test_accuracy_on_random_subset(const std::vector<std::vector<string>> &_testobjs, dlib::net_type &_net, bool _beverbose,
                            const size_t _classes,
                            const size_t _samples,
                            const size_t _iterations=10,
@@ -194,6 +194,64 @@ float test_accuracy_on_set(const std::vector<std::vector<string>> &_testobjs, dl
         return acc / vacc.size();
 
     return 0.0f;
+}
+
+float test_accuracy_on_set(const std::vector<std::vector<string>> &_testobjs, dlib::net_type &_net, const size_t _batchsize=64, bool _beverbose=true)
+{
+    anet_type anet = _net;
+
+    std::vector<unsigned long> truelabels;
+    truelabels.reserve(_testobjs.size());
+    std::vector<unsigned long> predlabels;
+    predlabels.reserve(_testobjs.size());
+
+    bool _isloaded;
+    for(size_t i = 0; i < _testobjs.size(); ++i) {
+        for(size_t j = 0; j < (_testobjs[i].size() / _batchsize); ++j) {
+            std::vector<dlib::matrix<dlib::rgb_pixel>> images;
+            images.reserve(_batchsize);
+            for(size_t k = 0; k < _batchsize; ++k) {
+                truelabels.push_back(static_cast<unsigned long>(i));
+                images.push_back(load_rgb_image_with_fixed_size(_testobjs[i][j*_batchsize + k],IMG_WIDTH,IMG_HEIGHT,false,&_isloaded));
+                assert(_isloaded);
+            }
+            std::vector<unsigned long> plbls = anet(images);
+            predlabels.insert(predlabels.end(),plbls.begin(),plbls.end());
+        }
+        std::vector<dlib::matrix<dlib::rgb_pixel>> images;
+        images.reserve(_batchsize);
+        for(size_t j = _batchsize*(_testobjs[i].size() / _batchsize); j < _testobjs[i].size(); ++j) {
+            truelabels.push_back(static_cast<unsigned long>(i));
+            images.push_back(load_rgb_image_with_fixed_size(_testobjs[i][j],IMG_WIDTH,IMG_HEIGHT,false,&_isloaded));
+            assert(_isloaded);
+        }
+        std::vector<unsigned long> plbls = anet(images);
+        predlabels.insert(predlabels.end(),plbls.begin(),plbls.end());
+    }
+
+    const auto classes = anet.subnet().layer_details().get_num_outputs();
+    std::vector<std::vector<size_t>> conftbl(classes,std::vector<size_t>(classes,0));
+    size_t right = 0;
+    for(size_t i = 0 ; i < truelabels.size(); ++i) {
+        conftbl[truelabels[i]][predlabels[i]] += 1;
+        if(truelabels[i] == predlabels[i])
+            right++;
+    }
+    if(_beverbose) {
+        cout << "  T/P     ";
+        for(size_t j = 0; j < conftbl[0].size(); ++j)
+            cout << "lbl_" << j << "     ";
+        cout << endl;
+        for(size_t i = 0; i < conftbl.size(); ++i) {
+            cout << "lbl_" << i << "  ";
+            for(size_t j = 0; j < conftbl[i].size(); ++j) {
+                std::printf("%8lu",conftbl[i][j]);
+                cout << "  ";
+            }
+            cout << endl;
+        }
+    }
+    return static_cast<float>(right)/truelabels.size();
 }
 
 const cv::String options = "{traindir  t  |       | path to directory with training data}"
@@ -232,25 +290,29 @@ int main(int argc, char** argv)
     if(cmdparser.has("sessionguid")) {
         sessionguid = cmdparser.get<string>("sessionguid");
     }
-    cout << "Trainig session guid: " << sessionguid << endl;
-    cout << "-------------" << endl;
+    cout << "Trainig session guid: " << sessionguid << endl << endl;
 
     auto trainobjs = load_classes_list(cmdparser.get<string>("traindir"));
     cout << "trainobjs.size(): "<< trainobjs.size() << endl;
     for(size_t i = 0; i < trainobjs.size(); ++i)
         cout << "  label " << i << " - unique samples - " << trainobjs[i].size() << endl;
     cout << endl;
+    std::vector<std::vector<string>> testobjs;
+    if(cmdparser.has("testdir"))
+        testobjs = load_classes_list(cmdparser.get<string>("testdir"));
+    cout << "testobjs.size(): "<< trainobjs.size() << endl;
+    for(size_t i = 0; i < testobjs.size(); ++i)
+        cout << "  label " << i << " - unique samples - " << testobjs[i].size() << endl;
+    cout << endl;
     dlib::rand _foldsplitrnd(cmdparser.get<unsigned int>("splitseed"));
     auto allobjsfolds = split_into_folds(trainobjs,cmdparser.get<unsigned int>("cvfolds"),_foldsplitrnd);
 
-    cout << "***********" << endl;
     size_t classes_per_minibatch = static_cast<unsigned long>(cmdparser.get<int>("classes"));
     cout << "Classes per minibatch will be used: " << classes_per_minibatch << endl;
     size_t samples_per_class = static_cast<unsigned long>(cmdparser.get<int>("samples"));
-    cout << "Samples per class in minibatch will be used: " << samples_per_class << endl;  
+    cout << "Samples per class in minibatch will be used: " << samples_per_class << endl;
     const bool train_time_augmentation = cmdparser.get<bool>("taugm");
-    cout << "Train time augmentation: " << train_time_augmentation << endl;
-    cout << "***********" << endl;
+    cout << "Train time augmentation: " << train_time_augmentation << endl << endl;
 
     if(cmdparser.get<bool>("psalgo"))
         set_dnn_prefer_smallest_algorithms(); // larger minibatches will be available
@@ -258,7 +320,8 @@ int main(int argc, char** argv)
         set_dnn_prefer_fastest_algorithms();
 
     for(size_t _fold = 0; _fold < allobjsfolds.size(); ++_fold) {
-        cout << endl << "Split # " << _fold << endl;
+        cout << "Split # " << _fold << endl;
+        cout << "-------------" << endl;
 
         trainobjs = merge_except(allobjsfolds,_fold);
         cout << "trainobjs.size(): " << trainobjs.size() << endl;
@@ -382,31 +445,25 @@ int main(int argc, char** argv)
         net.clean();
 
         float acc = -1.0f;
+        cout << "TRAIN set:" << endl;
+        acc = test_accuracy_on_set(trainobjs,net,256);
+        cout << " accuracy: " << acc << endl;
+
         if(validobjs.size() > 0) {
-            cout << "Accuracy evaluation on validation set:" << endl;
-            acc = test_accuracy_on_set(validobjs,net,true,classes_per_minibatch,25);
-            cout << "Average validation accuracy: " << acc << endl;
-        }
-        std::vector<std::vector<string>> testobjs;
-        if(cmdparser.has("testdir")) {
-            testobjs = load_classes_list(cmdparser.get<string>("testdir"));
-            cout << "testdir.size(): "<< testobjs.size() << endl;
-        }
+            cout << "VALIDATION set:" << endl;
+            acc = test_accuracy_on_set(validobjs,net,256);
+            cout << " accuracy: " << acc << endl;
+        }               
         if(testobjs.size() > 0) {
-            cout << "Accuracy evaluation on test set:" << endl;
-            cout << "testobjs.size(): "<< trainobjs.size() << endl;
-            for(size_t i = 0; i < testobjs.size(); ++i)
-                cout << "  label " << i << " - unique samples - " << testobjs[i].size() << endl;
-            acc = test_accuracy_on_set(testobjs,net,true,classes_per_minibatch,25);
-            cout << "Average test accuracy: " << acc << endl;
+            cout << "TEST set:" << endl;
+            acc = test_accuracy_on_set(testobjs,net,256);
+            cout << " accuracy: " << acc << endl;
         }
 
-        string _outputfilename = string("blink_net_") + sessionguid + std::string("_split_") + std::to_string(_fold) + string(".dat");
-        if((validobjs.size() > 0) || (testobjs.size() > 0))
-            _outputfilename = string("blink_net_") + sessionguid + std::string("_split_") + std::to_string(_fold) + string("_acc_") + to_string(acc) + string(".dat");
-        cout << "Wait untill weights will be serialized to " << _outputfilename << endl;
+        string _outputfilename = string("blink_net_") + sessionguid + std::string("_split_") + std::to_string(_fold) + string("_acc_") + to_string(acc) + string(".dat");
+        cout << "Wait untill weights will be serialized to " << _outputfilename << endl << endl;
         serialize(cmdparser.get<string>("outputdir") + string("/") + _outputfilename) << net;
     }
-    cout << "Done" << endl;
+    cout << "All tasks done" << endl;
     return 0;
 }

@@ -83,7 +83,7 @@ void load_image(const HeadPose &headpose, matrix<rgb_pixel> &img, std::vector<fl
 float mean(const std::vector<float> &_v)
 {
     if(_v.size() != 0)
-        return std::accumulate(_v.begin(),_v.end(),0) / _v.size();
+        return std::accumulate(_v.begin(),_v.end(),0.0f) / _v.size();
     return 0;
 }
 
@@ -93,7 +93,7 @@ float stdev(const std::vector<float> &_v)
         const float _m = mean(_v);
         float _stdev = 0;
         for(size_t i = 0; i < _v.size(); ++i) {
-            _stdev += (_v[0]-_m)*(_v[0]-_m);
+            _stdev += (_v[i]-_m)*(_v[i]-_m);
         }
         return std::sqrt(_stdev/(_v.size() - 1));
     }
@@ -276,7 +276,7 @@ int main(int argc, char *argv[])
     std::vector<float> dpan, dtilt;
     dpan.reserve(validationset.size());
     dtilt.reserve(validationset.size());
-    qInfo("MAE test on whole validationset:");
+    qInfo("MAE test on whole validation set:");
     for(const auto &instance : validationset) {
         matrix<rgb_pixel> img;
         std::vector<float> lbls;
@@ -284,8 +284,8 @@ int main(int argc, char *argv[])
         qet.start();
         matrix<float> prediction = anet(img);
         qInfo("prediction time: %f us",(qet.nsecsElapsed()/1000.0));
-        dpan.push_back(std::abs(lbls[0]-prediction(0)));
-        dtilt.push_back(std::abs(lbls[1]-prediction(1)));
+        dpan.push_back(lbls[0]-prediction(0));
+        dtilt.push_back(lbls[1]-prediction(1));
         /*cv::Mat _tmpmat = dlibmatrix2cvmat(img);
         cv::putText(_tmpmat,
                     QString("%1; %2").arg(QString::number(lbls[0]*90.0f,'f',1),QString::number(lbls[1]*90.0f,'f',1)).toStdString(),
