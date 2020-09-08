@@ -18,7 +18,7 @@
 
 const std::string options = "{traindir t  |       | - directory with training images}"
                             "{outputdir o |  .    | - output directory}"
-                            "{mbs         |  64   | - mini batch size}"
+                            "{mbs         |  128  | - mini batch size}"
                             "{seed        |  7    | - random number generator seed value}"
                             "{split       |  0.1  | - validation portion of data}"
                             "{learningrate|       | - learning rate}"
@@ -64,20 +64,20 @@ void load_image(const FaceLandmarks &landmarks, matrix<rgb_pixel> &img, std::vec
 
         auto _tmplbls = landmarks.values;
 
-        if(rnd.get_random_float() > 0.0f) {
+        if(rnd.get_random_float() > 0.5f) {
             cv::flip(_tmpmat,_tmpmat,1);
             flip_labels(_tmplbls);
         }
 
-        if(rnd.get_random_float() > 0.5f)
+        if(rnd.get_random_float() > 0.8f)
             _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.4f,0.4f,rnd.get_random_float()*180.0f);
 
         if(rnd.get_random_float() > 0.5f)
             cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
         if(rnd.get_random_float() > 0.1f)
-            _tmpmat *= (0.7 + 0.6*rnd.get_random_double());
+            _tmpmat *= (0.8 + 0.4*rnd.get_random_double());
         if(rnd.get_random_float() > 0.1f)
-            _tmpmat = addNoise(_tmpmat,cvrng,0,11);
+            _tmpmat = addNoise(_tmpmat,cvrng,0,9);
 
         if(rnd.get_random_float() > 0.5f) {
             cv::cvtColor(_tmpmat,_tmpmat,cv::COLOR_BGR2GRAY);
@@ -169,7 +169,7 @@ int main(int argc, char *argv[])
     const int seed = cmdp.get<int>("seed");
     const double split = cmdp.get<double>("split");
     const size_t minibatchsize = static_cast<size_t>(cmdp.get<uint>("mbs"));
-    qInfo(" \nminibatch size: %u", (unsigned int)minibatchsize);
+    qInfo("\n minibatch size: %u", (unsigned int)minibatchsize);
 
     dlib::rand rnd(seed);
     std::vector<FaceLandmarks> trainingset, validationset;
