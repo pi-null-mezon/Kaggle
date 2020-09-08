@@ -42,6 +42,19 @@ struct FaceLandmarks {
 };
 
 
+void flip_labels(std::vector<float> &_lbls) {
+    static unsigned char lpts[] = {1, 2, 3, 4, 5, 6, 7, 8, 18,19,20,21,22,37,38,39,40,41,42,32,33,49,50,51,61,62,68,59,60};
+    static unsigned char rpts[] = {17,16,15,14,13,12,11,10,27,26,25,24,23,46,45,44,43,48,47,36,35,55,54,53,65,64,66,57,56};
+    for(unsigned long i = 0; i < sizeof(lpts)/sizeof(lpts[0]); ++i) {
+        std::swap(_lbls[2*(lpts[i]-1)],_lbls[2*(rpts[i]-1)]);
+        std::swap(_lbls[2*(lpts[i]-1)+1],_lbls[2*(rpts[i]-1)+1]);
+    }
+
+    for(size_t i = 0; i < _lbls.size()/2; ++i) {
+        _lbls[2*i] *= -1;
+    }
+}
+
 void load_image(const FaceLandmarks &landmarks, matrix<rgb_pixel> &img, std::vector<float> &labels, dlib::rand &rnd, cv::RNG &cvrng, bool augment=false)
 {
     bool loaded_sucessfully = false;
@@ -51,15 +64,20 @@ void load_image(const FaceLandmarks &landmarks, matrix<rgb_pixel> &img, std::vec
 
         auto _tmplbls = landmarks.values;
 
-        /*if(rnd.get_random_float() > 0.5f)
-            _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.4f,0.4f,rnd.get_random_float()*180.0f);*/
+        if(rnd.get_random_float() > 0.0f) {
+            cv::flip(_tmpmat,_tmpmat,1);
+            flip_labels(_tmplbls);
+        }
+
+        if(rnd.get_random_float() > 0.5f)
+            _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.4f,0.4f,rnd.get_random_float()*180.0f);
 
         if(rnd.get_random_float() > 0.5f)
             cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
         if(rnd.get_random_float() > 0.1f)
-            _tmpmat *= (0.8 + 0.4*rnd.get_random_double());
+            _tmpmat *= (0.7 + 0.6*rnd.get_random_double());
         if(rnd.get_random_float() > 0.1f)
-            _tmpmat = addNoise(_tmpmat,cvrng,0,7);        
+            _tmpmat = addNoise(_tmpmat,cvrng,0,11);
 
         if(rnd.get_random_float() > 0.5f) {
             cv::cvtColor(_tmpmat,_tmpmat,cv::COLOR_BGR2GRAY);
@@ -173,21 +191,20 @@ int main(int argc, char *argv[])
     /*matrix<rgb_pixel> img;
     std::vector<float> lbls;
     cv::RNG _cvrng;
+    cv::namedWindow("augmented",cv::WINDOW_NORMAL);
+    cv::namedWindow("original",cv::WINDOW_NORMAL);
     for(const auto &instance : trainingset) {
         cv::Mat original = cv::imread(instance.filename);
-        cv::putText(original,
-                    QString("%1; %2").arg(QString::number(instance.angles[0]*90.0f,'f',1),
-                                          QString::number(instance.angles[1]*90.0f,'f',1)).toStdString(),
-                    cv::Point(5,15),cv::FONT_HERSHEY_SIMPLEX,0.5,cv::Scalar(125,255,125),1,cv::LINE_AA);
 
         load_image(instance,img,lbls,rnd,_cvrng,true);
         cv::Mat augmented = dlibmatrix2cvmat(img);
-        cv::putText(augmented,
-                    QString("%1; %2").arg(QString::number(lbls[0]*90.0f,'f',1),
-                                          QString::number(lbls[1]*90.0f,'f',1)).toStdString(),
-                    cv::Point(5,15),cv::FONT_HERSHEY_SIMPLEX,0.5,cv::Scalar(125,255,125),1,cv::LINE_AA);
+        for(size_t i = 0; i < lbls.size()/2; ++i) {
+            const cv::Point2f point((lbls[2*i]+0.5f)*augmented.cols,(lbls[2*i+1]+0.5f)*augmented.rows);
+            //cv::circle(augmented,point,1,cv::Scalar(0,255,0),1,cv::LINE_AA);
+            cv::putText(augmented,std::to_string(i+1),point-cv::Point2f(2,-1),cv::FONT_HERSHEY_SIMPLEX,0.2,cv::Scalar(0,0,255),1,cv::LINE_AA);
+        }
         cv::imshow("augmented",augmented);
-        cv::imshow("train",original);
+        cv::imshow("original",original);
         cv::waitKey(0);
     }*/
 
@@ -300,7 +317,7 @@ int main(int argc, char *argv[])
         for(size_t i = 0; i < lbls.size(); ++i)
             dv.push_back(std::abs(lbls[i]-prediction(i)));
 
-        cv::Mat _tmpmat = dlibmatrix2cvmat(img);
+        /*cv::Mat _tmpmat = dlibmatrix2cvmat(img);
         for(size_t i = 0; i < lbls.size()/2; ++i) {
             const cv::Point2f truepoint((lbls[2*i]+0.5f)*_tmpmat.cols,(lbls[2*i+1]+0.5f)*_tmpmat.rows);
             const cv::Point2f predpoint((prediction(2*i)+0.5f)*_tmpmat.cols,(prediction(2*i+1)+0.5f)*_tmpmat.rows);
@@ -308,7 +325,7 @@ int main(int argc, char *argv[])
             cv::circle(_tmpmat,truepoint,3,cv::Scalar(0,125,255),1,cv::LINE_AA);
         }
         cv::imshow("prediction",_tmpmat);
-        cv::waitKey(0);
+        cv::waitKey(0);*/
     }
     qInfo("-------------");
     const float mean_err = mean(dv), stdev_err = stdev(dv);

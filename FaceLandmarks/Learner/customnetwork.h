@@ -3,10 +3,10 @@
 
 #include <dlib/dnn.h>
 
-#define IMG_WIDTH 150
-#define IMG_HEIGHT 150
+#define IMG_WIDTH 100
+#define IMG_HEIGHT 100
 
-#define FNUM 16
+#define FNUM 8
 
 using namespace dlib;
 
@@ -45,7 +45,7 @@ using net_type = loss_mean_squared_multioutput<fc_no_bias<136,avg_pool_everythin
                                         level2<
                                         level3<
                                         level4<
-                                        relu<bn_con<con<FNUM,7,7,2,2,
+                                        relu<bn_con<con<FNUM,5,5,2,2,
                                         input_rgb_image >>>>>>>>>>;
 
 // testing network type (replaced batch normalization with fixed affine transforms)
@@ -54,7 +54,7 @@ using anet_type = loss_mean_squared_multioutput<fc_no_bias<136,avg_pool_everythi
                                          alevel2<
                                          alevel3<
                                          alevel4<
-                                         relu<affine<con<FNUM,7,7,2,2,
+                                         relu<affine<con<FNUM,5,5,2,2,
                                          input_rgb_image >>>>>>>>>>;
 
 #endif // CUSTOMNETWORK_H
