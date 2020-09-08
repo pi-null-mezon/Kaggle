@@ -4,7 +4,10 @@
 #include <QFile>
 #include <QDir>
 
-#include <QDebug>
+#include <QFile>
+#include <QJsonObject>
+#include <QJsonDocument>
+#include <QJsonArray>
 
 #include "opencvimgaugment.h"
 #include "dlibopencvconverter.h"
@@ -17,7 +20,7 @@ const std::string options = "{traindir t  |       | - directory with training im
                             "{outputdir o |  .    | - output directory}"
                             "{mbs         |  64   | - mini batch size}"
                             "{seed        |  7    | - random number generator seed value}"
-                            "{split       |  0.2  | - validation portion of data}"
+                            "{split       |  0.1  | - validation portion of data}"
                             "{learningrate|       | - learning rate}"
                             "{viwp        | 1000  | - validation iterations without progress}"
                             "{tiwp        | 10000 | - training iterations without progress}"
@@ -25,37 +28,31 @@ const std::string options = "{traindir t  |       | - directory with training im
                             "{minlrthresh | 1E-5  | - when learning should be stopped}"
                             "{help h      |       | - help}";
 
-struct HeadPose {
-    HeadPose() {}
+struct FaceLandmarks {
+    FaceLandmarks() {}
+    FaceLandmarks(FaceLandmarks &&other) {
+        //qDebug("move constructor :)");
+        if(this != &other) {
+            filename = std::move(other.filename);
+            values = std::move(other.values);
+        }
+    }
     std::string filename;
-    std::vector<float> angles; // two angles (relative to 90.0), first is pan, second is tilt
+    std::vector<float> values;
 };
 
 
-void flip_lbls_horizontally(std::vector<float> &_angles)
-{
-    // only tilt should be modified
-    _angles[1] *= -1;
-}
-
-
-void load_image(const HeadPose &headpose, matrix<rgb_pixel> &img, std::vector<float> &labels, dlib::rand &rnd, cv::RNG &cvrng, bool augment=false)
+void load_image(const FaceLandmarks &landmarks, matrix<rgb_pixel> &img, std::vector<float> &labels, dlib::rand &rnd, cv::RNG &cvrng, bool augment=false)
 {
     bool loaded_sucessfully = false;
-    cv::Mat _tmpmat = loadIbgrmatWsize(headpose.filename,IMG_WIDTH,IMG_HEIGHT,false,&loaded_sucessfully);
+    cv::Mat _tmpmat = loadIbgrmatWsize(landmarks.filename,IMG_WIDTH,IMG_HEIGHT,false,&loaded_sucessfully);
     DLIB_CASSERT(loaded_sucessfully,"Can not read image!"); // TO DO understand in witch mode this macro works as it used to
     if(augment) {
 
-        auto _tmplbls = headpose.angles;
-        if(rnd.get_random_float() > 0.5f) {
-            cv::flip(_tmpmat,_tmpmat,1);
-            flip_lbls_horizontally(_tmplbls);
-        }
+        auto _tmplbls = landmarks.values;
 
-        if(rnd.get_random_float() > 0.5f)
-            _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.03,0.03,0,cv::BORDER_REFLECT,cv::Scalar(0),false);
-        if(rnd.get_random_float() > 0.5f)
-            _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.4f,0.4f,rnd.get_random_float()*180.0f);
+        /*if(rnd.get_random_float() > 0.5f)
+            _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.4f,0.4f,rnd.get_random_float()*180.0f);*/
 
         if(rnd.get_random_float() > 0.5f)
             cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
@@ -75,7 +72,7 @@ void load_image(const HeadPose &headpose, matrix<rgb_pixel> &img, std::vector<fl
         labels = _tmplbls;
     } else {
         img = cvmat2dlibmatrix<dlib::rgb_pixel>(_tmpmat);
-        labels = headpose.angles;
+        labels = landmarks.values;
     }
 }
 
@@ -99,19 +96,23 @@ float stdev(const std::vector<float> &_v)
     return 0;
 }
 
-std::vector<float> extract_pitch_and_yaw(const QString &_filename)
+std::vector<float> extract_values(const QString &_filename)
 {
-    std::vector<float> headangles(2,0.f);
-    if(_filename.contains('}')) {
-        QStringList sections = _filename.section('}',1,1).section(".jpg",0,0).split(QRegularExpression("(\\+|-)"),QString::SkipEmptyParts);
-        headangles[0] = QString("%1%2").arg(QString(_filename.section(sections.at(0),0,0).back()),sections.at(0)).toFloat() / 90.0f;
-        headangles[1] = QString("%1%2").arg(QString(_filename.section(sections.at(1),0,0).back()),sections.at(1)).toFloat() / 90.0f;
-    } else {
-        QStringList sections = _filename.split(QRegularExpression("\\b"));
-        headangles[0] = QString("%1%2").arg(sections.at(2),sections.at(3)).toFloat() / 90.0f;
-        headangles[1] = QString("%1%2").arg(sections.at(4),sections.at(5)).toFloat() / 90.0f;
+    std::vector<float> values;
+    values.reserve(136);
+    cv::Mat _img = cv::imread(_filename.toStdString(),cv::IMREAD_UNCHANGED);
+    if(!_img.empty()) {
+        QFile jsonfile(QString("%1.json").arg(_filename.section('.',0,0)));
+        if(jsonfile.open(QIODevice::ReadOnly)) {
+            QJsonArray ja = QJsonDocument::fromJson(jsonfile.readAll()).object()["landmarks"].toArray();
+            for(int i = 0; i < ja.size(); ++i) {
+                QJsonObject _json = ja.at(i).toObject();
+                values.push_back(_json["x"].toDouble()/static_cast<double>(_img.cols) - 0.5);
+                values.push_back(_json["y"].toDouble()/static_cast<double>(_img.rows) - 0.5);
+            }
+        }
     }
-    return headangles;
+    return values;
 }
 
 int main(int argc, char *argv[])
@@ -133,19 +134,19 @@ int main(int argc, char *argv[])
     }
 
     //-------------------------------------------------------------------------------
-    std::vector<HeadPose> hposes;
-    hposes.reserve(1E4);
+    std::vector<FaceLandmarks> flandmarks;
+    flandmarks.reserve(1E4);
     qInfo("Reading training data, please wait...");
     auto files = traindir.entryList(QStringList() << "*.jpg" << "*.jpeg" << "*.png", QDir::Files | QDir::NoDotDot);
+    qInfo(" %d - total images in directory", files.size());
     for(const auto &_filename: files) {
-        HeadPose _headpose;
-        _headpose.filename = traindir.absoluteFilePath(_filename).toStdString();
-        _headpose.angles = extract_pitch_and_yaw(_filename);
-        //qDebug() << _filename;
-        //qDebug() << _headpose.angles;
-        hposes.push_back(std::move(_headpose));
+        FaceLandmarks _facelandmarks;
+        _facelandmarks.filename = traindir.absoluteFilePath(_filename).toStdString();
+        _facelandmarks.values = extract_values(traindir.absoluteFilePath(_filename));
+        if(_facelandmarks.values.size() > 0)
+            flandmarks.push_back(std::move(_facelandmarks));
     }
-    qInfo(" total: %lu - training instances has been found",hposes.size());
+    qInfo(" %lu - valid training instances found",flandmarks.size());
 
     const int seed = cmdp.get<int>("seed");
     const double split = cmdp.get<double>("split");
@@ -153,17 +154,17 @@ int main(int argc, char *argv[])
     qInfo(" \nminibatch size: %u", (unsigned int)minibatchsize);
 
     dlib::rand rnd(seed);
-    std::vector<HeadPose> trainingset, validationset;
-    trainingset.reserve(hposes.size());
-    validationset.reserve(hposes.size());
-    for(size_t i = 0; i < hposes.size(); ++i) {
+    std::vector<FaceLandmarks> trainingset, validationset;
+    trainingset.reserve(flandmarks.size());
+    validationset.reserve(flandmarks.size());
+    for(size_t i = 0; i < flandmarks.size(); ++i) {
         if(rnd.get_random_double() < split)
-            validationset.push_back(std::move(hposes[i]));
+            validationset.push_back(std::move(flandmarks[i]));
         else
-            trainingset.push_back(std::move(hposes[i]));
+            trainingset.push_back(std::move(flandmarks[i]));
     }
-    hposes.clear();
-    hposes.shrink_to_fit();
+    flandmarks.clear();
+    flandmarks.shrink_to_fit();
     qInfo(" training: %lu",trainingset.size());
     qInfo(" validation: %lu\n",validationset.size());
 
@@ -285,9 +286,9 @@ int main(int argc, char *argv[])
     cv::RNG cvrng;
     cv::namedWindow("prediction",cv::WINDOW_NORMAL);
     QElapsedTimer qet;
-    std::vector<float> dpan, dtilt;    
-    dtilt.reserve(validationset.size()); // also known as pitch
-    dpan.reserve(validationset.size());  // also known as yaw
+    std::vector<float> dv;
+    dv.reserve(136*validationset.size());
+
     qInfo("MAE test on whole validation set:");
     for(const auto &instance : validationset) {
         matrix<rgb_pixel> img;
@@ -296,30 +297,29 @@ int main(int argc, char *argv[])
         qet.start();
         matrix<float> prediction = anet(img);
         qInfo("prediction time: %f us",(qet.nsecsElapsed()/1000.0));
-        dtilt.push_back(lbls[0]-prediction(0));
-        dpan.push_back(lbls[1]-prediction(1));
-        /*cv::Mat _tmpmat = dlibmatrix2cvmat(img);
-        cv::putText(_tmpmat,
-                    QString("%1; %2").arg(QString::number(lbls[0]*90.0f,'f',1),QString::number(lbls[1]*90.0f,'f',1)).toStdString(),
-                    cv::Point(5,15),cv::FONT_HERSHEY_SIMPLEX,0.5,cv::Scalar(125,255,125),1,cv::LINE_AA);
-        cv::putText(_tmpmat,
-                    QString("%1; %2").arg(QString::number(prediction(0)*90.0f,'f',1),QString::number(prediction(1)*90.0f,'f',1)).toStdString(),
-                    cv::Point(5,35),cv::FONT_HERSHEY_SIMPLEX,0.5,cv::Scalar(125,125,255),1,cv::LINE_AA);
+        for(size_t i = 0; i < lbls.size(); ++i)
+            dv.push_back(std::abs(lbls[i]-prediction(i)));
+
+        cv::Mat _tmpmat = dlibmatrix2cvmat(img);
+        for(size_t i = 0; i < lbls.size()/2; ++i) {
+            const cv::Point2f truepoint((lbls[2*i]+0.5f)*_tmpmat.cols,(lbls[2*i+1]+0.5f)*_tmpmat.rows);
+            const cv::Point2f predpoint((prediction(2*i)+0.5f)*_tmpmat.cols,(prediction(2*i+1)+0.5f)*_tmpmat.rows);
+            cv::circle(_tmpmat,truepoint,1,cv::Scalar(0,255,0),1,cv::LINE_AA);
+            cv::circle(_tmpmat,truepoint,3,cv::Scalar(0,125,255),1,cv::LINE_AA);
+        }
         cv::imshow("prediction",_tmpmat);
-        cv::waitKey(0);*/
+        cv::waitKey(0);
     }
     qInfo("-------------");
-    const float mean_err_pan = 90.0f*mean(dpan), stdev_err_pan = 90.0f*stdev(dpan);
-    qInfo("Pan(Yaw): %.2f ± %.2f deg", mean_err_pan, 2.0f*stdev_err_pan);
-    const float mean_err_tilt = 90.0f*mean(dtilt), stdev_err_tilt = 90.0f*stdev(dtilt);
-    qInfo("Tilt(Pitch): %.2f ± %.2f deg", mean_err_tilt, 2.0f*stdev_err_tilt);
+    const float mean_err = mean(dv), stdev_err = stdev(dv);
+    qInfo("Mean abs err: %.3f ± %.3f", mean_err, 2.0f*stdev_err);
 
     qInfo("Serialization...");
     serialize(cmdp.get<std::string>("outputdir") +
-              std::string("/headpose_net_mae_") +
-              std::to_string((mean_err_pan + mean_err_tilt)/2) +
-              std::string("_2stdev_") +
-              std::to_string((stdev_err_pan + stdev_err_tilt)) +
+              std::string("/FaceLandmarks_net_mae_") +
+              std::to_string(mean_err) +
+              std::string("_stdev_") +
+              std::to_string(stdev_err) +
               std::string(".dat")) << net;
     qInfo("Done");
 

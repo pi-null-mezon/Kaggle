@@ -3,10 +3,10 @@
 
 #include <dlib/dnn.h>
 
-#define IMG_WIDTH 100
-#define IMG_HEIGHT 100
+#define IMG_WIDTH 150
+#define IMG_HEIGHT 150
 
-#define FNUM 8
+#define FNUM 16
 
 using namespace dlib;
 
@@ -29,32 +29,32 @@ template <int N, typename SUBNET> using ares_down = relu<residual_down<block,N,a
 
 // ----------------------------------------------------------------------------------------
 
-template <typename SUBNET> using level1 = res_down<16*FNUM,SUBNET>;
+template <typename SUBNET> using level1 = res<8*FNUM,res_down<16*FNUM,SUBNET>>;
 template <typename SUBNET> using level2 = res<8*FNUM,res_down<8*FNUM,SUBNET>>;
 template <typename SUBNET> using level3 = res<4*FNUM,res_down<4*FNUM,SUBNET>>;
 template <typename SUBNET> using level4 = res<2*FNUM,res<2*FNUM,SUBNET>>;
 
-template <typename SUBNET> using alevel1 = ares_down<16*FNUM,SUBNET>;
+template <typename SUBNET> using alevel1 = ares<8*FNUM,ares_down<16*FNUM,SUBNET>>;
 template <typename SUBNET> using alevel2 = ares<8*FNUM,ares_down<8*FNUM,SUBNET>>;
 template <typename SUBNET> using alevel3 = ares<4*FNUM,ares_down<4*FNUM,SUBNET>>;
 template <typename SUBNET> using alevel4 = ares<2*FNUM,ares<2*FNUM,SUBNET>>;
 
 // training network type
-using net_type = loss_mean_squared_multioutput<fc<2,avg_pool_everything<
+using net_type = loss_mean_squared_multioutput<fc_no_bias<136,avg_pool_everything<
                                         level1<
                                         level2<
                                         level3<
                                         level4<
-                                        relu<bn_con<con<FNUM,5,5,2,2,
+                                        relu<bn_con<con<FNUM,7,7,2,2,
                                         input_rgb_image >>>>>>>>>>;
 
 // testing network type (replaced batch normalization with fixed affine transforms)
-using anet_type = loss_mean_squared_multioutput<fc<2,avg_pool_everything<
+using anet_type = loss_mean_squared_multioutput<fc_no_bias<136,avg_pool_everything<
                                          alevel1<
                                          alevel2<
                                          alevel3<
                                          alevel4<
-                                         relu<affine<con<FNUM,5,5,2,2,
+                                         relu<affine<con<FNUM,7,7,2,2,
                                          input_rgb_image >>>>>>>>>>;
 
 #endif // CUSTOMNETWORK_H
