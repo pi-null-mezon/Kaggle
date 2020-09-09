@@ -52,10 +52,10 @@ void load_image(const HeadPose &headpose, matrix<rgb_pixel> &img, std::vector<fl
             flip_lbls_horizontally(_tmplbls);
         }
 
-        if(rnd.get_random_float() > 0.5f)
+        /*if(rnd.get_random_float() > 0.5f)
             _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.03,0.03,0,cv::BORDER_REFLECT,cv::Scalar(0),false);
         if(rnd.get_random_float() > 0.5f)
-            _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.4f,0.4f,rnd.get_random_float()*180.0f);
+            _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.4f,0.4f,rnd.get_random_float()*180.0f);*/
 
         if(rnd.get_random_float() > 0.5f)
             cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
@@ -165,7 +165,7 @@ int main(int argc, char *argv[])
     hposes.clear();
     hposes.shrink_to_fit();
     qInfo(" training: %lu",trainingset.size());
-    qInfo(" validation: %lu\n",validationset.size());
+    qInfo(" validation: %lu",validationset.size());
 
     //--------------------------------------------------------------------------------
     // DEBUGGING
@@ -205,6 +205,7 @@ int main(int argc, char *argv[])
 
 
     bool training_time_augmentation = cmdp.get<bool>("taug");
+    qInfo(" training time augmentation: %s\n", training_time_augmentation ? "true" : "false");
     dlib::pipe<std::pair<std::vector<float>,matrix<rgb_pixel>>> trainingpipe(256);
     auto f = [&trainingpipe,&trainingset,&seed,&training_time_augmentation](time_t seed_shift) {
         dlib::rand rnd(seed+seed_shift);

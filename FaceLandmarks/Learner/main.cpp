@@ -55,6 +55,35 @@ void flip_labels(std::vector<float> &_lbls) {
     }
 }
 
+cv::Mat jitter(std::vector<float> &_lbls, const cv::Mat &_inmat, cv::RNG &_cvrng, const cv::Size &_targetsize=cv::Size(0,0), double _maxscale=0.05, double _maxshift=0.02, double _maxangle=3, int _bordertype=cv::BORDER_CONSTANT, const cv::Scalar &_constcolor=cv::Scalar(104,117,123), bool _alwaysshrink=false)
+{
+    cv::Mat _outmat;
+    const cv::Size _insize(_inmat.cols,_inmat.rows);
+    double _scale = 1.;
+    if(_targetsize.area() > 0)
+        _scale = std::min((double)_targetsize.width/_insize.width, (double)_targetsize.height/_insize.height);
+    cv::Mat _matrix = cv::getRotationMatrix2D(cv::Point2f(_inmat.cols/2.f,_inmat.rows/2.f),
+                                              _maxangle * (_cvrng.uniform(0.,2.) - 1.),
+                                              _alwaysshrink ? _scale * (1. - _maxscale*_cvrng.uniform(0.,1.0)) : _scale * (1. + _maxscale*(_cvrng.uniform(0.,2.) - 1.)));
+    if((_targetsize.width > 0) && (_targetsize.height > 0)) {
+        _matrix.at<double>(0,2) += -(_insize.width - _targetsize.width) / 2.;
+        _matrix.at<double>(1,2) += -(_insize.height - _targetsize.height) / 2.;
+    }
+    _matrix.at<double>(0,2) += (_insize.width * _maxshift * _scale * (_cvrng.uniform(0.,2.) - 1.));
+    _matrix.at<double>(1,2) += (_insize.height * _maxshift * _scale * (_cvrng.uniform(0.,2.) - 1.));
+    cv::warpAffine(_inmat,_outmat,_matrix,
+                   _targetsize,
+                   _insize.area() > _targetsize.area() ? cv::INTER_AREA : cv::INTER_CUBIC,
+                   _bordertype,_constcolor);
+    std::vector<float> _tmplbls(_lbls.size(),0);
+    for(size_t i = 0; i < _lbls.size()/2; ++i) {
+        _tmplbls[2*i]   = (_insize.width*(_lbls[2*i]+0.5)*_matrix.at<double>(0,0) + _insize.height*(_lbls[2*i+1]+0.5)*_matrix.at<double>(0,1) + _matrix.at<double>(0,2)) / _insize.width - 0.5;
+        _tmplbls[2*i+1] = (_insize.width*(_lbls[2*i]+0.5)*_matrix.at<double>(1,0) + _insize.height*(_lbls[2*i+1]+0.5)*_matrix.at<double>(1,1) + _matrix.at<double>(1,2)) / _insize.height - 0.5;
+    }
+    _lbls = std::move(_tmplbls);
+    return _outmat;
+}
+
 void load_image(const FaceLandmarks &landmarks, matrix<rgb_pixel> &img, std::vector<float> &labels, dlib::rand &rnd, cv::RNG &cvrng, bool augment=false)
 {
     bool loaded_sucessfully = false;
@@ -69,8 +98,12 @@ void load_image(const FaceLandmarks &landmarks, matrix<rgb_pixel> &img, std::vec
             flip_labels(_tmplbls);
         }
 
-        /*if(rnd.get_random_float() > 0.8f)
-            _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.4f,0.4f,rnd.get_random_float()*180.0f);*/
+        if(rnd.get_random_float() > 0.0f){
+            _tmpmat = jitter(_tmplbls,_tmpmat,cvrng,cv::Size(0,0),0.05,0.05,7,cv::BORDER_REFLECT101);
+        }
+
+        if(rnd.get_random_float() > 0.5f)
+            _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.4f,0.4f,rnd.get_random_float()*180.0f);
 
         if(rnd.get_random_float() > 0.5f)
             cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
@@ -302,7 +335,7 @@ int main(int argc, char *argv[])
 
     anet_type anet = net;
     cv::RNG cvrng;
-    cv::namedWindow("prediction",cv::WINDOW_NORMAL);
+    //cv::namedWindow("prediction",cv::WINDOW_NORMAL);
     QElapsedTimer qet;
     std::vector<float> dv;
     dv.reserve(136*validationset.size());
