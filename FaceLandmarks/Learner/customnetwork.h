@@ -29,12 +29,12 @@ template <int N, typename SUBNET> using ares_down = relu<residual_down<block,N,a
 
 // ----------------------------------------------------------------------------------------
 
-template <typename SUBNET> using level1 = res<8*FNUM,res_down<16*FNUM,SUBNET>>;
+template <typename SUBNET> using level1 = res_down<16*FNUM,SUBNET>;
 template <typename SUBNET> using level2 = res<8*FNUM,res_down<8*FNUM,SUBNET>>;
 template <typename SUBNET> using level3 = res<4*FNUM,res_down<4*FNUM,SUBNET>>;
 template <typename SUBNET> using level4 = res<2*FNUM,res<2*FNUM,SUBNET>>;
 
-template <typename SUBNET> using alevel1 = ares<8*FNUM,ares_down<16*FNUM,SUBNET>>;
+template <typename SUBNET> using alevel1 = ares_down<16*FNUM,SUBNET>;
 template <typename SUBNET> using alevel2 = ares<8*FNUM,ares_down<8*FNUM,SUBNET>>;
 template <typename SUBNET> using alevel3 = ares<4*FNUM,ares_down<4*FNUM,SUBNET>>;
 template <typename SUBNET> using alevel4 = ares<2*FNUM,ares<2*FNUM,SUBNET>>;

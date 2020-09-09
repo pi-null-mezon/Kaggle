@@ -18,7 +18,7 @@
 
 const std::string options = "{traindir t  |       | - directory with training images}"
                             "{outputdir o |  .    | - output directory}"
-                            "{mbs         |  128  | - mini batch size}"
+                            "{mbs         |  64   | - mini batch size}"
                             "{seed        |  7    | - random number generator seed value}"
                             "{split       |  0.1  | - validation portion of data}"
                             "{learningrate|       | - learning rate}"
@@ -69,8 +69,8 @@ void load_image(const FaceLandmarks &landmarks, matrix<rgb_pixel> &img, std::vec
             flip_labels(_tmplbls);
         }
 
-        if(rnd.get_random_float() > 0.8f)
-            _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.4f,0.4f,rnd.get_random_float()*180.0f);
+        /*if(rnd.get_random_float() > 0.8f)
+            _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.4f,0.4f,rnd.get_random_float()*180.0f);*/
 
         if(rnd.get_random_float() > 0.5f)
             cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
@@ -136,7 +136,7 @@ std::vector<float> extract_values(const QString &_filename)
 int main(int argc, char *argv[])
 {
     cv::CommandLineParser cmdp(argc,argv,options);
-    cmdp.about("Tool for head pose (pan and tilt angles) regressor training");
+    cmdp.about("Tool for face landmark detector training");
     if(cmdp.has("help") || argc == 1) {
         cmdp.printMessage();
         return 0;
@@ -184,7 +184,7 @@ int main(int argc, char *argv[])
     flandmarks.clear();
     flandmarks.shrink_to_fit();
     qInfo(" training: %lu",trainingset.size());
-    qInfo(" validation: %lu\n",validationset.size());
+    qInfo(" validation: %lu",validationset.size());
 
     //--------------------------------------------------------------------------------
     // DEBUGGING
@@ -223,6 +223,7 @@ int main(int argc, char *argv[])
 
 
     bool training_time_augmentation = cmdp.get<bool>("taug");
+    qInfo(" training time augmentation: %s\n", training_time_augmentation ? "true" : "false");
     dlib::pipe<std::pair<std::vector<float>,matrix<rgb_pixel>>> trainingpipe(256);
     auto f = [&trainingpipe,&trainingset,&seed,&training_time_augmentation](time_t seed_shift) {
         dlib::rand rnd(seed+seed_shift);
