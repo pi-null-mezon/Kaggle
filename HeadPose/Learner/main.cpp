@@ -52,10 +52,10 @@ void load_image(const HeadPose &headpose, matrix<rgb_pixel> &img, std::vector<fl
             flip_lbls_horizontally(_tmplbls);
         }
 
-        /*if(rnd.get_random_float() > 0.5f)
-            _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.03,0.03,0,cv::BORDER_REFLECT,cv::Scalar(0),false);
         if(rnd.get_random_float() > 0.5f)
-            _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.4f,0.4f,rnd.get_random_float()*180.0f);*/
+            _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.05,0.05,0,cv::BORDER_REFLECT,cv::Scalar(0),false);
+        if(rnd.get_random_float() > 0.5f)
+            _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.4f,0.4f,rnd.get_random_float()*180.0f);
 
         if(rnd.get_random_float() > 0.5f)
             cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));

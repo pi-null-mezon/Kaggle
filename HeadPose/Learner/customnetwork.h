@@ -6,7 +6,7 @@
 #define IMG_WIDTH 100
 #define IMG_HEIGHT 100
 
-#define FNUM 4
+#define FNUM 8
 
 using namespace dlib;
 
@@ -32,12 +32,12 @@ template <int N, typename SUBNET> using ares_down = relu<residual_down<block,N,a
 template <typename SUBNET> using level1 = res_down<16*FNUM,SUBNET>;
 template <typename SUBNET> using level2 = res_down<8*FNUM,SUBNET>;
 template <typename SUBNET> using level3 = res_down<4*FNUM,SUBNET>;
-template <typename SUBNET> using level4 = res<2*FNUM,SUBNET>;
+template <typename SUBNET> using level4 = res_down<2*FNUM,SUBNET>;
 
 template <typename SUBNET> using alevel1 = ares_down<16*FNUM,SUBNET>;
 template <typename SUBNET> using alevel2 = ares_down<8*FNUM,SUBNET>;
 template <typename SUBNET> using alevel3 = ares_down<4*FNUM,SUBNET>;
-template <typename SUBNET> using alevel4 = ares<2*FNUM,SUBNET>;
+template <typename SUBNET> using alevel4 = ares_down<2*FNUM,SUBNET>;
 
 // training network type
 using net_type = loss_mean_squared_multioutput<fc<2,avg_pool_everything<
