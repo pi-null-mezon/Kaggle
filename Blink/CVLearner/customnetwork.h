@@ -3,10 +3,10 @@
 
 #include <dlib/dnn.h>
 
-#define IMG_WIDTH  48
-#define IMG_HEIGHT 48
+#define IMG_WIDTH  64
+#define IMG_HEIGHT 64
 
-#define FNUM 4
+#define FNUM 8
 
 namespace dlib {
 
