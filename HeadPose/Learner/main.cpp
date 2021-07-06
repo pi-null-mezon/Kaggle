@@ -1,5 +1,6 @@
 #include <QElapsedTimer>
-#include <QRegularExpression>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QStringList>
 #include <QFile>
 #include <QDir>
@@ -28,16 +29,53 @@ const std::string options = "{traindir t  |       | - directory with training im
 struct HeadPose {
     HeadPose() {}
     std::string filename;
-    std::vector<float> angles; // two angles (relative to 90.0), first is pan, second is tilt
+    std::vector<float> angles; // [yaw, pitch, roll] in portion of 90 degrees
 };
 
 
-void flip_lbls_horizontally(std::vector<float> &_angles)
+float mean(const std::vector<float> &_v)
 {
-    // only tilt should be modified
-    _angles[1] *= -1;
+    if(_v.size() != 0)
+        return std::accumulate(_v.begin(),_v.end(),0.0f) / _v.size();
+    return 0;
 }
 
+float stdev(const std::vector<float> &_v)
+{
+    if(_v.size() > 1) {
+        const float _m = mean(_v);
+        float _stdev = 0;
+        for(size_t i = 0; i < _v.size(); ++i) {
+            _stdev += (_v[i]-_m)*(_v[i]-_m);
+        }
+        return std::sqrt(_stdev/(_v.size() - 1));
+    }
+    return 0;
+}
+
+std::vector<float> extract_pitch_and_yaw(const QString &_filename)
+{
+    std::vector<float> headangles(3,0.f);
+    //qInfo("'%s'",_filename.section('.',0,0).toUtf8().constData());
+    const QString jsonfile = QString("%1.json").arg(_filename.section('.',0,0));
+    QFile file(jsonfile);
+    if(file.open(QIODevice::ReadOnly)) {
+        const QByteArray data = file.readAll();
+        QJsonObject json = QJsonDocument::fromJson(data).object();
+        headangles[0] = json.value("yaw").toDouble() / 90.0f; // left/right
+        headangles[1] = json.value("pitch").toDouble() / 90.0f; // up/down
+        headangles[2] = json.value("roll").toDouble() / 90.0f;
+    } else {
+        qWarning("Can not read '%s'", file.fileName().toUtf8().constData());
+    }
+    return headangles;
+}
+
+void flip_lbls_horizontally(std::vector<float> &_angles)
+{
+    _angles[0] *= -1; // yaw should be modified
+    _angles[2] *= -1; // roll should be modified
+}
 
 void load_image(const HeadPose &headpose, matrix<rgb_pixel> &img, std::vector<float> &labels, dlib::rand &rnd, cv::RNG &cvrng, bool augment=false)
 {
@@ -62,7 +100,7 @@ void load_image(const HeadPose &headpose, matrix<rgb_pixel> &img, std::vector<fl
         if(rnd.get_random_float() > 0.1f)
             _tmpmat *= (0.8 + 0.4*rnd.get_random_double());
         if(rnd.get_random_float() > 0.1f)
-            _tmpmat = addNoise(_tmpmat,cvrng,0,7);        
+            _tmpmat = addNoise(_tmpmat,cvrng,0,7);
 
         if(rnd.get_random_float() > 0.5f) {
             cv::cvtColor(_tmpmat,_tmpmat,cv::COLOR_BGR2GRAY);
@@ -79,45 +117,10 @@ void load_image(const HeadPose &headpose, matrix<rgb_pixel> &img, std::vector<fl
     }
 }
 
-float mean(const std::vector<float> &_v)
-{
-    if(_v.size() != 0)
-        return std::accumulate(_v.begin(),_v.end(),0.0f) / _v.size();
-    return 0;
-}
-
-float stdev(const std::vector<float> &_v)
-{
-    if(_v.size() > 1) {
-        const float _m = mean(_v);
-        float _stdev = 0;
-        for(size_t i = 0; i < _v.size(); ++i) {
-            _stdev += (_v[i]-_m)*(_v[i]-_m);
-        }
-        return std::sqrt(_stdev/(_v.size() - 1));
-    }
-    return 0;
-}
-
-std::vector<float> extract_pitch_and_yaw(const QString &_filename)
-{
-    std::vector<float> headangles(2,0.f);
-    if(_filename.contains('}')) {
-        QStringList sections = _filename.section('}',1,1).section(".jpg",0,0).split(QRegularExpression("(\\+|-)"),QString::SkipEmptyParts);
-        headangles[0] = QString("%1%2").arg(QString(_filename.section(sections.at(0),0,0).back()),sections.at(0)).toFloat() / 90.0f;
-        headangles[1] = QString("%1%2").arg(QString(_filename.section(sections.at(1),0,0).back()),sections.at(1)).toFloat() / 90.0f;
-    } else {
-        QStringList sections = _filename.split(QRegularExpression("\\b"));
-        headangles[0] = QString("%1%2").arg(sections.at(2),sections.at(3)).toFloat() / 90.0f;
-        headangles[1] = QString("%1%2").arg(sections.at(4),sections.at(5)).toFloat() / 90.0f;
-    }
-    return headangles;
-}
-
 int main(int argc, char *argv[])
 {
     cv::CommandLineParser cmdp(argc,argv,options);
-    cmdp.about("Tool for head pose (pan and tilt angles) regressor training");
+    cmdp.about("Tool for head pose regressor training");
     if(cmdp.has("help") || argc == 1) {
         cmdp.printMessage();
         return 0;
@@ -138,11 +141,12 @@ int main(int argc, char *argv[])
     qInfo("Reading training data, please wait...");
     auto files = traindir.entryList(QStringList() << "*.jpg" << "*.jpeg" << "*.png", QDir::Files | QDir::NoDotDot);
     for(const auto &_filename: files) {
+        const QString absolutefilename = traindir.absoluteFilePath(_filename);
         HeadPose _headpose;
-        _headpose.filename = traindir.absoluteFilePath(_filename).toStdString();
-        _headpose.angles = extract_pitch_and_yaw(_filename);
-        //qDebug() << _filename;
-        //qDebug() << _headpose.angles;
+        _headpose.filename = absolutefilename.toStdString();
+        _headpose.angles = extract_pitch_and_yaw(absolutefilename);
+        qDebug() << _filename;
+        qDebug() << _headpose.angles;
         hposes.push_back(std::move(_headpose));
     }
     qInfo(" total: %lu - training instances has been found",hposes.size());
@@ -286,19 +290,25 @@ int main(int argc, char *argv[])
     cv::RNG cvrng;
     cv::namedWindow("prediction",cv::WINDOW_NORMAL);
     QElapsedTimer qet;
-    std::vector<float> dpan, dtilt;    
-    dtilt.reserve(validationset.size()); // also known as pitch
-    dpan.reserve(validationset.size());  // also known as yaw
+    std::vector<float> dyaw, dpitch, droll, timens;
+    dyaw.reserve(validationset.size());
+    dpitch.reserve(validationset.size());
+    droll.reserve(validationset.size());
     qInfo("MAE test on whole validation set:");
+    bool firstinference = true;
     for(const auto &instance : validationset) {
         matrix<rgb_pixel> img;
         std::vector<float> lbls;
         load_image(instance,img,lbls,rnd,cvrng,false);
         qet.start();
         matrix<float> prediction = anet(img);
-        qInfo("prediction time: %f us",(qet.nsecsElapsed()/1000.0));
-        dtilt.push_back(lbls[0]-prediction(0));
-        dpan.push_back(lbls[1]-prediction(1));
+        if(firstinference == false)
+            timens.push_back(qet.nsecsElapsed());
+        else
+            firstinference = false;
+        dyaw.push_back(lbls[0]-prediction(0));
+        dpitch.push_back(lbls[1]-prediction(1));
+        droll.push_back(lbls[2]-prediction(2));
         /*cv::Mat _tmpmat = dlibmatrix2cvmat(img);
         cv::putText(_tmpmat,
                     QString("%1; %2").arg(QString::number(lbls[0]*90.0f,'f',1),QString::number(lbls[1]*90.0f,'f',1)).toStdString(),
@@ -309,18 +319,21 @@ int main(int argc, char *argv[])
         cv::imshow("prediction",_tmpmat);
         cv::waitKey(0);*/
     }
+    qInfo("Average inference time: %f us",mean(timens)/1000.0f);
     qInfo("-------------");
-    const float mean_err_pan = 90.0f*mean(dpan), stdev_err_pan = 90.0f*stdev(dpan);
-    qInfo("Pan(Yaw): %.2f ± %.2f deg", mean_err_pan, 2.0f*stdev_err_pan);
-    const float mean_err_tilt = 90.0f*mean(dtilt), stdev_err_tilt = 90.0f*stdev(dtilt);
-    qInfo("Tilt(Pitch): %.2f ± %.2f deg", mean_err_tilt, 2.0f*stdev_err_tilt);
+    const float mean_err_yaw = 90.0f*mean(dyaw), stdev_err_yaw = 90.0f*stdev(dyaw);
+    qInfo("Yaw: %.1f ± %.1f deg", mean_err_yaw, 2.0f*stdev_err_yaw);
+    const float mean_err_pitch = 90.0f*mean(dpitch), stdev_err_pitch = 90.0f*stdev(dpitch);
+    qInfo("Pitch: %.1f ± %.1f deg", mean_err_pitch, 2.0f*stdev_err_pitch);
+    const float mean_err_roll = 90.0f*mean(droll), stdev_err_roll = 90.0f*stdev(droll);
+    qInfo("Roll: %.1f ± %.1f deg", mean_err_roll, 2.0f*stdev_err_roll);
 
     qInfo("Serialization...");
     serialize(cmdp.get<std::string>("outputdir") +
               std::string("/headpose_net_mae_") +
-              std::to_string((mean_err_pan + mean_err_tilt)/2) +
-              std::string("_2stdev_") +
-              std::to_string((stdev_err_pan + stdev_err_tilt)) +
+              std::to_string((mean_err_yaw + mean_err_pitch + mean_err_roll) / 3) +
+              std::string("_stdev_") +
+              std::to_string((stdev_err_yaw + stdev_err_pitch + stdev_err_roll) / 3) +
               std::string(".dat")) << net;
     qInfo("Done");
 

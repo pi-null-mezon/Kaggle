@@ -40,7 +40,7 @@ template <typename SUBNET> using alevel3 = ares_down<4*FNUM,SUBNET>;
 template <typename SUBNET> using alevel4 = ares_down<2*FNUM,SUBNET>;
 
 // training network type
-using net_type = loss_mean_squared_multioutput<fc<2,avg_pool_everything<
+using net_type = loss_mean_squared_multioutput<fc<3,avg_pool_everything<
                                         level1<
                                         level2<
                                         level3<
@@ -49,7 +49,7 @@ using net_type = loss_mean_squared_multioutput<fc<2,avg_pool_everything<
                                         input_rgb_image >>>>>>>>>>;
 
 // testing network type (replaced batch normalization with fixed affine transforms)
-using anet_type = loss_mean_squared_multioutput<fc<2,avg_pool_everything<
+using anet_type = loss_mean_squared_multioutput<fc<3,avg_pool_everything<
                                          alevel1<
                                          alevel2<
                                          alevel3<
