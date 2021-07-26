@@ -6,7 +6,7 @@
 #define IMG_WIDTH  100
 #define IMG_HEIGHT 100
 
-#define FNUM 8
+#define FNUM 4
 
 namespace dlib {
 
@@ -41,20 +41,18 @@ template <typename SUBNET> using alevel4 = ares_down<2*FNUM,SUBNET>;
 
 
 // training network type
-using net_type = loss_multiclass_log<fc<3,avg_pool_everything<
-                                        level1<
+using net_type = loss_multiclass_log<fc<2,avg_pool_everything<
                                         level2<
                                         level3<
                                         level4<
-                                        relu<bn_con<con<FNUM,5,5,2,2,input_rgb_image>>>>>>>>>>;
+                                        relu<bn_con<con<FNUM,5,5,2,2,input_rgb_image>>>>>>>>>;
 
 // testing network type (replaced batch normalization with fixed affine transforms)
-using anet_type = loss_multiclass_log<fc<3,avg_pool_everything<
-                                         alevel1<
+using anet_type = loss_multiclass_log<fc<2,avg_pool_everything<
                                          alevel2<
                                          alevel3<
                                          alevel4<
-                                         relu<affine<con<FNUM,5,5,2,2,input_rgb_image>>>>>>>>>>;
+                                         relu<affine<con<FNUM,5,5,2,2,input_rgb_image>>>>>>>>>;
 
 
 /*template <int N, template <typename> class BN, typename SUBNET>

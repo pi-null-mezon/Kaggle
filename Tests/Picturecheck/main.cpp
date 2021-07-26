@@ -9,11 +9,12 @@
 #include "dlibimgaugment.h"
 #include "dlibopencvconverter.h"
 
-#include "../../Multiclasslogloss/CVLearner/customnetwork.h"
+#include "../../BKK/Occlusion/customnetwork.h"
 
 const std::string options = "{inputdir i  |       | - directory with files to be checked}"
                             "{outputdir o |       | - directory where filtered files should be copied}"
                             "{resources r |       | - directory where CNN's *.dat files are stored}"
+                            "{batchsize b | 256   | - batch size to process}"
                             "{label l     |   0   | - label of the class that should be preserved}"
                             "{help h      |       | - help}";
 
@@ -59,8 +60,6 @@ int main(int argc, char *argv[])
 
     qInfo("Files reading, please wait...");
     QStringList fileslist = qindir.entryList(QStringList() << "*.jpg" << "*.jpeg" << "*.png" << "*.bmp", QDir::Files | QDir::NoDotAndDotDot);
-    std::vector<dlib::matrix<dlib::rgb_pixel>> pictures;
-    pictures.reserve(fileslist.size());
     QStringList validfileslist;
     validfileslist.reserve(fileslist.size());
     bool isloaded = false;
@@ -69,10 +68,8 @@ int main(int argc, char *argv[])
         dlib::matrix<dlib::rgb_pixel> picture = dlib::load_rgb_image_with_fixed_size(_absfilename.toStdString(),IMG_WIDTH,IMG_HEIGHT,false,&isloaded);
         if(!isloaded)
             qInfo("  file '%s' can not be loaded :(", _filename.toUtf8().constData());
-        else {
-            pictures.push_back(std::move(picture));
+        else
             validfileslist.push_back(_absfilename);
-        }
     }
     if(validfileslist.size() > 0) {
         qInfo("Resources initialization, please wait...");
@@ -92,12 +89,30 @@ int main(int argc, char *argv[])
 
         qInfo("Files checking, please wait...");
         int label = cmdparser.get<int>("label");
-        std::vector<float> labelproblist(pictures.size(),0);
-        for(size_t i = 0; i < snets.size(); ++i) {
-            auto predictions = dlib::mat(snets[i](pictures.begin(),pictures.end()));
-            //qInfo("prediction size: %ld x %ld", dlib::num_rows(predictions), dlib::num_columns(predictions));
-            for(long j = 0; j < dlib::num_rows(predictions); ++j) {
-                labelproblist[j] += predictions(j,label);
+        std::vector<float> labelproblist(validfileslist.size(),0);
+
+        const int batchsize = cmdparser.get<int>("batchsize");
+        int batches = validfileslist.size() / batchsize;
+        for(int b = 0; b < batches + 1; ++b) {
+            std::vector<dlib::matrix<dlib::rgb_pixel>> pictures;
+            pictures.reserve(batchsize);
+            if(b < batches) {
+                for(int i = 0; i < batchsize; ++i) {
+                    pictures.push_back(dlib::load_rgb_image_with_fixed_size(validfileslist.at(b * batchsize + i).toStdString(),IMG_WIDTH,IMG_HEIGHT,false));
+                }
+            } else {
+                for(int i = 0; i < (validfileslist.size() - b * batchsize); ++i) {
+                    pictures.push_back(dlib::load_rgb_image_with_fixed_size(validfileslist.at(b * batchsize + i).toStdString(),IMG_WIDTH,IMG_HEIGHT,false));
+                }
+            }
+
+
+            for(size_t i = 0; i < snets.size(); ++i) {
+                auto predictions = dlib::mat(snets[i](pictures.begin(),pictures.end()));
+                //qInfo("prediction size: %ld x %ld", dlib::num_rows(predictions), dlib::num_columns(predictions));
+                for(long j = 0; j < dlib::num_rows(predictions); ++j) {
+                    labelproblist[b * batchsize + j] += predictions(j,label);
+                }
             }
         }
 

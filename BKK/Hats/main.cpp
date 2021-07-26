@@ -265,7 +265,7 @@ float test_accuracy_on_set(const std::vector<std::vector<string>> &_testobjs, dl
 }
 
 const cv::String options = "{traindir  t  |       | path to directory with training data}"
-                           "{cvfolds      |   4   | folds to use for cross validation training, value 1 disables crossvalidation}"
+                           "{cvfolds      |   5   | folds to use for cross validation training, value 1 disables crossvalidation}"
                            "{splitseed    |   1   | seed for data folds split}"
                            "{testdir      |       | path to directory with test data}"
                            "{outputdir o  |       | path to directory with output data}"
@@ -273,10 +273,10 @@ const cv::String options = "{traindir  t  |       | path to directory with train
                            "{sessionguid  |       | session guid}"
                            "{learningrate |       | initial learning rate}"
                            "{classes c    | 2     | classes per minibatch}"
-                           "{samples s    | 8     | samples per class in minibatch}"
+                           "{samples s    | 24    | samples per class in minibatch}"
                            "{bnwsize      | 100   | will be passed in set_all_bn_running_stats_window_sizes before net training}"
-                           "{tiwp         | 3000  | train iterations without progress}"
-                           "{viwp         | 450   | validation iterations without progress}"
+                           "{tiwp         | 5000  | train iterations without progress}"
+                           "{viwp         | 700   | validation iterations without progress}"
                            "{taugm        | true  | apply train time augmentation}"
                            "{psalgo       | true  | set prefer smallest algorithms}";
 
@@ -437,12 +437,12 @@ int main(int argc, char** argv)
                 testqlabels.dequeue(vlabels);
                 trainer.test_one_step(vimages,vlabels);
             }
-            if((trainer.get_train_one_step_calls() % 100) == 0) {
+            if((trainer.get_train_one_step_calls() % 200) == 0) {
                 std::printf(" #%llu - lr: %f,  loss: %f / %f\n",
-                            trainer.get_train_one_step_calls(),
-                            trainer.get_learning_rate(),
-                            trainer.get_average_loss(),
-                            trainer.get_average_test_loss());
+                      trainer.get_train_one_step_calls(),
+                      trainer.get_learning_rate(),
+                      trainer.get_average_loss(),
+                      trainer.get_average_test_loss());
                 std::flush(std::cout);
             }
         }

@@ -108,7 +108,7 @@ void load_mini_batch (
                 if(rnd.get_random_float() > 0.5f)
                     _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.2,0.2,15,cv::BORDER_CONSTANT,cv::Scalar(0),false);
                 if(rnd.get_random_float() > 0.5f)
-                    _tmpmat = distortimage(_tmpmat,cvrng,0.06,cv::INTER_CUBIC,cv::BORDER_CONSTANT,cv::Scalar(0));
+                    _tmpmat = distortimage(_tmpmat,cvrng,0.05,cv::INTER_CUBIC,cv::BORDER_CONSTANT,cv::Scalar(0));
 
                 if(rnd.get_random_float() > 0.5f)
                     _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.5f,0.5f,rnd.get_random_float()*180.0f);
@@ -265,7 +265,7 @@ float test_accuracy_on_set(const std::vector<std::vector<string>> &_testobjs, dl
 }
 
 const cv::String options = "{traindir  t  |       | path to directory with training data}"
-                           "{cvfolds      |   4   | folds to use for cross validation training, value 1 disables crossvalidation}"
+                           "{cvfolds      |   1   | folds to use for cross validation training, value 1 disables crossvalidation}"
                            "{splitseed    |   1   | seed for data folds split}"
                            "{testdir      |       | path to directory with test data}"
                            "{outputdir o  |       | path to directory with output data}"
@@ -273,10 +273,10 @@ const cv::String options = "{traindir  t  |       | path to directory with train
                            "{sessionguid  |       | session guid}"
                            "{learningrate |       | initial learning rate}"
                            "{classes c    | 2     | classes per minibatch}"
-                           "{samples s    | 8     | samples per class in minibatch}"
+                           "{samples s    | 32    | samples per class in minibatch}"
                            "{bnwsize      | 100   | will be passed in set_all_bn_running_stats_window_sizes before net training}"
-                           "{tiwp         | 3000  | train iterations without progress}"
-                           "{viwp         | 450   | validation iterations without progress}"
+                           "{tiwp         | 4000  | train iterations without progress}"
+                           "{viwp         | 600   | validation iterations without progress}"
                            "{taugm        | true  | apply train time augmentation}"
                            "{psalgo       | true  | set prefer smallest algorithms}";
 
@@ -437,7 +437,7 @@ int main(int argc, char** argv)
                 testqlabels.dequeue(vlabels);
                 trainer.test_one_step(vimages,vlabels);
             }
-            if((trainer.get_train_one_step_calls() % 100) == 0) {
+            if((trainer.get_train_one_step_calls() % 200) == 0) {
                 std::printf(" #%llu - lr: %f,  loss: %f / %f\n",
                             trainer.get_train_one_step_calls(),
                             trainer.get_learning_rate(),
