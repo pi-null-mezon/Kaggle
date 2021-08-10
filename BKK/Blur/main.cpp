@@ -139,6 +139,9 @@ void load_mini_batch (
                 }
 
                 if(id == 0) { // only for Blur class
+                    if(rnd.get_random_float() > 0.75f) {
+                        _tmpmat = applyMotionBlur(_tmpmat,90.0f*rnd.get_random_float(),_tmpmat.cols / rnd.get_integer_in_range(7,47));
+                    }
                     if(rnd.get_random_float() > 0.5f) {
                         int _size = rnd.get_integer_in_range(20,95);
                         cv::resize(_tmpmat,_tmpmat,cv::Size(_size,_size));
@@ -171,6 +174,9 @@ void load_mini_batch (
                     cv::flip(_tmpmat,_tmpmat,1);
 
                 if(id == 0) { // only for Blur class
+                    if(rnd.get_random_float() > 0.75f) {
+                        _tmpmat = applyMotionBlur(_tmpmat,90.0f*rnd.get_random_float(),_tmpmat.cols / rnd.get_integer_in_range(7,47));
+                    }
                     if(rnd.get_random_float() > 0.5f) {
                         int _size = rnd.get_integer_in_range(20,95);
                         cv::resize(_tmpmat,_tmpmat,cv::Size(_size,_size));

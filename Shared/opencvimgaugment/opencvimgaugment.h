@@ -279,4 +279,16 @@ cv::Mat addNoise(const cv::Mat &_inmat, cv::RNG &_cvrng, double _a=0, double _b=
     return _inmat + _tmpmat;
 }
 
+cv::Mat applyMotionBlur(const cv::Mat &_inmat, float angle, int size)
+{
+    cv::Mat kernel = cv::Mat::zeros(size,size,CV_32FC1);
+    float *p = kernel.ptr<float>(size/2);
+    for(int i = 0; i < size; ++i)
+        p[i] = 1.0f / size;
+    cv::warpAffine(kernel,kernel,cv::getRotationMatrix2D(cv::Point2f(size/2.0f,size/2.0f),angle,1),cv::Size(size,size),cv::INTER_CUBIC);
+    cv::Mat result;
+    cv::filter2D(_inmat,result,_inmat.depth(),kernel);
+    return result;
+}
+
 #endif // OPENCVIMGAUGMENT_H

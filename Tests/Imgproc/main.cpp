@@ -47,8 +47,10 @@ int main(int argc, char *argv[])
                 if(rnd.get_random_float() > 0.5f)
                     cv::flip(_tmpmat,_tmpmat,0);*/
 
-                if(rnd.get_random_float() > 0.1f)
-                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.03,0.04,0,cv::BORDER_REFLECT,cv::Scalar(0),false);
+                _tmpmat = applyMotionBlur(_tmpmat,45,_tmpmat.cols/10);
+
+                /*if(rnd.get_random_float() > 0.1f)
+                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.03,0.04,0,cv::BORDER_REFLECT,cv::Scalar(0),false);*/
                 /*if(rnd.get_random_float() > 0.1f)
                     _tmpmat = distortimage(_tmpmat,cvrng,0.03,cv::INTER_CUBIC,cv::BORDER_WRAP,cv::Scalar(0));
 
