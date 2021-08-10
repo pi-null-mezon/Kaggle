@@ -294,7 +294,7 @@ int main(int argc, char** argv)
     std::vector<std::vector<string>> testobjs;
     if(cmdparser.has("testdir"))
         testobjs = load_classes_list(cmdparser.get<string>("testdir"));
-    cout << "testobjs.size(): "<< trainobjs.size() << endl;
+    cout << "testobjs.size(): "<< testobjs.size() << endl;
     for(size_t i = 0; i < testobjs.size(); ++i)
         cout << "  label " << i << " - unique samples - " << testobjs[i].size() << endl;
     cout << endl;

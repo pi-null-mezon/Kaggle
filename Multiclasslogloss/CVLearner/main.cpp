@@ -313,7 +313,7 @@ int main(int argc, char** argv)
         testobjs = load_classes_list(cmdparser.get<string>("testdir"));
         cout << "testdir.size(): "<< testobjs.size() << endl;
         for(size_t i = 0; i < testobjs.size(); ++i)
-            cout << "  label " << i << " - unique samples - " << trainobjs[i].size() << endl;
+            cout << "  label " << i << " - unique samples - " << testobjs[i].size() << endl;
     }
     dlib::rand _foldsplitrnd(cmdparser.get<unsigned int>("splitseed"));
     const unsigned int cvfolds = cmdparser.get<unsigned int>("cvfolds");
