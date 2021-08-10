@@ -16,9 +16,9 @@
 
 const std::string options = "{traindir t  |       | - directory with training images}"
                             "{outputdir o |  .    | - output directory}"
-                            "{mbs         |  64   | - mini batch size}"
+                            "{mbs         |  128  | - mini batch size}"
                             "{seed        |  7    | - random number generator seed value}"
-                            "{split       |  0.2  | - validation portion of data}"
+                            "{split       |  0.1  | - validation portion of data}"
                             "{learningrate|       | - learning rate}"
                             "{viwp        | 1000  | - validation iterations without progress}"
                             "{tiwp        | 10000 | - training iterations without progress}"
@@ -139,14 +139,14 @@ int main(int argc, char *argv[])
     std::vector<HeadPose> hposes;
     hposes.reserve(1E4);
     qInfo("Reading training data, please wait...");
-    auto files = traindir.entryList(QStringList() << "*.jpg" << "*.jpeg" << "*.png", QDir::Files | QDir::NoDotDot);
+    const auto files = traindir.entryList(QStringList() << "*.jpg" << "*.jpeg" << "*.png", QDir::Files | QDir::NoDotDot);
     for(const auto &_filename: files) {
         const QString absolutefilename = traindir.absoluteFilePath(_filename);
         HeadPose _headpose;
         _headpose.filename = absolutefilename.toStdString();
         _headpose.angles = extract_pitch_and_yaw(absolutefilename);
-        qDebug() << _filename;
-        qDebug() << _headpose.angles;
+        //qDebug() << _filename;
+        //qDebug() << _headpose.angles;
         hposes.push_back(std::move(_headpose));
     }
     qInfo(" total: %lu - training instances has been found",hposes.size());
@@ -267,7 +267,7 @@ int main(int argc, char *argv[])
             trainer.test_one_step(validimgs,validlbls);
 
         }
-        if((trainer.get_train_one_step_calls() % 100) == 0)
+        if((trainer.get_train_one_step_calls() % 200) == 0)
             qInfo(" #%llu - lr: %f,  loss: %f / %f",
                   trainer.get_train_one_step_calls(),
                   trainer.get_learning_rate(),
@@ -302,13 +302,16 @@ int main(int argc, char *argv[])
         load_image(instance,img,lbls,rnd,cvrng,false);
         qet.start();
         matrix<float> prediction = anet(img);
+        img = dlib::fliplr(img);
+        matrix<float> fliplr = anet(img);
         if(firstinference == false)
             timens.push_back(qet.nsecsElapsed());
         else
             firstinference = false;
-        dyaw.push_back(lbls[0]-prediction(0));
-        dpitch.push_back(lbls[1]-prediction(1));
-        droll.push_back(lbls[2]-prediction(2));
+
+        dyaw.push_back(  lbls[0] - (prediction(0) - fliplr(0))/2.0f);
+        dpitch.push_back(lbls[1] - (prediction(1) + fliplr(1))/2.0f);
+        droll.push_back( lbls[2] - (prediction(2) - fliplr(2))/2.0f);
         /*cv::Mat _tmpmat = dlibmatrix2cvmat(img);
         cv::putText(_tmpmat,
                     QString("%1; %2").arg(QString::number(lbls[0]*90.0f,'f',1),QString::number(lbls[1]*90.0f,'f',1)).toStdString(),
