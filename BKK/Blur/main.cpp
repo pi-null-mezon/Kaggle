@@ -125,43 +125,44 @@ void load_mini_batch (
                     _tmpmat = cutoutRect(_tmpmat,1,rnd.get_random_float(),0.3f,0.3f,rnd.get_random_float()*180.0f);*/
 
 
-                if(rnd.get_random_float() > 0.5f)
-                    _tmpmat *= static_cast<double>(0.5f + 1.0f*rnd.get_random_float());
-
-                if(rnd.get_random_float() > 0.5f)
-                    _tmpmat = addNoise(_tmpmat,cvrng,0,rnd.get_integer_in_range(3,11));
-
-
-                if(rnd.get_random_float() > 0.5f) {
-                    cv::cvtColor(_tmpmat,_tmpmat,cv::COLOR_BGR2GRAY);
-                    cv::Mat _chmat[] = {_tmpmat,_tmpmat,_tmpmat};
-                    cv::merge(_chmat,3,_tmpmat);
-                }
-
                 if(id == 0) { // only for Blur class
-                    if(rnd.get_random_float() > 0.75f) {
-                        _tmpmat = applyMotionBlur(_tmpmat,90.0f*rnd.get_random_float(),_tmpmat.cols / rnd.get_integer_in_range(7,47));
-                    }
-                    if(rnd.get_random_float() > 0.5f) {
-                        int _size = rnd.get_integer_in_range(20,95);
-                        cv::resize(_tmpmat,_tmpmat,cv::Size(_size,_size));
-                    }
                     cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
-                    cv::resize(_tmpmat,_tmpmat,cv::Size(IMG_WIDTH,IMG_HEIGHT));
 
-                    if(rnd.get_random_float() > 0.7f ) {
+                    if(rnd.get_random_float() > 0.5f)
+                        cv::blur(_tmpmat,_tmpmat,cv::Size(5,5));
+
+                    if(rnd.get_random_float() > 0.5f)
+                        _tmpmat = applyMotionBlur(_tmpmat,90.0f*rnd.get_random_float(),_tmpmat.cols / rnd.get_integer_in_range(7,45));
+
+                    if(rnd.get_random_float() > 0.5f) {
+                        int _size = rnd.get_integer_in_range(IMG_WIDTH*0.1,IMG_WIDTH*0.8);
+                        cv::resize(_tmpmat,_tmpmat,cv::Size(_size,_size),cv::INTER_LINEAR);
+                        cv::resize(_tmpmat,_tmpmat,cv::Size(IMG_WIDTH,IMG_HEIGHT),cv::INTER_LINEAR);
+                    }
+
+                    if(rnd.get_random_float() > 0.5f ) {
                         std::vector<unsigned char> _bytes;
                         std::vector<int> compression_params;
                         compression_params.push_back(cv::IMWRITE_JPEG_QUALITY);
-                        compression_params.push_back(static_cast<int>(rnd.get_integer_in_range(30,70)));
+                        compression_params.push_back(static_cast<int>(rnd.get_integer_in_range(20,60)));
                         cv::imencode("*.jpg",_tmpmat,_bytes,compression_params);
                         _tmpmat = cv::imdecode(_bytes,cv::IMREAD_UNCHANGED);
                     }
 
                     if(rnd.get_random_float() > 0.9f)
                         _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.5f,0.5f,rnd.get_random_float()*180.0f);
-                    if(rnd.get_random_float() > 0.5f)
-                        cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
+                }
+
+                if(rnd.get_random_float() > 0.5f)
+                    _tmpmat *= static_cast<double>(0.5f + 1.0f*rnd.get_random_float());
+
+                if(rnd.get_random_float() > 0.5f)
+                    _tmpmat = addNoise(_tmpmat,cvrng,0,rnd.get_integer_in_range(3,11));
+
+                if(rnd.get_random_float() > 0.5f) {
+                    cv::cvtColor(_tmpmat,_tmpmat,cv::COLOR_BGR2GRAY);
+                    cv::Mat _chmat[] = {_tmpmat,_tmpmat,_tmpmat};
+                    cv::merge(_chmat,3,_tmpmat);
                 }
 
                 dlib::matrix<dlib::rgb_pixel> _dlibtmpimg = cvmat2dlibmatrix<dlib::rgb_pixel>(_tmpmat);
@@ -174,29 +175,31 @@ void load_mini_batch (
                     cv::flip(_tmpmat,_tmpmat,1);
 
                 if(id == 0) { // only for Blur class
-                    if(rnd.get_random_float() > 0.75f) {
-                        _tmpmat = applyMotionBlur(_tmpmat,90.0f*rnd.get_random_float(),_tmpmat.cols / rnd.get_integer_in_range(7,47));
-                    }
-                    if(rnd.get_random_float() > 0.5f) {
-                        int _size = rnd.get_integer_in_range(20,95);
-                        cv::resize(_tmpmat,_tmpmat,cv::Size(_size,_size));
-                    }
                     cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
-                    cv::resize(_tmpmat,_tmpmat,cv::Size(IMG_WIDTH,IMG_HEIGHT));
 
-                    if(rnd.get_random_float() > 0.7f ) {
+                    if(rnd.get_random_float() > 0.5f)
+                        cv::blur(_tmpmat,_tmpmat,cv::Size(5,5));
+
+                    if(rnd.get_random_float() > 0.5f)
+                        _tmpmat = applyMotionBlur(_tmpmat,90.0f*rnd.get_random_float(),_tmpmat.cols / rnd.get_integer_in_range(7,45));
+
+                    if(rnd.get_random_float() > 0.5f) {
+                        int _size = rnd.get_integer_in_range(IMG_WIDTH*0.1,IMG_WIDTH*0.8);
+                        cv::resize(_tmpmat,_tmpmat,cv::Size(_size,_size),cv::INTER_LINEAR);
+                        cv::resize(_tmpmat,_tmpmat,cv::Size(IMG_WIDTH,IMG_HEIGHT),cv::INTER_LINEAR);
+                    }
+
+                    if(rnd.get_random_float() > 0.5f ) {
                         std::vector<unsigned char> _bytes;
                         std::vector<int> compression_params;
                         compression_params.push_back(cv::IMWRITE_JPEG_QUALITY);
-                        compression_params.push_back(static_cast<int>(rnd.get_integer_in_range(30,70)));
+                        compression_params.push_back(static_cast<int>(rnd.get_integer_in_range(20,60)));
                         cv::imencode("*.jpg",_tmpmat,_bytes,compression_params);
                         _tmpmat = cv::imdecode(_bytes,cv::IMREAD_UNCHANGED);
                     }
 
                     if(rnd.get_random_float() > 0.9f)
                         _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.5f,0.5f,rnd.get_random_float()*180.0f);
-                    if(rnd.get_random_float() > 0.5f)
-                        cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
                 }
 
 
@@ -215,7 +218,7 @@ void load_mini_batch (
 float test_accuracy_on_random_subset(const std::vector<std::vector<string>> &_testobjs, dlib::net_type &_net, bool _beverbose,
                            const size_t _classes,
                            const size_t _samples,
-                           const size_t _iterations=10,
+                           const size_t _iterations=5,
                            const size_t _seed=7)
 {
     anet_type   anet = _net;
@@ -319,7 +322,7 @@ const cv::String options = "{traindir  t  |       | path to directory with train
                            "{samples s    | 32    | samples per class in minibatch}"
                            "{bnwsize      | 100   | will be passed in set_all_bn_running_stats_window_sizes before net training}"
                            "{tiwp         | 5000  | train iterations without progress}"
-                           "{viwp         | 100    | validation iterations without progress}"
+                           "{viwp         | 200   | validation iterations without progress}"
                            "{taugm        | true  | apply train time augmentation}"
                            "{psalgo       | true  | set prefer smallest algorithms}";
 
@@ -394,7 +397,7 @@ int main(int argc, char** argv)
         set_all_bn_running_stats_window_sizes(net, cmdparser.get<unsigned>("bnwsize"));
         //cout << net << endl;
 
-        dnn_trainer<net_type> trainer(net,sgd(0.0005f,0.9f));
+        dnn_trainer<net_type> trainer(net,sgd(0.00025f,0.9f));
         trainer.set_learning_rate(0.1);
         trainer.be_verbose();
         trainer.set_synchronization_file(cmdparser.get<string>("outputdir") + string("/trainer_") + sessionguid + std::string("_split_") + std::to_string(_fold) + string("_sync") , std::chrono::minutes(5));

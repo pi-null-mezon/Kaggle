@@ -196,7 +196,7 @@ int main(int argc, char *argv[])
 
     //--------------------------------------------------------------------------------
     net_type net;
-    dnn_trainer<net_type> trainer(net,sgd());
+    dnn_trainer<net_type> trainer(net,sgd(0.00025, 0.9));
     trainer.set_learning_rate(0.01);
     trainer.be_verbose();
     trainer.set_synchronization_file(cmdp.get<string>("outputdir") + string("/trainer_sync") , std::chrono::minutes(10));
