@@ -3,8 +3,8 @@
 
 #include <dlib/dnn.h>
 
-#define IMG_WIDTH 100
-#define IMG_HEIGHT 100
+#define IMG_WIDTH 80
+#define IMG_HEIGHT 80
 
 #define FNUM 8
 
