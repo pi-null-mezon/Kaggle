@@ -101,24 +101,15 @@ void load_mini_batch (
             _tmpmat = loadIbgrmatWsize(obj,IMG_WIDTH,IMG_HEIGHT,false,&_isloaded);
             assert(_isloaded);
 
-            if(id == 1) { // only for obstructed
-                for(int iterations = 0; iterations < 1; ++iterations) {
-                    if(rnd.get_random_float() > 0.8f)
-                        _tmpmat = cutoutRect(_tmpmat,0.25f + 0.5f*rnd.get_random_float(),0.25f + 0.5f*rnd.get_random_float(),0.05f,1,rnd.get_random_float()*180.0f,false,cv::Scalar(rnd.get_integer_in_range(0,255),
-                                                                                                                                                                                    rnd.get_integer_in_range(0,255),
-                                                                                                                                                                                    rnd.get_integer_in_range(0,255)));
-                    if(rnd.get_random_float() > 0.8f)
-                        _tmpmat = cutoutRect(_tmpmat,0.25f + 0.5f*rnd.get_random_float(),0.25f + 0.5f*rnd.get_random_float(),1,0.025f,rnd.get_random_float()*180.0f,false,cv::Scalar(rnd.get_integer_in_range(0,255),
-                                                                                                                                                                                     rnd.get_integer_in_range(0,255),
-                                                                                                                                                                                     rnd.get_integer_in_range(0,255)));
-                }
-                if(rnd.get_random_float() > 0.9f)
-                    _tmpmat = cutoutRect(_tmpmat,0.1f + 0.8f*rnd.get_random_float(),0.1f + 0.8f*rnd.get_random_float(),0.75f,0.5f,rnd.get_random_float()*180.0f,false,cv::Scalar(rnd.get_integer_in_range(0,255),
-                                                                                                                                                                                 rnd.get_integer_in_range(0,255),
-                                                                                                                                                                                 rnd.get_integer_in_range(0,255)));
+            if(id == 1) { // only for flare
+                if(rnd.get_random_float() > 0.5f)
+                    _tmpmat = applyFlare(_tmpmat,cvrng,cvrng.uniform(-2.0f,0.05f),cvrng.uniform(-1.f,2.0f));
+                else
+                    _tmpmat = applyFlare(_tmpmat,cvrng,cvrng.uniform(0.95f,3.0f),cvrng.uniform(-1.f,2.0f));
             }
 
             if(_doaugmentation) {
+
                 if(rnd.get_random_float() > 0.75f)
                     cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
 
@@ -126,15 +117,26 @@ void load_mini_batch (
                     cv::flip(_tmpmat,_tmpmat,1);
 
                 if(rnd.get_random_float() > 0.5f)
-                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.2,0.2,15,cv::BORDER_REPLICATE,cv::Scalar(0),false);
+                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.2,0.2,15,cv::BORDER_CONSTANT,cv::Scalar(0),false);
                 if(rnd.get_random_float() > 0.5f)
-                    _tmpmat = distortimage(_tmpmat,cvrng,0.05,cv::INTER_CUBIC,cv::BORDER_REPLICATE,cv::Scalar(0));
+                    _tmpmat = distortimage(_tmpmat,cvrng,0.05,cv::INTER_CUBIC,cv::BORDER_CONSTANT,cv::Scalar(0));
+
+                /*if(rnd.get_random_float() > 0.5f)
+                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.5f,0.5f,rnd.get_random_float()*180.0f);*/
+                /*if(rnd.get_random_float() > 0.5f)
+                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.3f,0.3f,rnd.get_random_float()*180.0f);
+
+                if(rnd.get_random_float() > 0.5f)
+                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),0,0.3f,0.3f,rnd.get_random_float()*180.0f);
+                if(rnd.get_random_float() > 0.5f)
+                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),1,0.3f,0.3f,rnd.get_random_float()*180.0f);
+                if(rnd.get_random_float() > 0.5f)
+                    _tmpmat = cutoutRect(_tmpmat,0,rnd.get_random_float(),0.3f,0.3f,rnd.get_random_float()*180.0f);
+                if(rnd.get_random_float() > 0.5f)
+                    _tmpmat = cutoutRect(_tmpmat,1,rnd.get_random_float(),0.3f,0.3f,rnd.get_random_float()*180.0f);*/
 
                 if(rnd.get_random_float() > 0.5f)
                     _tmpmat *= static_cast<double>(0.5f + 1.0f*rnd.get_random_float());
-
-                if(rnd.get_random_float() > 0.5f)
-                    _tmpmat = addNoise(_tmpmat,cvrng,0,rnd.get_integer_in_range(3,15));
 
                 if(rnd.get_random_float() > 0.75f)
                     cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
@@ -161,7 +163,7 @@ void load_mini_batch (
                 images.push_back(_dlibtmpimg);
             } else {
                 if(rnd.get_random_float() > 0.5f)
-                    cv::flip(_tmpmat,_tmpmat,1);               
+                    cv::flip(_tmpmat,_tmpmat,1);
                 dlib::matrix<dlib::rgb_pixel> _dlibtmpimg = cvmat2dlibmatrix<dlib::rgb_pixel>(_tmpmat);
                 dlib::disturb_colors(_dlibtmpimg,rnd);
                 //cv::imshow(string("Ordinary ") + to_string(std::hash<std::thread::id>{}(std::this_thread::get_id())),_tmpmat);
@@ -270,7 +272,7 @@ float test_accuracy_on_set(const std::vector<std::vector<string>> &_testobjs, dl
 }
 
 const cv::String options = "{traindir  t  |       | path to directory with training data}"
-                           "{cvfolds      |   5   | folds to use for cross validation training, value 1 disables crossvalidation}"
+                           "{cvfolds      |   4   | folds to use for cross validation training, value 1 disables crossvalidation}"
                            "{splitseed    |   1   | seed for data folds split}"
                            "{testdir      |       | path to directory with test data}"
                            "{outputdir o  |       | path to directory with output data}"
@@ -278,9 +280,9 @@ const cv::String options = "{traindir  t  |       | path to directory with train
                            "{sessionguid  |       | session guid}"
                            "{learningrate |       | initial learning rate}"
                            "{classes c    | 2     | classes per minibatch}"
-                           "{samples s    | 32    | samples per class in minibatch}"
+                           "{samples s    | 64    | samples per class in minibatch}"
                            "{bnwsize      | 100   | will be passed in set_all_bn_running_stats_window_sizes before net training}"
-                           "{tiwp         | 5000  | train iterations without progress}"
+                           "{tiwp         | 4000  | train iterations without progress}"
                            "{viwp         | 500   | validation iterations without progress}"
                            "{taugm        | true  | apply train time augmentation}"
                            "{psalgo       | true  | set prefer smallest algorithms}";
@@ -356,7 +358,7 @@ int main(int argc, char** argv)
         set_all_bn_running_stats_window_sizes(net, cmdparser.get<unsigned>("bnwsize"));
         //cout << net << endl;
 
-        dnn_trainer<net_type> trainer(net,sgd(0.0005f,0.9f));
+        dnn_trainer<net_type> trainer(net,sgd(0.00025f,0.9f));
         trainer.set_learning_rate(0.1);
         trainer.be_verbose();
         trainer.set_synchronization_file(cmdparser.get<string>("outputdir") + string("/trainer_") + sessionguid + std::string("_split_") + std::to_string(_fold) + string("_sync") , std::chrono::minutes(5));
@@ -444,10 +446,10 @@ int main(int argc, char** argv)
             }
             if((trainer.get_train_one_step_calls() % 200) == 0) {
                 std::printf(" #%llu - lr: %f,  loss: %f / %f\n",
-                      trainer.get_train_one_step_calls(),
-                      trainer.get_learning_rate(),
-                      trainer.get_average_loss(),
-                      trainer.get_average_test_loss());
+                            trainer.get_train_one_step_calls(),
+                            trainer.get_learning_rate(),
+                            trainer.get_average_loss(),
+                            trainer.get_average_test_loss());
                 std::flush(std::cout);
             }
         }

@@ -26,12 +26,13 @@ int main(int argc, char *argv[])
     bool isloaded;
     for(auto file : dir.get_files()) {
         _filename = file.full_name();
-        cv::Mat _mat = loadIbgrmatWsize(_filename,512,512,false,&isloaded);
+        cv::Mat _mat = loadIbgrmatWsize(_filename,100,100,false,&isloaded);
         assert(isloaded);
         cout << "---------------------------" << endl;
         cout << "Filename: " << file.full_name() << endl;
-        cout << "Img depth (opencv enum 0 - CV_8U, ...): " << _mat.depth() << endl;
-        cout << "Img channels: " << _mat.channels() << endl;
+        cout << " - dimensions: " << _mat.cols << "x" << _mat.rows << endl;
+        cout << " - depth (opencv enum 0 - CV_8U, ...): " << _mat.depth() << endl;
+        cout << " - channels: " << _mat.channels() << endl;
         cv::Mat _tmpmat;
         if(_mat.empty() == false) {
             for(int j = 0; j < 10; ++j) {
@@ -47,7 +48,10 @@ int main(int argc, char *argv[])
                 if(rnd.get_random_float() > 0.5f)
                     cv::flip(_tmpmat,_tmpmat,0);*/
 
-                _tmpmat = applyMotionBlur(_tmpmat,45,_tmpmat.cols/10);
+                if(rnd.get_random_float() > 0.5f)
+                    _tmpmat = applyFlare(_tmpmat,cvrng,cvrng.uniform(-2.0f,0.05f),cvrng.uniform(-1.f,2.0f));
+                else
+                    _tmpmat = applyFlare(_tmpmat,cvrng,cvrng.uniform(0.95f,3.0f),cvrng.uniform(-1.f,2.0f));
 
                 /*if(rnd.get_random_float() > 0.1f)
                     _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.03,0.04,0,cv::BORDER_REFLECT,cv::Scalar(0),false);*/
