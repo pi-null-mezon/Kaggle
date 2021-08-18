@@ -301,20 +301,20 @@ cv::Mat applyFlare(const cv::Mat &_inmat, cv::RNG &_cvrng, float hpos=0.5f, floa
     for(int i = 0; i < steps; ++i) {
         cv::Point2f cp(mask.cols/2.0f,mask.rows - step*i);
         cv::Point2f diff = (cp - sp);
-        cv::line(mask,sp,sp + _cvrng.uniform(0.5f,1.25f)*diff,
+        cv::line(mask,sp,sp + _cvrng.uniform(0.15f,2.25f)*diff,
                  cv::Scalar(155 + 100*_cvrng.uniform(0.0f,1.0f),
                             155 + 100*_cvrng.uniform(0.0f,1.0f),
                             155 + 100*_cvrng.uniform(0.0f,1.0f)),1,cv::LINE_AA);
-        /*if(_cvrng.uniform(0.0f,1.0f) > 0.9f)
-            cv::circle(mask,sp + _cvrng.uniform(0.05f,2.25f)*diff,
+        if(_cvrng.uniform(0.0f,1.0f) > 0.9f)
+            cv::circle(mask,sp + _cvrng.uniform(0.15f,2.25f)*diff,
                        _cvrng.uniform(mask.cols/40,mask.cols/2),
                        cv::Scalar(155 + 100*_cvrng.uniform(0.0f,1.0f),
                                   155 + 100*_cvrng.uniform(0.0f,1.0f),
                                   155 + 100*_cvrng.uniform(0.0f,1.0f)),
-                       1,cv::LINE_AA);*/
+                       1,cv::LINE_AA);
 
     }
-    cv::blur(mask,mask,cv::Size(_cvrng.uniform(7,37),_cvrng.uniform(7,37)));
+    cv::blur(mask,mask,cv::Size(_cvrng.uniform(5,43),_cvrng.uniform(5,43)));
     return _inmat + mask;
 }
 

@@ -103,9 +103,9 @@ void load_mini_batch (
 
             if(id == 1) { // only for flare
                 if(rnd.get_random_float() > 0.5f)
-                    _tmpmat = applyFlare(_tmpmat,cvrng,cvrng.uniform(-2.0f,0.05f),cvrng.uniform(-1.f,2.0f));
+                    _tmpmat = applyFlare(_tmpmat,cvrng,cvrng.uniform(-1.50f,0.05f),cvrng.uniform(-1.5f,2.5f));
                 else
-                    _tmpmat = applyFlare(_tmpmat,cvrng,cvrng.uniform(0.95f,3.0f),cvrng.uniform(-1.f,2.0f));
+                    _tmpmat = applyFlare(_tmpmat,cvrng,cvrng.uniform(0.95f,2.5f),cvrng.uniform(-1.5f,2.5f));
             }
 
             if(_doaugmentation) {
@@ -117,7 +117,7 @@ void load_mini_batch (
                     cv::flip(_tmpmat,_tmpmat,1);
 
                 if(rnd.get_random_float() > 0.5f)
-                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.2,0.2,15,cv::BORDER_CONSTANT,cv::Scalar(0),false);
+                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.3,0.3,30,cv::BORDER_CONSTANT,cv::Scalar(0),false);
                 if(rnd.get_random_float() > 0.5f)
                     _tmpmat = distortimage(_tmpmat,cvrng,0.05,cv::INTER_CUBIC,cv::BORDER_CONSTANT,cv::Scalar(0));
 
@@ -137,6 +137,9 @@ void load_mini_batch (
 
                 if(rnd.get_random_float() > 0.5f)
                     _tmpmat *= static_cast<double>(0.5f + 1.0f*rnd.get_random_float());
+
+                if(rnd.get_random_float() > 0.5f)
+                    _tmpmat = addNoise(_tmpmat,cvrng,0,rnd.get_integer_in_range(3,21));
 
                 if(rnd.get_random_float() > 0.75f)
                     cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
@@ -283,7 +286,7 @@ const cv::String options = "{traindir  t  |       | path to directory with train
                            "{samples s    | 64    | samples per class in minibatch}"
                            "{bnwsize      | 100   | will be passed in set_all_bn_running_stats_window_sizes before net training}"
                            "{tiwp         | 4000  | train iterations without progress}"
-                           "{viwp         | 500   | validation iterations without progress}"
+                           "{viwp         | 250   | validation iterations without progress}"
                            "{taugm        | true  | apply train time augmentation}"
                            "{psalgo       | true  | set prefer smallest algorithms}";
 
@@ -358,7 +361,7 @@ int main(int argc, char** argv)
         set_all_bn_running_stats_window_sizes(net, cmdparser.get<unsigned>("bnwsize"));
         //cout << net << endl;
 
-        dnn_trainer<net_type> trainer(net,sgd(0.00025f,0.9f));
+        dnn_trainer<net_type> trainer(net,sgd(0.0001f,0.9f));
         trainer.set_learning_rate(0.1);
         trainer.be_verbose();
         trainer.set_synchronization_file(cmdparser.get<string>("outputdir") + string("/trainer_") + sessionguid + std::string("_split_") + std::to_string(_fold) + string("_sync") , std::chrono::minutes(5));

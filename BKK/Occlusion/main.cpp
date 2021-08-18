@@ -103,11 +103,11 @@ void load_mini_batch (
 
             if(id == 1) { // only for obstructed
                 for(int iterations = 0; iterations < 1; ++iterations) {
-                    if(rnd.get_random_float() > 0.8f)
+                    if(rnd.get_random_float() > 0.5f)
                         _tmpmat = cutoutRect(_tmpmat,0.25f + 0.5f*rnd.get_random_float(),0.25f + 0.5f*rnd.get_random_float(),0.05f,1,rnd.get_random_float()*180.0f,false,cv::Scalar(rnd.get_integer_in_range(0,255),
                                                                                                                                                                                     rnd.get_integer_in_range(0,255),
                                                                                                                                                                                     rnd.get_integer_in_range(0,255)));
-                    if(rnd.get_random_float() > 0.8f)
+                    if(rnd.get_random_float() > 0.5f)
                         _tmpmat = cutoutRect(_tmpmat,0.25f + 0.5f*rnd.get_random_float(),0.25f + 0.5f*rnd.get_random_float(),1,0.025f,rnd.get_random_float()*180.0f,false,cv::Scalar(rnd.get_integer_in_range(0,255),
                                                                                                                                                                                      rnd.get_integer_in_range(0,255),
                                                                                                                                                                                      rnd.get_integer_in_range(0,255)));
@@ -126,7 +126,7 @@ void load_mini_batch (
                     cv::flip(_tmpmat,_tmpmat,1);
 
                 if(rnd.get_random_float() > 0.5f)
-                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.2,0.2,15,cv::BORDER_REPLICATE,cv::Scalar(0),false);
+                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.3,0.3,35,cv::BORDER_REPLICATE,cv::Scalar(0),false);
                 if(rnd.get_random_float() > 0.5f)
                     _tmpmat = distortimage(_tmpmat,cvrng,0.05,cv::INTER_CUBIC,cv::BORDER_REPLICATE,cv::Scalar(0));
 
@@ -278,7 +278,7 @@ const cv::String options = "{traindir  t  |       | path to directory with train
                            "{sessionguid  |       | session guid}"
                            "{learningrate |       | initial learning rate}"
                            "{classes c    | 2     | classes per minibatch}"
-                           "{samples s    | 32    | samples per class in minibatch}"
+                           "{samples s    | 64    | samples per class in minibatch}"
                            "{bnwsize      | 100   | will be passed in set_all_bn_running_stats_window_sizes before net training}"
                            "{tiwp         | 5000  | train iterations without progress}"
                            "{viwp         | 500   | validation iterations without progress}"
@@ -356,7 +356,7 @@ int main(int argc, char** argv)
         set_all_bn_running_stats_window_sizes(net, cmdparser.get<unsigned>("bnwsize"));
         //cout << net << endl;
 
-        dnn_trainer<net_type> trainer(net,sgd(0.0005f,0.9f));
+        dnn_trainer<net_type> trainer(net,sgd(0.00025f,0.9f));
         trainer.set_learning_rate(0.1);
         trainer.be_verbose();
         trainer.set_synchronization_file(cmdparser.get<string>("outputdir") + string("/trainer_") + sessionguid + std::string("_split_") + std::to_string(_fold) + string("_sync") , std::chrono::minutes(5));

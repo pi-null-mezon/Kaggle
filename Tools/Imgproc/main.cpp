@@ -49,9 +49,9 @@ int main(int argc, char *argv[])
                     cv::flip(_tmpmat,_tmpmat,0);*/
 
                 if(rnd.get_random_float() > 0.5f)
-                    _tmpmat = applyFlare(_tmpmat,cvrng,cvrng.uniform(-2.0f,0.05f),cvrng.uniform(-1.f,2.0f));
+                    _tmpmat = applyFlare(_tmpmat,cvrng,cvrng.uniform(-1.50f,0.05f),cvrng.uniform(-1.5f,2.5f));
                 else
-                    _tmpmat = applyFlare(_tmpmat,cvrng,cvrng.uniform(0.95f,3.0f),cvrng.uniform(-1.f,2.0f));
+                    _tmpmat = applyFlare(_tmpmat,cvrng,cvrng.uniform(0.95f,2.5f),cvrng.uniform(-1.5f,2.5f));
 
                 /*if(rnd.get_random_float() > 0.1f)
                     _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.03,0.04,0,cv::BORDER_REFLECT,cv::Scalar(0),false);*/
