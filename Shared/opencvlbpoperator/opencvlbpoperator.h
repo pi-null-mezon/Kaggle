@@ -232,7 +232,7 @@ static cv::Mat localNormalization(const cv::Mat &inputgray)
     cv::pow(blur, 0.5, den);
     // output = numerator / denominator
     grayf = num / den;
-    cv::normalize(grayf, grayf, 0.0, 65535.0, CV_MINMAX, CV_16UC1);
+    cv::normalize(grayf, grayf, 0.0, 65535.0, cv::NORM_MINMAX, CV_16UC1);
     return grayf;
 }
 

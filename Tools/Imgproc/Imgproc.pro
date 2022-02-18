@@ -7,7 +7,9 @@ SOURCES += main.cpp
 
 INCLUDEPATH += $${PWD}/../../Shared/dlibimgaugment \
                $${PWD}/../../Shared/dlibopencvconverter \
-               $${PWD}/../../Shared/opencvimgaugment
+               $${PWD}/../../Shared/opencvimgaugment \
+               $${PWD}/../../Shared/opencvlbpoperator \
+               $${PWD}/../../Shared/opencvhistograms
 
 include($${PWD}/../../Shared/dlib.pri)
 include($${PWD}/../../Shared/opencv.pri)
