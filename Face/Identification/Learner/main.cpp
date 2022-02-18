@@ -35,7 +35,7 @@ dlib::matrix<dlib::rgb_pixel> makeaugmentation(cv::Mat &_tmpmat, dlib::rand& rnd
     if(rnd.get_random_float() > 0.5f)
         cv::flip(_tmpmat,_tmpmat,1);
 
-    if(rnd.get_random_float() > 0.1f)
+    /*if(rnd.get_random_float() > 0.1f)
         _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.03,0.03,3,cv::BORDER_REFLECT101);
     if(rnd.get_random_float() > 0.1f)
         _tmpmat = distortimage(_tmpmat,cvrng,0.03,cv::INTER_CUBIC,cv::BORDER_WRAP);
@@ -56,12 +56,12 @@ dlib::matrix<dlib::rgb_pixel> makeaugmentation(cv::Mat &_tmpmat, dlib::rand& rnd
 
     if(rnd.get_random_float() > 0.5f)
         cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
+*/
+    if(rnd.get_random_float() > 0.5f)
+        _tmpmat *= 0.8 + 0.4*rnd.get_random_double();
 
-    if(rnd.get_random_float() > 0.1f)
-        _tmpmat *= 0.6 + 0.8*rnd.get_random_double();
-
-    if(rnd.get_random_float() > 0.1f)
-        _tmpmat = addNoise(_tmpmat,cvrng,0,11);
+    if(rnd.get_random_float() > 0.5f)
+        _tmpmat = addNoise(_tmpmat,cvrng,0,1 + (int)(10*rnd.get_random_float()));
 
     if(rnd.get_random_float() > 0.5f) {
         cv::cvtColor(_tmpmat,_tmpmat,cv::COLOR_BGR2GRAY);

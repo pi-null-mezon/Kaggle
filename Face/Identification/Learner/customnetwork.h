@@ -39,24 +39,24 @@ template <typename SUBNET> using alevel4 = ares<32,ares<32,ares<32,SUBNET>>>;
 
 
 // training network type
-using net_type = loss_metric<fc_no_bias<128,avg_pool_everything<
+using net_type = loss_metric<fc_no_bias<256,avg_pool_everything<
                             level0<
                             level1<
                             level2<
                             level3<
                             level4<
-                            max_pool<3,3,2,2,relu<bn_con<con<32,7,7,2,2,
+                            avg_pool<3,3,2,2,relu<bn_con<con<32,7,7,2,2,
                             input_rgb_image
                             >>>>>>>>>>>>;
 
 // testing network type (replaced batch normalization with fixed affine transforms)
-using anet_type = loss_metric<fc_no_bias<128,avg_pool_everything<
+using anet_type = loss_metric<fc_no_bias<256,avg_pool_everything<
                             alevel0<
                             alevel1<
                             alevel2<
                             alevel3<
                             alevel4<
-                            max_pool<3,3,2,2,relu<affine<con<32,7,7,2,2,
+                            avg_pool<3,3,2,2,relu<affine<con<32,7,7,2,2,
                             input_rgb_image
                             >>>>>>>>>>>>;
 }

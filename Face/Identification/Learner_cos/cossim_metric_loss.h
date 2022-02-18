@@ -157,8 +157,10 @@ public:
 
                 // compute the distance between x and y samples.
                 auto cosdst = 1.0f - xy / std::sqrt(xx * yy);
+		if(cosdst <= 0)
+		    cosdst = 0;
 
-                // It should be noted that the derivative of cosdist(x,y) = 1 - xy / (|x||y|) with respect
+                // It should be noted that the derivative of cosdst(x,y) = 1 - xy / (|x||y|) with respect
                 // to the x vector is the vector (xy*x - xx*y / (xx|x||y|)).
                 // If you stare at the code below long enough you will see that it's just an
                 // application of this formula.
@@ -174,7 +176,8 @@ public:
                     else
                     {
                         loss += scale*(cosdst - (dist_thresh-margin));
-                        auto _tmp = xx * std::sqrt(xx * yy);
+                        // don't divide by zero (or a really small number)
+                        auto _tmp = std::max(xx * std::sqrt(xx * yy), 0.001f);
                         gm[r*temp.num_samples() + r] += scale * xy / _tmp;
                         gm[r*temp.num_samples() + c] = -scale * xx / _tmp;
                     }
@@ -190,8 +193,8 @@ public:
                     else
                     {
                         loss += scale*((dist_thresh+margin) - cosdst);
-                        auto _tmp = xx * std::sqrt(xx * yy);
-                        // don't divide by zero (or a really small number)
+			// don't divide by zero (or a really small number)
+                        auto _tmp = std::max(xx * std::sqrt(xx * yy), 0.001f);
                         gm[r*temp.num_samples() + r] -= scale * xy / _tmp;
                         gm[r*temp.num_samples() + c] = scale * xx / _tmp;
                     }
