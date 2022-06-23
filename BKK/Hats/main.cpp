@@ -440,13 +440,29 @@ int main(int argc, char** argv)
                 testqlabels.dequeue(vlabels);
                 trainer.test_one_step(vimages,vlabels);
             }
-            if((trainer.get_train_one_step_calls() % 200) == 0) {
+            if((trainer.get_train_one_step_calls() % 250) == 0) {
                 std::printf(" #%llu - lr: %f,  loss: %f / %f\n",
                       trainer.get_train_one_step_calls(),
                       trainer.get_learning_rate(),
                       trainer.get_average_loss(),
                       trainer.get_average_test_loss());
                 std::flush(std::cout);
+            }
+            if((trainer.get_train_one_step_calls() % 1000) == 0) {
+                trainer.get_net();
+                net.clean();
+                if(testobjs.size() > 0) {
+                    cout << "Evaluation on TEST set:" << endl;
+                    float acc = test_accuracy_on_set(testobjs,net,128,true);
+                    if(acc > 0.95) {
+                        string _outputfilename = string("net_") + sessionguid + std::string("_split_") + std::to_string(_fold)
+                                + string("_acc_") + to_string(acc)
+                                + string("_steps_") + to_string(trainer.get_train_one_step_calls())
+                                + string(".dat");
+                        cout << "Wait untill weights will be serialized to " << _outputfilename << endl << endl;
+                        serialize(cmdparser.get<string>("outputdir") + string("/") + _outputfilename) << net;
+                    }
+                }
             }
         }
 

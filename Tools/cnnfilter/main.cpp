@@ -9,12 +9,13 @@
 #include "dlibimgaugment.h"
 #include "dlibopencvconverter.h"
 
-#include "../../BKK/Occlusion/customnetwork.h"
+#include "../../BKK/Bestshot/customnetwork.h"
+
 
 const std::string options = "{inputdir i  |       | - directory with files to be checked}"
                             "{outputdir o |       | - directory where filtered files should be copied}"
                             "{resources r |       | - directory where CNN's *.dat files are stored}"
-                            "{batchsize b | 256   | - batch size to process}"
+                            "{batchsize b | 512   | - batch size to process}"
                             "{label l     |   0   | - label of the class that should be preserved}"
                             "{help h      |       | - help}";
 
@@ -123,7 +124,7 @@ int main(int argc, char *argv[])
         for(size_t i = 0; i < labelproblist.size(); ++i) {
             float prob = labelproblist[i] / snets.size();
             const QString filename = validfileslist.at(i).section('/',-1,-1);
-            if(prob >= 0.5f)
+            if(prob >= 0.99f)
                 QFile::copy(validfileslist.at(i),qoutdir.absolutePath().append("/%1").arg(filename));
             else
                 qInfo("  file '%s' will not be preserved prob(%d) ~ %.4f", filename.toUtf8().constData(), label, prob);

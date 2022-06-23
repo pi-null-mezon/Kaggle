@@ -318,4 +318,16 @@ cv::Mat applyFlare(const cv::Mat &_inmat, cv::RNG &_cvrng, float hpos=0.5f, floa
     return _inmat + mask;
 }
 
+cv::Mat posterize(const cv::Mat &bgrmat, uint8_t lvls)
+{
+    cv::Mat lookUpTable(1, 256, CV_8U);
+    uchar* p = lookUpTable.ptr();
+    float step = 255.0f / lvls;
+    for(int i = 0; i < 256; ++i)
+        p[i] = static_cast<uchar>(step * std::floor(i / step));
+    cv::Mat omat;
+    cv::LUT(bgrmat,lookUpTable,omat);
+    return omat;
+}
+
 #endif // OPENCVIMGAUGMENT_H

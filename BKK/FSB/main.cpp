@@ -101,30 +101,19 @@ void load_mini_batch (
             _tmpmat = loadIbgrmatWsize(obj,IMG_WIDTH,IMG_HEIGHT,false,&_isloaded);
             assert(_isloaded);
 
-            if(id == 1) { // only for flare
-                if(rnd.get_random_float() > 0.5f)
-                    _tmpmat = applyFlare(_tmpmat,cvrng,cvrng.uniform(-1.50f,0.05f),cvrng.uniform(-1.5f,2.5f));
-                else
-                    _tmpmat = applyFlare(_tmpmat,cvrng,cvrng.uniform(0.95f,2.5f),cvrng.uniform(-1.5f,2.5f));
-            }
-
             if(_doaugmentation) {
-
-                if(rnd.get_random_float() > 0.75f)
-                    cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
-
                 if(rnd.get_random_float() > 0.5f)
                     cv::flip(_tmpmat,_tmpmat,1);
 
                 if(rnd.get_random_float() > 0.5f)
-                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.1,0.1,10,cv::BORDER_CONSTANT,cv::Scalar(0),false);
-                if(rnd.get_random_float() > 0.5f)
-                    _tmpmat = distortimage(_tmpmat,cvrng,0.05,cv::INTER_CUBIC,cv::BORDER_CONSTANT,cv::Scalar(0));
+                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.05,0.05,5.0,cv::BORDER_CONSTANT,cv::Scalar(0),false);
+                /*if(rnd.get_random_float() > 0.5f)
+                    _tmpmat = distortimage(_tmpmat,cvrng,0.03,cv::INTER_CUBIC,cv::BORDER_CONSTANT,cv::Scalar(0));*/
 
                 if(rnd.get_random_float() > 0.5f)
                     _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.5f,0.5f,rnd.get_random_float()*180.0f);
                 /*if(rnd.get_random_float() > 0.5f)
-                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.3f,0.3f,rnd.get_random_float()*180.0f);*/
+                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.3f,0.3f,rnd.get_random_float()*180.0f);
 
                 if(rnd.get_random_float() > 0.5f)
                     _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),0,0.3f,0.3f,rnd.get_random_float()*180.0f);
@@ -133,15 +122,15 @@ void load_mini_batch (
                 if(rnd.get_random_float() > 0.5f)
                     _tmpmat = cutoutRect(_tmpmat,0,rnd.get_random_float(),0.3f,0.3f,rnd.get_random_float()*180.0f);
                 if(rnd.get_random_float() > 0.5f)
-                    _tmpmat = cutoutRect(_tmpmat,1,rnd.get_random_float(),0.3f,0.3f,rnd.get_random_float()*180.0f);
+                    _tmpmat = cutoutRect(_tmpmat,1,rnd.get_random_float(),0.3f,0.3f,rnd.get_random_float()*180.0f);*/
 
                 if(rnd.get_random_float() > 0.5f)
-                    _tmpmat *= static_cast<double>(0.5f + 1.0f*rnd.get_random_float());
+                    _tmpmat *= static_cast<double>(0.8f + 0.4f*rnd.get_random_float());
 
-                if(rnd.get_random_float() > 0.5f)
-                    _tmpmat = addNoise(_tmpmat,cvrng,0,rnd.get_integer_in_range(1,15));
+                /*if(rnd.get_random_float() > 0.5f)
+                    _tmpmat = addNoise(_tmpmat,cvrng,0,rnd.get_integer_in_range(1,11));*/
 
-                if(rnd.get_random_float() > 0.5f)
+                if((rnd.get_random_float() > 0.5f) && (id == 1))
                     cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
 
                 if(rnd.get_random_float() > 0.5f) {
@@ -177,43 +166,6 @@ void load_mini_batch (
             labels.push_back(id);
         }
     }
-}
-
-float test_accuracy_on_random_subset(const std::vector<std::vector<string>> &_testobjs, dlib::net_type &_net, bool _beverbose,
-                           const size_t _classes,
-                           const size_t _samples,
-                           const size_t _iterations=5,
-                           const size_t _seed=7)
-{
-    anet_type   anet = _net;
-    dlib::rand  rnd(static_cast<time_t>(_seed));
-    cv::RNG     cvrng(_seed);
-    std::vector<float> vacc(_iterations,0.0f);
-    std::vector<uint> vright(_iterations,0);
-    std::vector<uint> vwrong(_iterations,0);
-    std::vector<matrix<dlib::rgb_pixel>> images;
-    std::vector<unsigned long> labels;
-    for(size_t i = 0; i < vacc.size(); ++i) {
-        load_mini_batch(_classes, _samples, rnd, cvrng, _testobjs, images, labels, false);
-        std::vector<unsigned long> predictedlabels = anet(images);
-        for(size_t j = 0; j < images.size(); ++j) {
-            if(predictedlabels[j] == labels[j])
-                (vright[i])++;
-            else
-                (vwrong[i])++;
-        }
-        vacc[i] = static_cast<float>(vright[i]) / (vright[i] + vwrong[i]);
-        if(_beverbose)
-            cout << "iteration #" << i << " - accuracy: " << vacc[i] << endl;
-    }
-    float acc = 0.0f;
-    for(size_t i = 0; i < vacc.size(); ++i)
-        acc += vacc[i];
-
-    if(vacc.size() > 0)
-        return acc / vacc.size();
-
-    return 0.0f;
 }
 
 float test_accuracy_on_set(const std::vector<std::vector<string>> &_testobjs, dlib::net_type &_net, const size_t _batchsize=64, bool _beverbose=true)
@@ -279,14 +231,14 @@ const cv::String options = "{traindir  t  |       | path to directory with train
                            "{splitseed    |   1   | seed for data folds split}"
                            "{testdir      |       | path to directory with test data}"
                            "{outputdir o  |       | path to directory with output data}"
-                           "{minlrthresh  | 1E-5  | path to directory with output data}"
+                           "{minlrthresh  | 1E-4  | path to directory with output data}"
                            "{sessionguid  |       | session guid}"
                            "{learningrate |       | initial learning rate}"
                            "{classes c    | 2     | classes per minibatch}"
                            "{samples s    | 64    | samples per class in minibatch}"
-                           "{bnwsize      | 128   | will be passed in set_all_bn_running_stats_window_sizes before net training}"
-                           "{tiwp         | 4000  | train iterations without progress}"
-                           "{viwp         | 200   | validation iterations without progress}"
+                           "{bnwsize      | 512   | will be passed in set_all_bn_running_stats_window_sizes before net training}"
+                           "{tiwp         | 8000  | train iterations without progress}"
+                           "{viwp         | 256   | validation iterations without progress}"
                            "{taugm        | true  | apply train time augmentation}"
                            "{psalgo       | true  | set prefer smallest algorithms}";
 
@@ -353,6 +305,8 @@ int main(int argc, char** argv)
         std::vector<std::vector<string>> validobjs;
         if(cvfolds > 1)
             validobjs = allobjsfolds[_fold];
+        else
+            validobjs = testobjs;
         cout << "validobjs.size(): " << validobjs.size() << endl;
         for(size_t i = 0; i < validobjs.size(); ++i)
             cout << "  label " << i << " - unique samples - " << validobjs[i].size() << endl;
@@ -361,7 +315,7 @@ int main(int argc, char** argv)
         set_all_bn_running_stats_window_sizes(net, cmdparser.get<unsigned>("bnwsize"));
         //cout << net << endl;
 
-        dnn_trainer<net_type> trainer(net,sgd(0.00015f,0.9f));
+        dnn_trainer<net_type> trainer(net,sgd(0.00025f,0.9f));
         trainer.set_learning_rate(0.1);
         trainer.be_verbose();
         trainer.set_synchronization_file(cmdparser.get<string>("outputdir") + string("/trainer_") + sessionguid + std::string("_split_") + std::to_string(_fold) + string("_sync") , std::chrono::minutes(5));
@@ -447,21 +401,21 @@ int main(int argc, char** argv)
                 testqlabels.dequeue(vlabels);
                 trainer.test_one_step(vimages,vlabels);
             }
-            if((trainer.get_train_one_step_calls() % 200) == 0) {
+            if((trainer.get_train_one_step_calls() % 250) == 0) {
                 std::printf(" #%llu - lr: %f,  loss: %f / %f\n",
-                            trainer.get_train_one_step_calls(),
-                            trainer.get_learning_rate(),
-                            trainer.get_average_loss(),
-                            trainer.get_average_test_loss());
+                      trainer.get_train_one_step_calls(),
+                      trainer.get_learning_rate(),
+                      trainer.get_average_loss(),
+                      trainer.get_average_test_loss());
                 std::flush(std::cout);
             }
-            if((trainer.get_train_one_step_calls() % 400) == 0) {
+            if((trainer.get_train_one_step_calls() % 2000) == 0) {
                 trainer.get_net();
                 net.clean();
                 if(testobjs.size() > 0) {
                     cout << "Evaluation on TEST set:" << endl;
                     float acc = test_accuracy_on_set(testobjs,net,128,true);
-                    if(acc > 0.87) {
+                    if(acc > 0.90) {
                         string _outputfilename = string("net_") + sessionguid + std::string("_split_") + std::to_string(_fold)
                                 + string("_acc_") + to_string(acc)
                                 + string("_steps_") + to_string(trainer.get_train_one_step_calls())
@@ -496,15 +450,13 @@ int main(int argc, char** argv)
         float acc = -1.0f;
         if(validobjs.size() > 0) {
             cout << "Accuracy evaluation on validation set:" << endl;
-            acc = test_accuracy_on_random_subset(validobjs,net,true,classes_per_minibatch,64);
-            cout << " avg random subset accuracy: " << acc << endl;
+            acc = test_accuracy_on_set(validobjs,net);
+            cout << "accuracy: " << acc << endl;
         }
         if(testobjs.size() > 0) {
             cout << "Accuracy evaluation on test set:" << endl;
-            acc = test_accuracy_on_random_subset(testobjs,net,true,classes_per_minibatch,64);
-            cout << " avg random subset accuracy: " << acc << endl;
             acc = test_accuracy_on_set(testobjs,net);
-            cout << " entire set accuracy: " << acc << endl;
+            cout << "accuracy: " << acc << endl;
         }
 
         string _outputfilename = string("net_") + sessionguid + std::string("_split_") + std::to_string(_fold) + string("_acc_") + to_string(acc) + string(".dat");

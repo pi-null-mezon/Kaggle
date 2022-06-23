@@ -102,8 +102,8 @@ void load_image(const FaceLandmarks &landmarks, matrix<rgb_pixel> &img, std::vec
             _tmpmat = jitter(_tmplbls,_tmpmat,cvrng,cv::Size(0,0),0.05,0.05,7,cv::BORDER_REFLECT101);
         }
 
-        if(rnd.get_random_float() > 0.5f)
-            _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.4f,0.4f,rnd.get_random_float()*180.0f);
+        /*if(rnd.get_random_float() > 0.5f)
+            _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.4f,0.4f,rnd.get_random_float()*180.0f);*/
 
         if(rnd.get_random_float() > 0.5f)
             cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
@@ -367,7 +367,7 @@ int main(int argc, char *argv[])
 
     qInfo("Serialization...");
     serialize(cmdp.get<std::string>("outputdir") +
-              std::string("/FaceLandmarks_net_mae_") +
+              std::string("/facelandmarks_net_mae_") +
               std::to_string(mean_err) +
               std::string("_stdev_") +
               std::to_string(stdev_err) +

@@ -229,12 +229,12 @@ int main(int argc, char** argv)
         for(size_t i = 0; i < _valldescriptions.size(); ++i) {
             for(size_t j = i+1; j < _valldescriptions.size(); ++j) {
                 if(_valllabels[i] == _valllabels[j]) {
-                    if(cosinedistance(_valldescriptions[i],_valldescriptions[j]) < _distancethresh) {
+                    if(cos_distance(_valldescriptions[i],_valldescriptions[j]) < _distancethresh) {
                         tp++;
                     } else {
                         std::cout << " Reference " << _valllabels[i]
                                   << " vs Test " << _valllabels[j]
-                                  << " - dst: " << cosinedistance(_valldescriptions[i],_valldescriptions[j]) << std::endl;
+                                  << " - dst: " << cos_distance(_valldescriptions[i],_valldescriptions[j]) << std::endl;
                         cv::imshow("Ref.",cv::imread(_vfilename[i],cv::IMREAD_UNCHANGED));
                         cv::imshow("Test",cv::imread(_vfilename[j],cv::IMREAD_UNCHANGED));
                         cv::waitKey(_delayms);
@@ -249,12 +249,12 @@ int main(int argc, char** argv)
                         fn++;
                     }
                 } else {
-                    if(cosinedistance(_valldescriptions[i],_valldescriptions[j]) >= _distancethresh) {
+                    if(cos_distance(_valldescriptions[i],_valldescriptions[j]) >= _distancethresh) {
                         tn++;
                     } else {
                         std::cout << " Reference " << _valllabels[i]
                                   << " vs Test " << _valllabels[j]
-                                  << " - dst: " << cosinedistance(_valldescriptions[i],_valldescriptions[j]) << std::endl;
+                                  << " - dst: " << cos_distance(_valldescriptions[i],_valldescriptions[j]) << std::endl;
                         cv::imshow("Ref.",cv::imread(_vfilename[i],cv::IMREAD_UNCHANGED));
                         cv::imshow("Test",cv::imread(_vfilename[j],cv::IMREAD_UNCHANGED));
                         cv::waitKey(_delayms);
@@ -440,13 +440,13 @@ int main(int argc, char** argv)
                         // The loss_metric layer will cause images with the same label to be less
                         // than net.loss_details().get_distance_threshold() distance from each
                         // other.  So we can use that distance value as our testing threshold.
-                        if ( cosinedistance(embedded[i],embedded[j]) < _distancethresh) {
+                        if ( cos_distance(embedded[i],embedded[j]) < _distancethresh) {
                             ++true_positive;
                         } else {
                             ++false_negative;
                         }
                     } else {
-                        if ( cosinedistance(embedded[i],embedded[j]) >= _distancethresh) {
+                        if ( cos_distance(embedded[i],embedded[j]) >= _distancethresh) {
                             ++true_negative;
                         } else {
                             ++false_positive;
@@ -498,12 +498,12 @@ int main(int argc, char** argv)
                     // The loss_metric layer will cause images with the same label to be less
                     // than net.loss_details().get_distance_threshold() distance from each
                     // other.  So we can use that distance value as our testing threshold.
-                    if (cosinedistance(embedded[i],embedded[j]) < _distancethresh)
+                    if (cos_distance(embedded[i],embedded[j]) < _distancethresh)
                         ++true_positive;
                     else
                         ++false_negative;
                 } else {
-                    if (cosinedistance(embedded[i],embedded[j]) >= _distancethresh)
+                    if (cos_distance(embedded[i],embedded[j]) >= _distancethresh)
                         ++true_negative;
                     else
                         ++false_positive;

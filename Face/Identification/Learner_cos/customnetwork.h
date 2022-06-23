@@ -3,7 +3,7 @@
 
 #include <dlib/dnn.h>
 
-#include "cossim_metric_loss.h"
+#include "metric_cos_loss.h"
 
 #define IMG_WIDTH  150
 #define IMG_HEIGHT 150
@@ -41,7 +41,7 @@ template <typename SUBNET> using alevel4 = ares<32,ares<32,ares<32,SUBNET>>>;
 
 
 // training network type
-using net_type = loss_metric_cossim<fc_no_bias<128,avg_pool_everything<
+using net_type = loss_metric_cos<fc_no_bias<128,avg_pool_everything<
                             level0<
                             level1<
                             level2<
@@ -52,7 +52,7 @@ using net_type = loss_metric_cossim<fc_no_bias<128,avg_pool_everything<
                             >>>>>>>>>>>>;
 
 // testing network type (replaced batch normalization with fixed affine transforms)
-using anet_type = loss_metric_cossim<fc_no_bias<128,avg_pool_everything<
+using anet_type = loss_metric_cos<fc_no_bias<128,avg_pool_everything<
                             alevel0<
                             alevel1<
                             alevel2<

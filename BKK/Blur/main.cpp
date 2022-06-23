@@ -5,6 +5,7 @@
 #include <dlib/misc_api.h>
 
 #include <opencv2/core.hpp>
+#include <opencv2/imgproc.hpp>
 
 #include "dlibimgaugment.h"
 #include "opencvimgaugment.h"
@@ -102,33 +103,26 @@ void load_mini_batch (
             assert(_isloaded);
 
             if(id == 0) { // only for Blur class
-                cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
+                int power = rnd.get_integer_in_range(2,15);
 
-                if(rnd.get_random_float() > 0.5f) {
-                    int _size = rnd.get_integer_in_range(2,7);
-                    cv::blur(_tmpmat,_tmpmat,cv::Size(_size,_size));
+                switch(rnd.get_integer_in_range(0,3)) {
+                    case 0:
+                        cv::blur(_tmpmat,_tmpmat,cv::Size(3*power,3*power));
+                        break;
+                    case 1:
+                        _tmpmat = applyMotionBlur(_tmpmat,90.0f*rnd.get_random_float(),3*power);
+                        break;
+                    case 2:
+                        power = power % 2 == 1 ? power: power + 1;
+                        cv::GaussianBlur(_tmpmat,_tmpmat,cv::Size(3*power,3*power),power);
+                        break;
                 }
 
-                if(rnd.get_random_float() > 0.5f)
-                    _tmpmat = applyMotionBlur(_tmpmat,90.0f*rnd.get_random_float(),_tmpmat.cols / rnd.get_integer_in_range(7,45));
-
-                if(rnd.get_random_float() > 0.5f) {
+                /*if(rnd.get_random_float() > 0.5f) {
                     int _size = rnd.get_integer_in_range(IMG_WIDTH*0.1,IMG_WIDTH*0.8);
                     cv::resize(_tmpmat,_tmpmat,cv::Size(_size,_size),cv::INTER_LINEAR);
                     cv::resize(_tmpmat,_tmpmat,cv::Size(IMG_WIDTH,IMG_HEIGHT),cv::INTER_LINEAR);
-                }
-
-                if(rnd.get_random_float() > 0.5f ) {
-                    std::vector<unsigned char> _bytes;
-                    std::vector<int> compression_params;
-                    compression_params.push_back(cv::IMWRITE_JPEG_QUALITY);
-                    compression_params.push_back(static_cast<int>(rnd.get_integer_in_range(20,60)));
-                    cv::imencode("*.jpg",_tmpmat,_bytes,compression_params);
-                    _tmpmat = cv::imdecode(_bytes,cv::IMREAD_UNCHANGED);
-                }
-
-                if(rnd.get_random_float() > 0.9f)
-                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.5f,0.5f,rnd.get_random_float()*180.0f);
+                }*/
             }
 
             if(_doaugmentation) {
@@ -136,9 +130,9 @@ void load_mini_batch (
                     cv::flip(_tmpmat,_tmpmat,1);
 
                 if(rnd.get_random_float() > 0.5f)
-                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.3,0.3,35,cv::BORDER_CONSTANT,cv::Scalar(0),false);
+                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.1,0.1,10,cv::BORDER_CONSTANT,cv::Scalar(0),false);
                 if(rnd.get_random_float() > 0.5f)
-                    _tmpmat = distortimage(_tmpmat,cvrng,0.1,cv::INTER_CUBIC,cv::BORDER_CONSTANT,cv::Scalar(0));
+                    _tmpmat = distortimage(_tmpmat,cvrng,0.05,cv::INTER_CUBIC,cv::BORDER_CONSTANT,cv::Scalar(0));
 
                 if(rnd.get_random_float() > 0.5f)
                     _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.5f,0.5f,rnd.get_random_float()*180.0f);
@@ -158,7 +152,7 @@ void load_mini_batch (
                     _tmpmat *= static_cast<double>(0.5f + 1.0f*rnd.get_random_float());
 
                 if(rnd.get_random_float() > 0.5f)
-                    _tmpmat = addNoise(_tmpmat,cvrng,0,rnd.get_integer_in_range(3,21));
+                    _tmpmat = addNoise(_tmpmat,cvrng,0,rnd.get_integer_in_range(3,13));
 
                 if(rnd.get_random_float() > 0.5f) {
                     cv::cvtColor(_tmpmat,_tmpmat,cv::COLOR_BGR2GRAY);

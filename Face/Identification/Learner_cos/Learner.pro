@@ -12,8 +12,8 @@ HEADERS += \
     $${PWD}/../../../Shared/dlibimgaugment/dlibimgaugment.h \
     $${PWD}/../../../Shared/opencvimgaugment/opencvimgaugment.h \
     $${PWD}/../../../Shared/dlibopencvconverter/dlibopencvconverter.h \
-    cossim_metric_loss.h \
-    customnetwork.h
+    customnetwork.h \
+    metric_cos_loss.h
 
 INCLUDEPATH += $${PWD}/../../../Shared/dlibimgaugment \
                $${PWD}/../../../Shared/opencvimgaugment \
