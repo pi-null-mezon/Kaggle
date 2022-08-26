@@ -14,6 +14,11 @@
 
 #include "customnetwork.h"
 
+const int min_value = 0;
+const int max_value = 4;
+
+using namespace dlib;
+
 const std::string options = "{traindir t  |       | - directory with training images}"
                             "{outputdir o |  .    | - output directory}"
                             "{mbs         |  128  | - mini batch size}"
@@ -25,12 +30,6 @@ const std::string options = "{traindir t  |       | - directory with training im
                             "{taug        | true  | - training time augmentation}"
                             "{minlrthresh | 1E-5  | - when learning should be stopped}"
                             "{help h      |       | - help}";
-
-struct HeadPose {
-    HeadPose() {}
-    std::string filename;
-    std::vector<float> angles; // [yaw, pitch, roll] in portion of 90 degrees
-};
 
 
 float mean(const std::vector<float> &_v)
@@ -53,68 +52,70 @@ float stdev(const std::vector<float> &_v)
     return 0;
 }
 
-std::vector<float> extract_pitch_and_yaw(const QString &_filename)
-{
-    std::vector<float> headangles(3,0.f);
-    //qInfo("'%s'",_filename.section('.',0,0).toUtf8().constData());
-    const QString jsonfile = QString("%1.json").arg(_filename.section('.',0,0));
-    QFile file(jsonfile);
-    if(file.open(QIODevice::ReadOnly)) {
-        const QByteArray data = file.readAll();
-        QJsonObject json = QJsonDocument::fromJson(data).object();
-        headangles[0] = json.value("yaw").toDouble() / 90.0f; // left/right
-        headangles[1] = json.value("pitch").toDouble() / 90.0f; // up/down
-        headangles[2] = json.value("roll").toDouble() / 90.0f;
-    } else {
-        qWarning("Can not read '%s'", file.fileName().toUtf8().constData());
-    }
-    return headangles;
-}
 
-void flip_lbls_horizontally(std::vector<float> &_angles)
-{
-    _angles[0] *= -1; // yaw should be modified
-    _angles[2] *= -1; // roll should be modified
-}
-
-void load_image(const HeadPose &headpose, matrix<rgb_pixel> &img, std::vector<float> &labels, dlib::rand &rnd, cv::RNG &cvrng, bool augment=false)
+void load_image(const std::string &filename, matrix<rgb_pixel> &img, float &label, dlib::rand &rnd, cv::RNG &cvrng, bool augment=false)
 {
     bool loaded_sucessfully = false;
-    cv::Mat _tmpmat = loadIbgrmatWsize(headpose.filename,IMG_WIDTH,IMG_HEIGHT,false,&loaded_sucessfully);
+    cv::Mat _tmpmat = loadIbgrmatWsize(filename,IMG_WIDTH,IMG_HEIGHT,false,&loaded_sucessfully);
     DLIB_CASSERT(loaded_sucessfully,"Can not read image!"); // TO DO understand in witch mode this macro works as it used to
+
+    if(rnd.get_random_float() > 0.5f)
+        label = 0.5f;
+    else
+        label = -0.5f;
+
     if(augment) {
-
-        auto _tmplbls = headpose.angles;
-        if(rnd.get_random_float() > 0.5f) {
+        if(rnd.get_random_float() > 0.5f)
             cv::flip(_tmpmat,_tmpmat,1);
-            flip_lbls_horizontally(_tmplbls);
-        }
+        _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.025,0.025,2.5,cv::BORDER_REFLECT,cv::Scalar(0),false);
+        _tmpmat *= (0.7 + 0.6*rnd.get_random_double());
 
-        if(rnd.get_random_float() > 0.5f)
-            _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.05,0.05,0,cv::BORDER_REFLECT,cv::Scalar(0),false);
-        if(rnd.get_random_float() > 0.5f)
-            _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.4f,0.4f,rnd.get_random_float()*180.0f);
+        float rf = 0.9f + rnd.get_random_float();
+        cv::resize(_tmpmat,_tmpmat,cv::Size(),rf,rf);
+    }
 
+    if(label > 0.0f) {
         if(rnd.get_random_float() > 0.5f)
-            cv::blur(_tmpmat,_tmpmat,cv::Size(3,3));
-        if(rnd.get_random_float() > 0.1f)
-            _tmpmat *= (0.8 + 0.4*rnd.get_random_double());
-        if(rnd.get_random_float() > 0.1f)
-            _tmpmat = addNoise(_tmpmat,cvrng,0,rnd.get_integer_in_range(1,7));
+            _tmpmat = applyMotionBlur(_tmpmat,90.0f*rnd.get_random_float(),rnd.get_integer_in_range(3, 5));
 
+        if(rnd.get_random_float() > 0.9f)
+            _tmpmat = posterize(_tmpmat,rnd.get_integer_in_range(16, 32));
+
+        _tmpmat = addNoise(_tmpmat,cvrng,0,rnd.get_integer_in_range(8,17));
+    }
+
+    if(augment) {
         if(rnd.get_random_float() > 0.5f) {
             cv::cvtColor(_tmpmat,_tmpmat,cv::COLOR_BGR2GRAY);
             cv::Mat _chmat[] = {_tmpmat, _tmpmat, _tmpmat};
             cv::merge(_chmat,3,_tmpmat);
         }
+    }
 
+    int jpeg_quality = rnd.get_integer_in_range(65,100);
+    if(label > 0.0f)
+        jpeg_quality = rnd.get_integer_in_range(5,45);
+
+    std::vector<unsigned char> _bytes;
+    std::vector<int> compression_params;
+    compression_params.push_back(cv::IMWRITE_JPEG_QUALITY);
+    compression_params.push_back(jpeg_quality);
+    cv::imencode("*.jpg",_tmpmat,_bytes,compression_params);
+    _tmpmat = cv::imdecode(_bytes,cv::IMREAD_UNCHANGED);
+
+    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.025,0.025,2.5,cv::BORDER_REFLECT,cv::Scalar(0),false);
+
+    if(augment) {       
+        /*if(rnd.get_random_float() > 0.5f)
+            _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.5f,0.5f,rnd.get_random_float()*180.0f);*/
+        if(_tmpmat.cols != IMG_WIDTH)
+            cv::resize(_tmpmat,_tmpmat,cv::Size(IMG_WIDTH,IMG_HEIGHT));
         img = cvmat2dlibmatrix<dlib::rgb_pixel>(_tmpmat);
-        dlib::disturb_colors(img,rnd);
-        labels = _tmplbls;
+        dlib::disturb_colors(img,rnd);       
     } else {
         img = cvmat2dlibmatrix<dlib::rgb_pixel>(_tmpmat);
-        labels = headpose.angles;
     }
+
 }
 
 int main(int argc, char *argv[])
@@ -136,20 +137,13 @@ int main(int argc, char *argv[])
     }
 
     //-------------------------------------------------------------------------------
-    std::vector<HeadPose> hposes;
-    hposes.reserve(1E4);
+    std::vector<std::string> filenames;
+    filenames.reserve(1E4);
     qInfo("Reading training data, please wait...");
     const auto files = traindir.entryList(QStringList() << "*.jpg" << "*.jpeg" << "*.png", QDir::Files | QDir::NoDotDot);
-    for(const auto &_filename: files) {
-        const QString absolutefilename = traindir.absoluteFilePath(_filename);
-        HeadPose _headpose;
-        _headpose.filename = absolutefilename.toStdString();
-        _headpose.angles = extract_pitch_and_yaw(absolutefilename);
-        //qDebug() << _filename;
-        //qDebug() << _headpose.angles;
-        hposes.push_back(std::move(_headpose));
-    }
-    qInfo(" total: %lu - training instances has been found",hposes.size());
+    for(const auto &_filename: files)
+        filenames.emplace_back(traindir.absoluteFilePath(_filename).toStdString());
+    qInfo(" total: %lu - training instances has been found",filenames.size());
 
     const int seed = cmdp.get<int>("seed");
     const double split = cmdp.get<double>("split");
@@ -157,47 +151,38 @@ int main(int argc, char *argv[])
     qInfo(" \nminibatch size: %u", (unsigned int)minibatchsize);
 
     dlib::rand rnd(seed);
-    std::vector<HeadPose> trainingset, validationset;
-    trainingset.reserve(hposes.size());
-    validationset.reserve(hposes.size());
-    for(size_t i = 0; i < hposes.size(); ++i) {
+    std::vector<std::string> trainingset, validationset;
+    trainingset.reserve(filenames.size());
+    validationset.reserve(filenames.size());
+    for(size_t i = 0; i < filenames.size(); ++i) {
         if(rnd.get_random_double() < split)
-            validationset.push_back(std::move(hposes[i]));
+            validationset.push_back(std::move(filenames[i]));
         else
-            trainingset.push_back(std::move(hposes[i]));
+            trainingset.push_back(std::move(filenames[i]));
     }
-    hposes.clear();
-    hposes.shrink_to_fit();
+    filenames.clear();
+    filenames.shrink_to_fit();
     qInfo(" training: %lu",trainingset.size());
     qInfo(" validation: %lu",validationset.size());
 
     //--------------------------------------------------------------------------------
     // DEBUGGING
     /*matrix<rgb_pixel> img;
-    std::vector<float> lbls;
+    float lbl;
     cv::RNG _cvrng;
     for(const auto &instance : trainingset) {
-        cv::Mat original = cv::imread(instance.filename);
-        cv::putText(original,
-                    QString("%1; %2").arg(QString::number(instance.angles[0]*90.0f,'f',1),
-                                          QString::number(instance.angles[1]*90.0f,'f',1)).toStdString(),
-                    cv::Point(5,15),cv::FONT_HERSHEY_SIMPLEX,0.5,cv::Scalar(125,255,125),1,cv::LINE_AA);
-
-        load_image(instance,img,lbls,rnd,_cvrng,true);
+        load_image(instance,img,lbl,rnd,_cvrng,true);
         cv::Mat augmented = dlibmatrix2cvmat(img);
         cv::putText(augmented,
-                    QString("%1; %2").arg(QString::number(lbls[0]*90.0f,'f',1),
-                                          QString::number(lbls[1]*90.0f,'f',1)).toStdString(),
+                    QString("%1").arg(QString::number(lbl,'f',2)).toStdString(),
                     cv::Point(5,15),cv::FONT_HERSHEY_SIMPLEX,0.5,cv::Scalar(125,255,125),1,cv::LINE_AA);
         cv::imshow("augmented",augmented);
-        cv::imshow("train",original);
         cv::waitKey(0);
     }*/
-
     //--------------------------------------------------------------------------------
     net_type net;
-    dnn_trainer<net_type> trainer(net,sgd(0.00025, 0.9));
-    trainer.set_learning_rate(0.01);
+    dnn_trainer<net_type> trainer(net,sgd(0.0001, 0.9));
+    //trainer.set_learning_rate(0.01);
     trainer.be_verbose();
     trainer.set_synchronization_file(cmdp.get<string>("outputdir") + string("/trainer_sync") , std::chrono::minutes(10));
     if(cmdp.has("learningrate"))
@@ -210,15 +195,15 @@ int main(int argc, char *argv[])
 
     bool training_time_augmentation = cmdp.get<bool>("taug");
     qInfo(" training time augmentation: %s\n", training_time_augmentation ? "true" : "false");
-    dlib::pipe<std::pair<std::vector<float>,matrix<rgb_pixel>>> trainingpipe(256);
+    dlib::pipe<std::pair<float,matrix<rgb_pixel>>> trainingpipe(256);
     auto f = [&trainingpipe,&trainingset,&seed,&training_time_augmentation](time_t seed_shift) {
         dlib::rand rnd(seed+seed_shift);
         cv::RNG cvrng(seed+seed_shift);
-        std::vector<float> lbls;
+        float lbl;
         matrix<rgb_pixel> img;
         while(trainingpipe.is_enabled()) {
-            load_image(trainingset[rnd.get_random_32bit_number() % trainingset.size()],img,lbls,rnd,cvrng,training_time_augmentation);
-            trainingpipe.enqueue(std::make_pair(lbls,img));
+            load_image(trainingset[rnd.get_random_32bit_number() % trainingset.size()],img,lbl,rnd,cvrng,training_time_augmentation);
+            trainingpipe.enqueue(std::make_pair(lbl,img));
         }
     };
     std::thread training_data_loader1([f](){ f(1); });
@@ -226,15 +211,15 @@ int main(int argc, char *argv[])
     std::thread training_data_loader3([f](){ f(3); });
     std::thread training_data_loader4([f](){ f(4); });
 
-    dlib::pipe<std::pair<std::vector<float>,matrix<rgb_pixel>>> validationpipe(256);
+    dlib::pipe<std::pair<float,matrix<rgb_pixel>>> validationpipe(256);
     auto vf = [&validationpipe,&validationset,&seed](time_t seed_shift) {
         dlib::rand rnd(seed+seed_shift);
         cv::RNG cvrng(seed+seed_shift);
-        std::vector<float> lbls;
+        float lbl;
         matrix<rgb_pixel> img;
         while(validationpipe.is_enabled()) {
-            load_image(validationset[rnd.get_random_32bit_number() % validationset.size()],img,lbls,rnd,cvrng,false);
-            validationpipe.enqueue(std::make_pair(lbls,img));
+            load_image(validationset[rnd.get_random_32bit_number() % validationset.size()],img,lbl,rnd,cvrng,false);
+            validationpipe.enqueue(std::make_pair(lbl,img));
         }
     };
     std::thread validation_data_loader1([vf](){ vf(1); });
@@ -243,16 +228,16 @@ int main(int argc, char *argv[])
         validation_data_loader1.join();
     }
 
-    std::vector<matrix<float>> trainlbls, validlbls;
+    std::vector<float> trainlbls, validlbls;
     std::vector<matrix<rgb_pixel>> trainimgs, validimgs;
-    std::pair<std::vector<float>,matrix<rgb_pixel>> tmp;
+    std::pair<float,matrix<rgb_pixel>> tmp;
     while (trainer.get_learning_rate() >= cmdp.get<double>("minlrthresh") ) {
 
         trainlbls.clear();
         trainimgs.clear();
         while(trainlbls.size() < minibatchsize) {
             trainingpipe.dequeue(tmp);
-            trainlbls.push_back(dlib::mat(tmp.first));
+            trainlbls.push_back(tmp.first);
             trainimgs.push_back(std::move(tmp.second));
         }
         trainer.train_one_step(trainimgs,trainlbls);
@@ -261,7 +246,7 @@ int main(int argc, char *argv[])
             validimgs.clear();
             while(validimgs.size() < minibatchsize) {
                 validationpipe.dequeue(tmp);
-                validlbls.push_back(dlib::mat(tmp.first));
+                validlbls.push_back(tmp.first);
                 validimgs.push_back(std::move(tmp.second));
             }
             trainer.test_one_step(validimgs,validlbls);
@@ -290,53 +275,35 @@ int main(int argc, char *argv[])
     cv::RNG cvrng;
     cv::namedWindow("prediction",cv::WINDOW_NORMAL);
     QElapsedTimer qet;
-    std::vector<float> dyaw, dpitch, droll, timens;
-    dyaw.reserve(validationset.size());
-    dpitch.reserve(validationset.size());
-    droll.reserve(validationset.size());
+    std::vector<float> timens, differences;
+    timens.reserve(validationset.size());
+    differences.reserve(validationset.size());
     qInfo("MAE test on whole validation set:");
     bool firstinference = true;
     for(const auto &instance : validationset) {
         matrix<rgb_pixel> img;
-        std::vector<float> lbls;
-        load_image(instance,img,lbls,rnd,cvrng,false);
+        float lbl;
+        load_image(instance,img,lbl,rnd,cvrng,false);
         qet.start();
-        matrix<float> prediction = anet(img);
-        img = dlib::fliplr(img);
-        matrix<float> fliplr = anet(img);
+        float prediction = anet(img);
+        qInfo("%.2f vs %.2f", lbl, prediction);
         if(firstinference == false)
             timens.push_back(qet.nsecsElapsed());
         else
             firstinference = false;
-
-        dyaw.push_back(  lbls[0] - (prediction(0) - fliplr(0))/2.0f);
-        dpitch.push_back(lbls[1] - (prediction(1) + fliplr(1))/2.0f);
-        droll.push_back( lbls[2] - (prediction(2) - fliplr(2))/2.0f);
-        /*cv::Mat _tmpmat = dlibmatrix2cvmat(img);
-        cv::putText(_tmpmat,
-                    QString("%1; %2").arg(QString::number(lbls[0]*90.0f,'f',1),QString::number(lbls[1]*90.0f,'f',1)).toStdString(),
-                    cv::Point(5,15),cv::FONT_HERSHEY_SIMPLEX,0.5,cv::Scalar(125,255,125),1,cv::LINE_AA);
-        cv::putText(_tmpmat,
-                    QString("%1; %2").arg(QString::number(prediction(0)*90.0f,'f',1),QString::number(prediction(1)*90.0f,'f',1)).toStdString(),
-                    cv::Point(5,35),cv::FONT_HERSHEY_SIMPLEX,0.5,cv::Scalar(125,125,255),1,cv::LINE_AA);
-        cv::imshow("prediction",_tmpmat);
-        cv::waitKey(0);*/
+        differences.push_back(prediction - lbl);
     }
     qInfo("Average inference time: %f us",mean(timens)/1000.0f);
     qInfo("-------------");
-    const float mean_err_yaw = 90.0f*mean(dyaw), stdev_err_yaw = 90.0f*stdev(dyaw);
-    qInfo("Yaw: %.1f ± %.1f deg", mean_err_yaw, 2.0f*stdev_err_yaw);
-    const float mean_err_pitch = 90.0f*mean(dpitch), stdev_err_pitch = 90.0f*stdev(dpitch);
-    qInfo("Pitch: %.1f ± %.1f deg", mean_err_pitch, 2.0f*stdev_err_pitch);
-    const float mean_err_roll = 90.0f*mean(droll), stdev_err_roll = 90.0f*stdev(droll);
-    qInfo("Roll: %.1f ± %.1f deg", mean_err_roll, 2.0f*stdev_err_roll);
-
+    const float mean_err = (max_value - min_value) * mean(differences) ,
+            stdev_err = (max_value - min_value) * stdev(differences);
+    qInfo("Difference: %.1f ± %.1f", mean_err, 2*stdev_err);
     qInfo("Serialization...");
     serialize(cmdp.get<std::string>("outputdir") +
-              std::string("/headpose_net_mae_") +
-              std::to_string((mean_err_yaw + mean_err_pitch + mean_err_roll) / 3) +
+              std::string("/macroblocks_net_mae_") +
+              std::to_string(mean_err) +
               std::string("_stdev_") +
-              std::to_string((stdev_err_yaw + stdev_err_pitch + stdev_err_roll) / 3) +
+              std::to_string(stdev_err) +
               std::string(".dat")) << net;
     qInfo("Done");
 

@@ -45,11 +45,9 @@ int main(int argc, char *argv[])
                     cv::flip(_tmpmat,_tmpmat,1);
 
                 _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.05,0.05,5,cv::BORDER_REFLECT,cv::Scalar(0),false);
-                /*if(rnd.get_random_float() > 0.5f)
-                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.5f,0.5f,rnd.get_random_float()*180.0f);*/
 
-
-                _tmpmat *= (0.7 + 0.6*rnd.get_random_double());
+                _tmpmat = distortimage(_tmpmat,cvrng,0.3);
+                /*_tmpmat *= (0.7 + 0.6*rnd.get_random_double());
 
                 int b = rnd.get_integer_in_range(2, 3);
                 switch(rnd.get_integer_in_range(0,4)) {
@@ -68,18 +66,15 @@ int main(int argc, char *argv[])
                     break;
                 }
 
-                _tmpmat = posterize(_tmpmat,rnd.get_integer_in_range(8,64));
+                _tmpmat = posterize(_tmpmat,rnd.get_integer_in_range(9,10));
 
-                float rf = 1.f + 0.5f*rnd.get_random_float();
-                cv::resize(_tmpmat,_tmpmat,cv::Size(),rf,rf);
+                _tmpmat = addNoise(_tmpmat,cvrng,0,rnd.get_integer_in_range(1,16));
 
-                _tmpmat = addNoise(_tmpmat,cvrng,12,16);
-
-                /*if(rnd.get_random_float() > 0.5f) {
+                if(rnd.get_random_float() > 0.5f) {
                     cv::cvtColor(_tmpmat,_tmpmat,cv::COLOR_BGR2GRAY);
                     cv::Mat _chmat[] = {_tmpmat, _tmpmat, _tmpmat};
                     cv::merge(_chmat,3,_tmpmat);
-                }*/
+                }
 
 
                 std::vector<unsigned char> _bytes;
@@ -87,10 +82,10 @@ int main(int argc, char *argv[])
                 compression_params.push_back(cv::IMWRITE_JPEG_QUALITY);
                 compression_params.push_back(static_cast<int>(rnd.get_integer_in_range(15,35)));
                 cv::imencode("*.jpg",_tmpmat,_bytes,compression_params);
-                _tmpmat = cv::imdecode(_bytes,cv::IMREAD_UNCHANGED);
+                _tmpmat = cv::imdecode(_bytes,cv::IMREAD_UNCHANGED);*/
 
 
-                cv::resize(_tmpmat,_tmpmat,cv::Size(_mat.cols,_mat.rows),0,0);
+
                 dlib::matrix<dlib::rgb_pixel> _dlibtmpimg = cvmat2dlibmatrix<dlib::rgb_pixel>(_tmpmat);
                 dlib::disturb_colors(_dlibtmpimg,rnd);
 

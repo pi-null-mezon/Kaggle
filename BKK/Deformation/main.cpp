@@ -109,24 +109,22 @@ void load_mini_batch (
                     cv::flip(_tmpmat,_tmpmat,1);
 
                 if(rnd.get_random_float() > 0.5f)
-                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.05,0.05,5,cv::BORDER_CONSTANT,cv::Scalar(0),false);
-                /*if(rnd.get_random_float() > 0.5f)
-                    _tmpmat = distortimage(_tmpmat,cvrng,0.05,cv::INTER_CUBIC,cv::BORDER_CONSTANT,cv::Scalar(0));*/
-
-                /*if(rnd.get_random_float() > 0.5f)
-                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.5f,0.5f,rnd.get_random_float()*180.0f);*/
-
-               /* if(rnd.get_random_float() > 0.5f)
-                    _tmpmat *= static_cast<double>(0.7f + 0.6f*rnd.get_random_float());
+                    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.025,0.025,2.5,cv::BORDER_CONSTANT,cv::Scalar(0),false);
 
                 if(rnd.get_random_float() > 0.5f)
-                    _tmpmat = addNoise(_tmpmat,cvrng,0,rnd.get_integer_in_range(1,4));*/
+                    _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.5f,0.5f,rnd.get_random_float()*180.0f);
 
-                /*if(rnd.get_random_float() > 0.5f) {
+                if(rnd.get_random_float() > 0.5f)
+                    _tmpmat *= static_cast<double>(0.9f + 0.2f*rnd.get_random_float());
+
+                if(rnd.get_random_float() > 0.5f)
+                    _tmpmat = addNoise(_tmpmat,cvrng,0,rnd.get_integer_in_range(1,8));
+
+                if(rnd.get_random_float() > 0.5f) {
                     cv::cvtColor(_tmpmat,_tmpmat,cv::COLOR_BGR2GRAY);
                     cv::Mat _chmat[] = {_tmpmat,_tmpmat,_tmpmat};
                     cv::merge(_chmat,3,_tmpmat);
-                }*/
+                }
 
                 /*if(rnd.get_random_float() > 0.9f ) {
                     std::vector<unsigned char> _bytes;
@@ -264,7 +262,7 @@ const cv::String options = "{traindir  t  |       | path to directory with train
                            "{samples s    | 64    | samples per class in minibatch}"
                            "{bnwsize      | 512   | will be passed in set_all_bn_running_stats_window_sizes before net training}"
                            "{tiwp         | 4096  | train iterations without progress}"
-                           "{viwp         | 512   | validation iterations without progress}"
+                           "{viwp         | 256   | validation iterations without progress}"
                            "{taugm        | true  | apply train time augmentation}"
                            "{psalgo       | true  | set prefer smallest algorithms}";
 
@@ -433,13 +431,13 @@ int main(int argc, char** argv)
                       trainer.get_average_test_loss());
                 std::flush(std::cout);
             }*/
-            if((trainer.get_train_one_step_calls() % 1000) == 0) {
+            /*if((trainer.get_train_one_step_calls() % 1000) == 0) {
                 trainer.get_net();
                 net.clean();
                 if(testobjs.size() > 0) {
                     cout << "Evaluation on TEST set:" << endl;
                     float acc = test_accuracy_on_set(testobjs,net);
-                    if(acc > 0.95) {
+                    if(acc > 0.90) {
                         string _outputfilename = string("net_") + sessionguid + std::string("_split_") + std::to_string(_fold)
                                 + string("_acc_") + to_string(acc)
                                 + string("_steps_") + to_string(trainer.get_train_one_step_calls())
@@ -448,7 +446,7 @@ int main(int argc, char** argv)
                         serialize(cmdparser.get<string>("outputdir") + string("/") + _outputfilename) << net;
                     }
                 }
-            }
+            }*/
         }
 
         // stop all the data loading threads and wait for them to terminate.

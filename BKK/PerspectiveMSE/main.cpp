@@ -14,8 +14,8 @@
 
 #include "customnetwork.h"
 
-const int min_value = 1;
-const int max_value = 10;
+const float min_value = 0.0f;
+const float max_value = 0.1f;
 
 using namespace dlib;
 
@@ -61,57 +61,47 @@ void load_image(const std::string &filename, matrix<rgb_pixel> &img, float &labe
 
     if(augment) {
         if(rnd.get_random_float() > 0.5f)
-            cv::flip(_tmpmat,_tmpmat,1);        
-        _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.05,0.05,5,cv::BORDER_REFLECT,cv::Scalar(0),false);
+            cv::flip(_tmpmat,_tmpmat,1);
+        /*if(rnd.get_random_float() > 0.5f)
+            _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.05,0.05,5,cv::BORDER_DEFAULT,cv::Scalar(0),false);*/
         _tmpmat *= (0.7 + 0.6*rnd.get_random_double());
-        /*int b = rnd.get_integer_in_range(2, 3);
-        switch(rnd.get_integer_in_range(0,4)) {
-            case 0:
-                cv::blur(_tmpmat,_tmpmat,cv::Size(b,b));
-                break;
-            case 1:
-                _tmpmat = applyMotionBlur(_tmpmat,90.0f*rnd.get_random_float(),b);
-                _tmpmat = applyMotionBlur(_tmpmat,90.0f*rnd.get_random_float(),b);
-                break;
-            case 2: {
-                int size = b % 2 == 1 ? b : b + 1;
-                cv::GaussianBlur(_tmpmat,_tmpmat,cv::Size(size,size),b);
-            } break;
-            default:
-            break;
+        int bp = rnd.get_integer_in_range(2, 3);
+        if(rnd.get_random_float() < 0.5f) {
+            _tmpmat = applyMotionBlur(_tmpmat,90.0f*rnd.get_random_float(),bp);
+            _tmpmat = applyMotionBlur(_tmpmat,90.0f*rnd.get_random_float(),bp);
         }
+        _tmpmat = addNoise(_tmpmat,cvrng,0,rnd.get_integer_in_range(1,8));
+    }
 
-        float rf = 1.f + 0.1f*rnd.get_random_float();
-        cv::resize(_tmpmat,_tmpmat,cv::Size(),rf,rf);
+    float power = max_value*rnd.get_random_float();
+    _tmpmat = distortimage(_tmpmat, cvrng, power, cv::INTER_LINEAR, cv::BORDER_DEFAULT);
+    _tmpmat = jitterimage(_tmpmat,cvrng,cv::Size(0,0),0.1,0.05,15,cv::BORDER_DEFAULT,cv::Scalar(0),false);
 
-        _tmpmat = addNoise(_tmpmat,cvrng,1,6);*/
+
+    if(augment) {
 
         if(rnd.get_random_float() > 0.5f) {
             cv::cvtColor(_tmpmat,_tmpmat,cv::COLOR_BGR2GRAY);
             cv::Mat _chmat[] = {_tmpmat, _tmpmat, _tmpmat};
             cv::merge(_chmat,3,_tmpmat);
         }
-    }
 
-    const int power = rnd.get_integer_in_range(min_value, max_value);
+        std::vector<unsigned char> _bytes;
+        std::vector<int> compression_params;
+        compression_params.push_back(cv::IMWRITE_JPEG_QUALITY);
+        compression_params.push_back(static_cast<int>(rnd.get_integer_in_range(25,100)));
+        cv::imencode("*.jpg",_tmpmat,_bytes,compression_params);
+        _tmpmat = cv::imdecode(_bytes,cv::IMREAD_UNCHANGED);
 
-    std::vector<unsigned char> _bytes;
-    std::vector<int> compression_params;
-    compression_params.push_back(cv::IMWRITE_JPEG_QUALITY);
-    compression_params.push_back(10*power);
-    cv::imencode("*.jpg",_tmpmat,_bytes,compression_params);
-    _tmpmat = cv::imdecode(_bytes,cv::IMREAD_UNCHANGED);
-
-    if(augment) {
-        cv::resize(_tmpmat,_tmpmat,cv::Size(IMG_WIDTH,IMG_HEIGHT),0,0);
         if(rnd.get_random_float() > 0.5f)
             _tmpmat = cutoutRect(_tmpmat,rnd.get_random_float(),rnd.get_random_float(),0.5f,0.5f,rnd.get_random_float()*180.0f);
+
         img = cvmat2dlibmatrix<dlib::rgb_pixel>(_tmpmat);
         dlib::disturb_colors(img,rnd);       
     } else {
         img = cvmat2dlibmatrix<dlib::rgb_pixel>(_tmpmat);
     }
-    label = 1.0 - (float)(power - min_value) / (max_value - min_value);
+    label = (power - min_value) / (max_value - min_value) - 0.5;
 }
 
 int main(int argc, char *argv[])
@@ -170,7 +160,7 @@ int main(int argc, char *argv[])
         load_image(instance,img,lbl,rnd,_cvrng,true);
         cv::Mat augmented = dlibmatrix2cvmat(img);
         cv::putText(augmented,
-                    QString("%1").arg(QString::number(lbl,'f',2)).toStdString(),
+                    QString("%1").arg(QString::number(lbl,'f',1)).toStdString(),
                     cv::Point(5,15),cv::FONT_HERSHEY_SIMPLEX,0.5,cv::Scalar(125,255,125),1,cv::LINE_AA);
         cv::imshow("augmented",augmented);
         cv::waitKey(0);
@@ -291,12 +281,11 @@ int main(int argc, char *argv[])
     }
     qInfo("Average inference time: %f us",mean(timens)/1000.0f);
     qInfo("-------------");
-    const float mean_err = (max_value - min_value) * mean(differences) ,
-            stdev_err = (max_value - min_value) * stdev(differences);
-    qInfo("Difference: %.1f ± %.1f", mean_err, 2*stdev_err);
+    const float mean_err = (max_value - min_value)*mean(differences), stdev_err = (max_value - min_value)*stdev(differences);
+    qInfo("Difference: %.2f ± %.2f", mean_err, 2*stdev_err);
     qInfo("Serialization...");
     serialize(cmdp.get<std::string>("outputdir") +
-              std::string("/macroblocsk_net_mae_") +
+              std::string("/perspective_net_mae_") +
               std::to_string(mean_err) +
               std::string("_stdev_") +
               std::to_string(stdev_err) +

@@ -6,7 +6,7 @@
 #define IMG_WIDTH 80
 #define IMG_HEIGHT 80
 
-#define FNUM 8
+#define FNUM 4
 
 using namespace dlib;
 
@@ -32,29 +32,27 @@ template <int N, typename SUBNET> using ares_down = relu<residual_down<block,N,a
 template <typename SUBNET> using level1 = res_down<16*FNUM,SUBNET>;
 template <typename SUBNET> using level2 = res_down<8*FNUM,SUBNET>;
 template <typename SUBNET> using level3 = res_down<4*FNUM,SUBNET>;
-template <typename SUBNET> using level4 = res_down<2*FNUM,SUBNET>;
+template <typename SUBNET> using level4 = res<2*FNUM,SUBNET>;
 
 template <typename SUBNET> using alevel1 = ares_down<16*FNUM,SUBNET>;
 template <typename SUBNET> using alevel2 = ares_down<8*FNUM,SUBNET>;
 template <typename SUBNET> using alevel3 = ares_down<4*FNUM,SUBNET>;
-template <typename SUBNET> using alevel4 = ares_down<2*FNUM,SUBNET>;
+template <typename SUBNET> using alevel4 = ares<2*FNUM,SUBNET>;
 
 // training network type
 using net_type = loss_mean_squared_multioutput<fc<3,avg_pool_everything<
-                                        level1<
                                         level2<
                                         level3<
                                         level4<
-                                        relu<bn_con<con<FNUM,5,5,2,2,
-                                        input_rgb_image >>>>>>>>>>;
+                                        relu<bn_con<con<FNUM,3,3,2,2,
+                                        input_rgb_image >>>>>>>>>;
 
 // testing network type (replaced batch normalization with fixed affine transforms)
 using anet_type = loss_mean_squared_multioutput<fc<3,avg_pool_everything<
-                                         alevel1<
                                          alevel2<
                                          alevel3<
                                          alevel4<
-                                         relu<affine<con<FNUM,5,5,2,2,
-                                         input_rgb_image >>>>>>>>>>;
+                                         relu<affine<con<FNUM,3,3,2,2,
+                                         input_rgb_image >>>>>>>>>;
 
 #endif // CUSTOMNETWORK_H

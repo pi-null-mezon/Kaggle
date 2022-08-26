@@ -169,12 +169,19 @@ cv::Mat distortimage(const cv::Mat&_inmat, cv::RNG &_cvrng, double _maxportion=0
                         cv::Point2f(_inmat.cols*_cvrng.uniform(1.-_maxportion,1.+_maxportion),_inmat.rows*_cvrng.uniform(1.-_maxportion,1.+_maxportion)),
                         cv::Point2f(-_inmat.cols*_cvrng.uniform(-_maxportion,_maxportion),_inmat.rows*_cvrng.uniform(1.-_maxportion,1.+_maxportion))
                        };
+    /*float portion = _inmat.cols * _maxportion;
+    cv::Point2f pts2[]={
+                        cv::Point2f(portion,0),
+                        cv::Point2f(_inmat.cols-portion,0),
+                        cv::Point2f(_inmat.cols-portion,_inmat.rows),
+                        cv::Point2f(portion,_inmat.rows)
+                       };*/
     cv::Mat _outmat;
     cv::warpPerspective(_inmat,_outmat,cv::getPerspectiveTransform(pts1,pts2),cv::Size(_inmat.cols,_inmat.rows),_interp_method,_bordertype,_constcolor);
     return _outmat;
 }
 
-cv::Mat loadIbgrmatWsize(std::string _filename, int _tcols, int _trows, bool _crop, bool *_isloadded=nullptr)
+cv::Mat loadIbgrmatWsize(std::string _filename, int _tcols, int _trows, bool _crop, bool *_isloadded=nullptr, int downscale_interp=cv::INTER_AREA)
 {
     cv::Mat _originalimgmat = cv::imread(_filename, cv::IMREAD_COLOR);
     if(_isloadded)
@@ -187,7 +194,7 @@ cv::Mat loadIbgrmatWsize(std::string _filename, int _tcols, int _trows, bool _cr
         return cropFromCenterAndResize(_originalimgmat,cv::Size(_tcols,_trows));
 
     if((_originalimgmat.cols != _tcols) || (_originalimgmat.rows != _trows)) {
-        int resizetype = cv::INTER_AREA;
+        int resizetype = downscale_interp;
         if(_originalimgmat.cols*_originalimgmat.rows < _tcols*_trows)
             resizetype = cv::INTER_LINEAR;
         cv::resize(_originalimgmat,_originalimgmat,cv::Size(_tcols,_trows),0,0,resizetype);

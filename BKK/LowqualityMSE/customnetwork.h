@@ -41,14 +41,14 @@ template <typename SUBNET> using alevel4 = ares<2*FNUM,SUBNET>;
 
 
 // training network type
-using net_type = loss_multiclass_log<fc<2,avg_pool_everything<
+using net_type = loss_mean_squared<fc<1,avg_pool_everything<
                                         level2<
                                         level3<
                                         level4<
                                         relu<bn_con<con<FNUM,5,5,2,2,input_rgb_image>>>>>>>>>;
 
 // testing network type (replaced batch normalization with fixed affine transforms)
-using anet_type = loss_multiclass_log<fc<2,avg_pool_everything<
+using anet_type = loss_mean_squared<fc<1,avg_pool_everything<
                                          alevel2<
                                          alevel3<
                                          alevel4<

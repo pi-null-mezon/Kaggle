@@ -9,7 +9,7 @@
 #include "dlibimgaugment.h"
 #include "dlibopencvconverter.h"
 
-#include "../../BKK/Bestshot/customnetwork.h"
+#include "../../BKK/Macroblocks/customnetwork.h"
 
 
 const std::string options = "{inputdir i  |       | - directory with files to be checked}"

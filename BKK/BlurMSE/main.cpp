@@ -15,7 +15,7 @@
 #include "customnetwork.h"
 
 const int min_value = 1;
-const int max_value = 8;
+const int max_value = 3;
 
 using namespace dlib;
 
@@ -96,7 +96,7 @@ void load_image(const std::string &filename, matrix<rgb_pixel> &img, float &labe
     }*/
 
     if(augment) {
-        _tmpmat = addNoise(_tmpmat,cvrng,1,5);
+        _tmpmat = addNoise(_tmpmat,cvrng,0,rnd.get_integer_in_range(1,8));
 
         if(rnd.get_random_float() > 0.5f) {
             cv::cvtColor(_tmpmat,_tmpmat,cv::COLOR_BGR2GRAY);
@@ -107,7 +107,7 @@ void load_image(const std::string &filename, matrix<rgb_pixel> &img, float &labe
         std::vector<unsigned char> _bytes;
         std::vector<int> compression_params;
         compression_params.push_back(cv::IMWRITE_JPEG_QUALITY);
-        compression_params.push_back(static_cast<int>(rnd.get_integer_in_range(20,100)));
+        compression_params.push_back(static_cast<int>(rnd.get_integer_in_range(50,100)));
         cv::imencode("*.jpg",_tmpmat,_bytes,compression_params);
         _tmpmat = cv::imdecode(_bytes,cv::IMREAD_UNCHANGED);
 
@@ -185,7 +185,6 @@ int main(int argc, char *argv[])
         cv::imshow("augmented",augmented);
         cv::waitKey(0);
     }*/
-
     //--------------------------------------------------------------------------------
     net_type net;
     dnn_trainer<net_type> trainer(net,sgd(0.0001, 0.9));
