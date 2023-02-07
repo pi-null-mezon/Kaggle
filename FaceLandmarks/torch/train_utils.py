@@ -32,8 +32,9 @@ class LandmarksDataSet(Dataset):
             A.RandomGamma(p=0.5),
             A.CLAHE(p=0.5),
             A.Blur(p=0.5,),
-            A.GaussNoise(p=0.5)
-        ], p=1)
+            A.GaussNoise(p=0.5),
+            A.ToGray(p=0.5)
+        ], p=1.0)
         self.samples = [os.path.join(path, f.name) for f in os.scandir(path)
                         if (f.is_file() and ('.jp' in f.name or '.pn' in f.name))]
 
@@ -46,7 +47,8 @@ class LandmarksDataSet(Dataset):
         mat = cv2.cvtColor(mat, cv2.COLOR_BGR2RGB)
 
         labels = []
-        with open(filename.rsplit('.', 1)[0] + '.json', 'r') as file:
+        json_filename = filename.rsplit('.', 1)[0] + '.json'
+        with open(json_filename, 'r') as file:
             face = json.load(file)['landmarks']
             for item in face:
                 labels += [item['x'] / mat.shape[0] - 0.5, item['y'] / mat.shape[1] - 0.5]  # relative to width, rows
@@ -57,13 +59,35 @@ class LandmarksDataSet(Dataset):
 
         if torch.randn(1).item() > 0.5:
             mat, labels = landmarks_flip(mat, labels)
+        mat, labels = landmarks_jitter(mat, labels)
+
         if self.do_aug:
-            mat, labels = landmarks_jitter(mat, labels)
             mat = self.album(image=mat)["image"]
 
         #display(mat, labels, 0, "probe", False)
 
+        # filter out confusing points
+        '''cp = average(labels)
+        if abs(cp[0]) > 0.25 or abs(cp[1]) > 0.25:
+            display(mat, labels, 30, "probe", False)
+            os.remove(filename)
+            os.remove(json_filename)
+            print(f"{filename}")
+        '''
+
         return torch.Tensor(labels), self.transform(mat)
+
+
+def average(landmarks):
+    x = 0
+    y = 0
+    num = len(landmarks) // 2
+    for i in range(num):
+        x += landmarks[2*i]
+        y += landmarks[2*i + 1]
+    x /= num
+    y /= num
+    return x, y
 
 
 def display(img, landmarks, delay_ms, window_name="probe", show_pts=True, ):
@@ -89,14 +113,13 @@ def landmarks_flip(img, landmarks):
     return cv2.flip(img, 1), landmarks
 
 
-def landmarks_jitter(img, landmarks, tsize=(0, 0), maxscale=0.05, maxshift=0.05, maxangle=15,
-                     bordertype=cv2.BORDER_CONSTANT, alwaysshrink=False):
+def landmarks_jitter(img, landmarks, tsize=(0, 0), maxscale=0.05, maxshift=0.05, maxangle=10,
+                     bordertype=cv2.BORDER_CONSTANT):
     isize = (img.shape[0], img.shape[1])
     scale = min(tsize[0] / isize[0], tsize[1] / isize[1]) if tsize[0] * tsize[1] > 0 else 1
     rm = cv2.getRotationMatrix2D((isize[0] / 2, isize[1] / 2),
                                  maxangle * (2 * torch.rand(1).item() - 1),
-                                 scale * (1 - maxscale * torch.rand(1).item()) if alwaysshrink else scale * (
-                                         1 + maxscale * (2 * torch.rand(1).item() - 1)));
+                                 scale * (1.3 + maxscale * (2 * torch.rand(1).item() - 1)))
     if tsize[0] > 0 and tsize[1] > 0:
         rm[0, 2] += -(isize[0] - tsize[0]) / 2
         rm[1, 2] += -(isize[1] - tsize[1]) / 2

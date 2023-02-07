@@ -4,7 +4,7 @@ import onnx
 import onnxruntime
 import time
 
-target_name = "./build/landmarks_net.onnx"
+target_name = "/home/alex/Models/FaceLandmarks/facelandmarks_net.onnx"
 
 model = torch.load("./build/landmarks_net.pth").to(torch.device('cpu'))
 model.eval()
