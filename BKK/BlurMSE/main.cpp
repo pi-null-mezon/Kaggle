@@ -71,12 +71,10 @@ void load_image(const std::string &filename, matrix<rgb_pixel> &img, float &labe
         cv::resize(_tmpmat,_tmpmat,cv::Size(),rf,rf);*/
     }
 
-    int power = rnd.get_integer_in_range(2, max_value + 1);
-    if(rnd.get_random_float() < 0.5f) {
-        _tmpmat = applyMotionBlur(_tmpmat,90.0f*rnd.get_random_float(),power);
-        _tmpmat = applyMotionBlur(_tmpmat,90.0f*rnd.get_random_float(),power);
-    } else {
-        power = min_value;
+    int power = rnd.get_integer_in_range(min_value, max_value+1);
+    if(power > min_value) {
+        _tmpmat = applyMotionBlur(_tmpmat,360.0f*rnd.get_random_float(),power);
+        //_tmpmat = applyMotionBlur(_tmpmat,90.0f*rnd.get_random_float(),power);
     }
     /*switch(rnd.get_integer_in_range(0,4)) {
         case 0:
@@ -107,7 +105,7 @@ void load_image(const std::string &filename, matrix<rgb_pixel> &img, float &labe
         std::vector<unsigned char> _bytes;
         std::vector<int> compression_params;
         compression_params.push_back(cv::IMWRITE_JPEG_QUALITY);
-        compression_params.push_back(static_cast<int>(rnd.get_integer_in_range(50,100)));
+        compression_params.push_back(static_cast<int>(rnd.get_integer_in_range(45,100)));
         cv::imencode("*.jpg",_tmpmat,_bytes,compression_params);
         _tmpmat = cv::imdecode(_bytes,cv::IMREAD_UNCHANGED);
 

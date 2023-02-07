@@ -33,3 +33,6 @@ Install
 build
 bin
 .idea
+venv
+__pycache__
+weights
