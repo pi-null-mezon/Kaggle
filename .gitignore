@@ -27,6 +27,11 @@
 *.out
 *.app
 
+# Photos
+*.jpg
+*.jpeg
+*.png
+
 # Paths
 *.pro.user*
 Install
