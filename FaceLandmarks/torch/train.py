@@ -11,7 +11,7 @@ from torch.utils.tensorboard import SummaryWriter
 writer = SummaryWriter()
 
 isize = (100, 100)
-batch_size = 128
+batch_size = 256
 
 # Device configuration
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

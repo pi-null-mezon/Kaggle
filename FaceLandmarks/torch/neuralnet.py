@@ -154,6 +154,7 @@ class ResNet(nn.Module):
         self.layer3 = self._make_layer(block, 4*filters, layers[2], stride=2, dilate=replace_stride_with_dilation[1])
         self.layer4 = self._make_layer(block, 8*filters, layers[3], stride=2, dilate=replace_stride_with_dilation[2])
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        #self.dropout = nn.Dropout(p=0.1, inplace=True)
         self.fc1 = nn.Linear(8*filters * block.expansion, 136)  # for landmarks
         self.fc2 = nn.Linear(8*filters * block.expansion, 3)  # for pitch, yaw, roll
 
@@ -211,6 +212,7 @@ class ResNet(nn.Module):
 
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
+        #x = self.dropout(x)
         landmarks = self.fc1(x)
         angles = self.fc2(x)
 

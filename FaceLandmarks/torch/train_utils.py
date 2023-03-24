@@ -24,14 +24,16 @@ class LandmarksDataSet(Dataset):
                             max_holes=1,
                             min_width=self.tsize[1] // 3, max_width=self.tsize[1] // 2,
                             min_height=self.tsize[0] // 3, max_height=self.tsize[0] // 2),
-            A.RandomBrightnessContrast(p=1.0, brightness_limit=(-0.6, 0.6)),
+            A.RandomBrightnessContrast(p=1.0, brightness_limit=(-0.25, 0.25)),
             A.RandomGamma(p=0.5),
             A.CLAHE(p=0.5),
             A.Blur(p=0.1, blur_limit=3),
             A.ImageCompression(p=0.5, quality_lower=70, quality_upper=100),
             A.GaussNoise(p=0.5),
-            A.ToGray(p=0.1),
-            A.Posterize(p=0.1)
+            A.ToGray(p=0.5),
+            A.Posterize(p=0.1),
+            A.RandomBrightnessContrast(p=1.0, brightness_limit=(-0.25, 0.25)),
+            A.ColorJitter(p=1.0),
         ], p=1.0)
         self.samples = [os.path.join(path, f.name) for f in os.scandir(path)
                         if (f.is_file() and ('.jp' in f.name or '.pn' in f.name))]
@@ -115,7 +117,7 @@ def lrflip(img, landmarks, yaw, roll):
     return cv2.flip(img, 1), landmarks, -yaw, -roll 
 
 
-def jitter(img, landmarks, roll, tsize=(0, 0), maxscale=0.1, maxshift=0.05, maxangle=20, bordertype=cv2.BORDER_CONSTANT):
+def jitter(img, landmarks, roll, tsize=(0, 0), maxscale=0.1, maxshift=0.1, maxangle=35, bordertype=cv2.BORDER_CONSTANT):
     isize = (img.shape[0], img.shape[1])
     scale = min(tsize[0] / isize[0], tsize[1] / isize[1]) if tsize[0] * tsize[1] > 0 else 1
     angle = maxangle * (2 * torch.rand(1).item() - 1)
