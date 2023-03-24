@@ -20,7 +20,7 @@ class LandmarksDataSet(Dataset):
         self.mean = [0.455] * 3
         self.std = [0.255] * 3
         self.album = A.Compose([
-            A.CoarseDropout(p=0.25,
+            A.CoarseDropout(p=0.1,
                             max_holes=1,
                             min_width=self.tsize[1] // 3, max_width=self.tsize[1] // 2,
                             min_height=self.tsize[0] // 3, max_height=self.tsize[0] // 2),

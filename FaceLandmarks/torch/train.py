@@ -16,8 +16,8 @@ batch_size = 128
 # Device configuration
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-filters = 8
-layers = [1, 1, 2, 1]
+filters = 16
+layers = [1, 1, 1, 1]
 model = neuralnet.ResNet(neuralnet.BasicBlock, filters, layers).to(device)
 model_name = f"resnet{sum(layers) * 2 + 2}_{filters}f_{isize[0]}@200bbox"
 
@@ -33,7 +33,7 @@ test_data = train_utils.LandmarksDataSet("/home/alex/Fastdata/FaceLandmarks/Head
 
 pretrain_loader = torch.utils.data.DataLoader(warmup_data, batch_size=batch_size, shuffle=True, num_workers=6)
 train_loader = torch.utils.data.DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=6)
-test_loader = torch.utils.data.DataLoader(test_data, batch_size=batch_size, num_workers=4)
+test_loader = torch.utils.data.DataLoader(test_data, batch_size=batch_size, num_workers=6)
 
 # DB Cleaning
 '''
@@ -67,7 +67,7 @@ def update_metrics(mode, epoch, running_loss_angles, running_loss_landmarks):
     writer.add_scalar(f"Loss/landmarks/{mode}", running_loss_angles, epoch)
     print(f" - landmarks loss:  {running_loss_landmarks:.5f}")
     print(f" - angles loss:  {running_loss_angles:.5f}")
-    running_loss = running_loss_landmarks + running_loss_landmarks
+    running_loss = (running_loss_angles + running_loss_landmarks) / 2
     if running_loss < metrics[mode]['loss']:
         metrics[mode]['loss'] = running_loss
         torch.save(model, f"./weights/{model_name}_{mode}.pth")
