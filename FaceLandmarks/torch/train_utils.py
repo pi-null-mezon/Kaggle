@@ -1,10 +1,10 @@
 import torch
 from torch.utils.data import Dataset
-from torchvision import transforms
 import json
 import os
 import cv2
 import albumentations as A
+from neuralnet import numpy_image2torch_tensor
 
 
 class LandmarksDataSet(Dataset):
@@ -17,21 +17,18 @@ class LandmarksDataSet(Dataset):
         self.tsize = tsize
         self.do_aug = do_aug
         self.path = path
-        self.transform = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-        ])
+        self.mean = [0.455] * 3
+        self.std = [0.255] * 3
         self.album = A.Compose([
-            A.CoarseDropout(p=0.5,
-                            min_width=self.tsize[0]//3,
-                            min_height=self.tsize[0]//3,
+            A.CoarseDropout(p=0.25,
                             max_holes=1,
-                            max_height=self.tsize[0]//2,
-                            max_width=self.tsize[0]//2),
+                            min_width=self.tsize[1] // 3, max_width=self.tsize[1] // 2,
+                            min_height=self.tsize[0] // 3, max_height=self.tsize[0] // 2),
             A.RandomBrightnessContrast(p=1.0, brightness_limit=(-0.6, 0.6)),
             A.RandomGamma(p=0.5),
             A.CLAHE(p=0.5),
-            A.Blur(p=0.5,),
+            A.Blur(p=0.1, blur_limit=3),
+            A.ImageCompression(p=0.5, quality_lower=70, quality_upper=100),
             A.GaussNoise(p=0.5),
             A.ToGray(p=0.1),
             A.Posterize(p=0.1)
@@ -45,7 +42,6 @@ class LandmarksDataSet(Dataset):
     def __getitem__(self, idx):
         filename = self.samples[idx]
         mat = cv2.imread(filename, cv2.IMREAD_COLOR)
-        mat = cv2.cvtColor(mat, cv2.COLOR_BGR2RGB)
 
         landmakrs = []
         json_filename = filename.rsplit('.', 1)[0] + '.json'
@@ -57,10 +53,10 @@ class LandmarksDataSet(Dataset):
             for item in face['landmarks']:
                 landmakrs += [item['x'] / mat.shape[0] - 0.5, item['y'] / mat.shape[1] - 0.5]  # relative to width, rows
 
-
         if mat.shape[0] != self.tsize[0]:
             mat = cv2.resize(mat, self.tsize,
-                            interpolation=cv2.INTER_AREA if mat.shape[0] * mat.shape[1] > self.tsize[0] * self.tsize[1] else cv2.INTER_CUBIC)
+                             interpolation=cv2.INTER_AREA if mat.shape[0] * mat.shape[1] > self.tsize[0] * self.tsize[1]
+                             else cv2.INTER_CUBIC)
 
         if torch.randn(1).item() > 0.5:
             mat, landmakrs, yaw, roll = lrflip(mat, landmakrs, yaw, roll)
@@ -69,6 +65,7 @@ class LandmarksDataSet(Dataset):
         if self.do_aug:
             mat = self.album(image=mat)["image"]
 
+        # Visual Control
         #display(mat, landmakrs, 0, "probe", False)
 
         # filter out confusing points
@@ -79,8 +76,8 @@ class LandmarksDataSet(Dataset):
             os.remove(json_filename)
             print(f"{filename}")
         '''
-
-        return torch.Tensor([1.2 * pitch / 90, 1.28 * yaw / 90, roll / 90]), torch.Tensor(landmakrs), self.transform(mat)
+        t = numpy_image2torch_tensor(mat, self.mean, self.std, swap_red_blue=False)
+        return torch.Tensor([1.2 * pitch / 90, 1.28 * yaw / 90, roll / 90]), torch.Tensor(landmakrs), t
 
 
 def average(landmarks):
@@ -118,7 +115,7 @@ def lrflip(img, landmarks, yaw, roll):
     return cv2.flip(img, 1), landmarks, -yaw, -roll 
 
 
-def jitter(img, landmarks, roll, tsize=(0, 0), maxscale=0.1, maxshift=0.05, maxangle=10, bordertype=cv2.BORDER_CONSTANT):
+def jitter(img, landmarks, roll, tsize=(0, 0), maxscale=0.1, maxshift=0.05, maxangle=20, bordertype=cv2.BORDER_CONSTANT):
     isize = (img.shape[0], img.shape[1])
     scale = min(tsize[0] / isize[0], tsize[1] / isize[1]) if tsize[0] * tsize[1] > 0 else 1
     angle = maxangle * (2 * torch.rand(1).item() - 1)

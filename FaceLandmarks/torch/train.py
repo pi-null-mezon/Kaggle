@@ -1,5 +1,4 @@
 import os
-
 import torch
 import neuralnet
 import train_utils
@@ -7,36 +6,36 @@ import torch.nn as nn
 from tqdm import tqdm
 import sys
 import cv2
+from torch.utils.tensorboard import SummaryWriter
+
+writer = SummaryWriter()
 
 isize = (100, 100)
-batch_size = 64
-
-min_test_loss_landmarks = 1E2
-min_train_loss_landmarks = 1E2
-
-min_test_loss_angles = 1E2
-min_train_loss_angles = 1E2
+batch_size = 128
 
 # Device configuration
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-model = neuralnet.ResNet(neuralnet.BasicBlock, [2, 2, 2, 1]).to(device)
+filters = 8
+layers = [1, 1, 2, 1]
+model = neuralnet.ResNet(neuralnet.BasicBlock, filters, layers).to(device)
+model_name = f"resnet{sum(layers) * 2 + 2}_{filters}f_{isize[0]}@200bbox"
 
 # Loss and optimizer
 loss_fn_landmarks = nn.MSELoss(reduction='none')  # multi MSE
 loss_fn_angles = nn.MSELoss(reduction='none')  # multi MSE
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-scheduler = torch.optim.lr_scheduler.StepLR(optimizer, gamma=0.1, step_size=150, verbose=True)
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer, gamma=0.1, step_size=100, verbose=True)
 
-pretrain_data = train_utils.LandmarksDataSet("/home/alex/Fastdata/HeadPose/Train/2x2", isize, do_aug=False)
-train_data = train_utils.LandmarksDataSet("/home/alex/Fastdata/HeadPose/Train/2x2", isize, do_aug=True)
-test_data = train_utils.LandmarksDataSet("/home/alex/Fastdata/HeadPose/Test/2x2", isize, do_aug=False)
+warmup_data = train_utils.LandmarksDataSet("/home/alex/Fastdata/FaceLandmarks/HeadPose/Train/2x2", isize, do_aug=False)
+train_data = train_utils.LandmarksDataSet("/home/alex/Fastdata/FaceLandmarks/HeadPose/Train/2x2", isize, do_aug=True)
+test_data = train_utils.LandmarksDataSet("/home/alex/Fastdata/FaceLandmarks/HeadPose/Test/2x2", isize, do_aug=False)
 
-pretrain_loader = torch.utils.data.DataLoader(pretrain_data, batch_size=batch_size, shuffle=True, num_workers=6)
-train_loader = torch.utils.data.DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=6, drop_last=False)
+pretrain_loader = torch.utils.data.DataLoader(warmup_data, batch_size=batch_size, shuffle=True, num_workers=6)
+train_loader = torch.utils.data.DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=6)
 test_loader = torch.utils.data.DataLoader(test_data, batch_size=batch_size, num_workers=4)
 
-#
+# DB Cleaning
 '''
 for (target, data) in pretrain_loader: 
     dummy = 0
@@ -46,15 +45,39 @@ exit(0)
 '''
 
 
-def visualize(model, dirname="./test"):
+def visualize(dirname="./test"):
     for name in [f.name for f in os.scandir(dirname) if f.is_file() and '.jp' in f.name or '.pn' in f.name]:
         test_img = cv2.imread(os.path.join(dirname, name))
         landmarks = neuralnet.predict_landmarks(test_img, isize, model, device)[1].squeeze(0).cpu().tolist()
         train_utils.display(test_img, landmarks, 30, name, False)
 
 
+# Metrics
+metrics = {
+    'train': {'loss': float('inf')},
+    'test':  {'loss': float('inf')}
+}
+
+
+def update_metrics(mode, epoch, running_loss_angles, running_loss_landmarks):
+    print(f"{mode.upper()}:")
+    if not os.path.exists('./weights'):
+        os.makedirs('./weights')
+    writer.add_scalar(f"Loss/angles/{mode}", running_loss_angles, epoch)
+    writer.add_scalar(f"Loss/landmarks/{mode}", running_loss_angles, epoch)
+    print(f" - landmarks loss:  {running_loss_landmarks:.5f}")
+    print(f" - angles loss:  {running_loss_angles:.5f}")
+    running_loss = running_loss_landmarks + running_loss_landmarks
+    if running_loss < metrics[mode]['loss']:
+        metrics[mode]['loss'] = running_loss
+        torch.save(model, f"./weights/{model_name}_{mode}.pth")
+        print(f" - loss:  {running_loss:.5f} - improvement")
+        visualize()
+    else:
+        print(f" - loss:  {running_loss:.5f}")
+
+
 def train(epoch, dataloader, schedule_lr=False):
-    global min_train_loss_landmarks
     model.train()
     running_loss_landmarks = 0
     running_loss_angles = 0
@@ -76,19 +99,10 @@ def train(epoch, dataloader, schedule_lr=False):
         scheduler.step()
     running_loss_landmarks /= len(dataloader.dataset)
     running_loss_angles /= len(dataloader.dataset)
-    print("Train loss:")
-    print(f" - landmarks: {running_loss_landmarks:.8f}")
-    print(f" - angles:    {running_loss_angles:.8f}")
-    if running_loss_landmarks < min_train_loss_landmarks:
-        print(f"Improvement in train loss, saving model for epoch: {epoch}")
-        min_train_loss_landmarks = running_loss_landmarks
-        torch.save(model, f"./build/headpose_net_train.pth")
-        visualize(model)
+    update_metrics('train', epoch, running_loss_angles, running_loss_landmarks)
 
 
-def test(dataloader):
-    global min_test_loss_landmarks
-    global min_test_loss_angles
+def test(epoch, dataloader):
     model.eval()
     running_loss_landmarks = 0
     running_loss_angles = 0
@@ -104,29 +118,21 @@ def test(dataloader):
             running_loss_angles += loss_2.sum().item()
     running_loss_landmarks /= len(dataloader.dataset)
     running_loss_angles /= len(dataloader.dataset)
-    print("Test loss:")
-    print(f" - landmarks: {running_loss_landmarks:.8f}")
-    print(f" - angles:    {running_loss_angles:.8f}")
-    if running_loss_landmarks < min_test_loss_landmarks:
-        print(f"Improvement in test loss, saving model for epoch: {epoch}")
-        min_test_loss_landmarks = running_loss_landmarks
-        torch.save(model, f"./build/headpose_net_test.pth")
-        visualize(model)
+    update_metrics('test', epoch, running_loss_angles, running_loss_landmarks)
 
 
-print("-"*20)
-print("Train several epochs without augmentations to prepare weights")
-print("-"*20)
+print("-" * 20)
+print("Warmup training")
+print("-" * 20)
 for epoch in range(5):
     train(epoch, pretrain_loader)
     print("")
-
-print("-"*20)
-print("Train with augmentations and validation")
-print("-"*20)
-for epoch in range(400):
+print("-" * 20)
+print("Training with augmentations")
+print("-" * 20)
+for epoch in range(300):
     train(epoch, train_loader, schedule_lr=True)
-    test(test_loader)
+    test(epoch, test_loader)
     print("")
 
 cv2.waitKey()

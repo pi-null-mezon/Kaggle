@@ -1,17 +1,7 @@
 import torch
 import torch.nn as nn
 import cv2
-import numpy as np
-
-
-def numpy_image2torch_tensor(bgr, mean, std, swap_red_blue=False):
-    tmp = bgr.astype(dtype=np.float32) / 255.0
-    if swap_red_blue:
-        tmp = cv2.cvtColor(tmp, cv2.COLOR_BGR2RGB)
-    tmp = np.transpose(tmp, axes=(2, 0, 1))  # HxWxC -> CxHxW
-    tmp -= np.asarray(mean, dtype=np.float32).reshape(3, 1, 1)
-    tmp /= np.asarray(std, dtype=np.float32).reshape(3, 1, 1)
-    return torch.from_numpy(tmp)
+from torchvision import transforms
 
 
 def conv3x3(in_planes, out_planes, stride=1, groups=1, dilation=1):
@@ -125,7 +115,7 @@ class Bottleneck(nn.Module):
 
 class ResNet(nn.Module):
 
-    def __init__(self, block, filters, layers, zero_init_residual=False,
+    def __init__(self, block, layers, num_classes, zero_init_residual=False,
                  groups=1, width_per_group=64, replace_stride_with_dilation=None,
                  norm_layer=None):
         super(ResNet, self).__init__()
@@ -133,7 +123,7 @@ class ResNet(nn.Module):
             norm_layer = nn.BatchNorm2d
         self._norm_layer = norm_layer
 
-        self.inplanes = filters
+        self.inplanes = 4
         self.dilation = 1
         if replace_stride_with_dilation is None:
             # each element in the tuple indicates if we should replace
@@ -149,13 +139,15 @@ class ResNet(nn.Module):
         self.bn1 = norm_layer(self.inplanes)
         self.relu = nn.ReLU(inplace=True)
 
-        self.layer1 = self._make_layer(block, filters, layers[0])
-        self.layer2 = self._make_layer(block, 2*filters, layers[1], stride=2, dilate=replace_stride_with_dilation[0])
-        self.layer3 = self._make_layer(block, 4*filters, layers[2], stride=2, dilate=replace_stride_with_dilation[1])
-        self.layer4 = self._make_layer(block, 8*filters, layers[3], stride=2, dilate=replace_stride_with_dilation[2])
+        self.layer1 = self._make_layer(block, 8, layers[0])
+        self.layer2 = self._make_layer(block, 16, layers[1], stride=2,
+                                       dilate=replace_stride_with_dilation[0])
+        self.layer3 = self._make_layer(block, 24, layers[2], stride=2,
+                                       dilate=replace_stride_with_dilation[1])
+        self.layer4 = self._make_layer(block, 32, layers[3], stride=2,
+                                       dilate=replace_stride_with_dilation[2])
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc1 = nn.Linear(8*filters * block.expansion, 136)  # for landmarks
-        self.fc2 = nn.Linear(8*filters * block.expansion, 3)  # for pitch, yaw, roll
+        self.fc1 = nn.Linear(32 * block.expansion, num_classes)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -211,26 +203,12 @@ class ResNet(nn.Module):
 
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
-        landmarks = self.fc1(x)
-        angles = self.fc2(x)
+        x = self.fc1(x)
 
-        return angles, landmarks
+        return x
 
     def forward(self, x):
         return self._forward_impl(x)
-
-# --------------------------------------------------------------------------
-
-
-def predict_landmarks(mat, isize, model, device):
-    if mat.shape[0] != isize[0]:
-        mat = cv2.resize(mat, isize,
-                         interpolation=cv2.INTER_AREA if mat.shape[0] * mat.shape[1] > isize[0] * isize[1]
-                         else cv2.INTER_CUBIC)
-    model.eval()
-    with torch.no_grad():
-        return model(numpy_image2torch_tensor(mat, mean=3*[0.455], std=3*[0.255], swap_red_blue=False).unsqueeze(0).to(device))
-
 
 # --------------------------------------------------------------------------
 
