@@ -18,21 +18,19 @@ class LandmarksDataSet(Dataset):
         self.do_aug = do_aug
         self.path = path
         self.mean = [0.455] * 3
-        self.std = [0.255] * 3
+        self.std = [0.225] * 3
         self.album = A.Compose([
-            A.CoarseDropout(p=0.1,
+            A.CoarseDropout(p=0.025,
                             max_holes=1,
-                            min_width=self.tsize[1] // 3, max_width=self.tsize[1] // 2,
-                            min_height=self.tsize[0] // 3, max_height=self.tsize[0] // 2),
-            A.RandomBrightnessContrast(p=1.0, brightness_limit=(-0.25, 0.25)),
-            A.RandomGamma(p=0.5),
-            A.CLAHE(p=0.5),
+                            min_width=int(self.tsize[1] / 3.25), max_width=int(self.tsize[1] / 1.75),
+                            min_height=int(self.tsize[0] / 3.25), max_height=int(self.tsize[0] / 1.75)),
+            A.RandomBrightnessContrast(p=0.25, brightness_limit=(-0.25, 0.25)),
             A.Blur(p=0.1, blur_limit=3),
-            A.ImageCompression(p=0.5, quality_lower=70, quality_upper=100),
-            A.GaussNoise(p=0.5),
-            A.ToGray(p=0.5),
-            A.Posterize(p=0.1),
-            A.RandomBrightnessContrast(p=1.0, brightness_limit=(-0.25, 0.25)),
+            A.GaussNoise(p=0.1),
+            A.ImageCompression(p=0.1, quality_lower=75, quality_upper=100),
+            A.ToGray(p=0.25),
+            A.Posterize(p=0.05),
+            A.RandomBrightnessContrast(p=0.25, brightness_limit=(-0.25, 0.25)),
             A.ColorJitter(p=1.0),
         ], p=1.0)
         self.samples = [os.path.join(path, f.name) for f in os.scandir(path)
@@ -57,7 +55,7 @@ class LandmarksDataSet(Dataset):
 
         if mat.shape[0] != self.tsize[0]:
             mat = cv2.resize(mat, self.tsize,
-                             interpolation=cv2.INTER_AREA if mat.shape[0] * mat.shape[1] > self.tsize[0] * self.tsize[1]
+                             interpolation=cv2.INTER_LINEAR if mat.shape[0] * mat.shape[1] > self.tsize[0] * self.tsize[1]
                              else cv2.INTER_CUBIC)
 
         if torch.randn(1).item() > 0.5:
@@ -117,7 +115,7 @@ def lrflip(img, landmarks, yaw, roll):
     return cv2.flip(img, 1), landmarks, -yaw, -roll 
 
 
-def jitter(img, landmarks, roll, tsize=(0, 0), maxscale=0.1, maxshift=0.1, maxangle=35, bordertype=cv2.BORDER_CONSTANT):
+def jitter(img, landmarks, roll, tsize=(0, 0), maxscale=0.1, maxshift=0.05, maxangle=25, bordertype=cv2.BORDER_CONSTANT):
     isize = (img.shape[0], img.shape[1])
     scale = min(tsize[0] / isize[0], tsize[1] / isize[1]) if tsize[0] * tsize[1] > 0 else 1
     angle = maxangle * (2 * torch.rand(1).item() - 1)

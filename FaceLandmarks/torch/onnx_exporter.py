@@ -6,13 +6,13 @@ import time
 import neuralnet
 
 # ------------------------------------------------------------------------------------
-filters = 32
+filters = 16
 size = (100, 100)
-layers = [1, 1, 1, 1]
+layers = [1, 1, 2, 1]
 model_name = f"resnet{sum(layers) * 2 + 2}_{filters}f_{size[0]}@200bbox"
 # ------------------------------------------------------------------------------------
 
-model = torch.load(f"./weights/{model_name}_test.pth").to(torch.device('cpu'))
+model = torch.load(f"./runs/resnet12_16f/{model_name}_test.pth").to(torch.device('cpu'))
 model.eval()
 
 # Save model's state_dict

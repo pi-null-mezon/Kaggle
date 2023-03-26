@@ -144,17 +144,16 @@ class ResNet(nn.Module):
                              "or a 3-element tuple, got {}".format(replace_stride_with_dilation))
         self.groups = groups
         self.base_width = width_per_group
-        self.conv1 = nn.Conv2d(3, self.inplanes, kernel_size=5, stride=2, padding=1,
-                               bias=False)
+        self.conv1 = nn.Conv2d(3, self.inplanes, kernel_size=5, stride=2, padding=1, bias=False)
         self.bn1 = norm_layer(self.inplanes)
         self.relu = nn.ReLU(inplace=True)
+        #self.pool1 = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
         self.layer1 = self._make_layer(block, filters, layers[0])
         self.layer2 = self._make_layer(block, 2*filters, layers[1], stride=2, dilate=replace_stride_with_dilation[0])
         self.layer3 = self._make_layer(block, 4*filters, layers[2], stride=2, dilate=replace_stride_with_dilation[1])
         self.layer4 = self._make_layer(block, 8*filters, layers[3], stride=2, dilate=replace_stride_with_dilation[2])
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        #self.dropout = nn.Dropout(p=0.1, inplace=True)
         self.fc1 = nn.Linear(8*filters * block.expansion, 136)  # for landmarks
         self.fc2 = nn.Linear(8*filters * block.expansion, 3)  # for pitch, yaw, roll
 
@@ -204,6 +203,7 @@ class ResNet(nn.Module):
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
+        #x = self.pool1(x)
 
         x = self.layer1(x)
         x = self.layer2(x)
@@ -212,7 +212,6 @@ class ResNet(nn.Module):
 
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
-        #x = self.dropout(x)
         landmarks = self.fc1(x)
         angles = self.fc2(x)
 
@@ -231,7 +230,7 @@ def predict_landmarks(mat, isize, model, device):
                          else cv2.INTER_CUBIC)
     model.eval()
     with torch.no_grad():
-        return model(numpy_image2torch_tensor(mat, mean=3*[0.455], std=3*[0.255], swap_red_blue=False).unsqueeze(0).to(device))
+        return model(numpy_image2torch_tensor(mat, mean=3*[0.455], std=3*[0.225], swap_red_blue=False).unsqueeze(0).to(device))
 
 
 # --------------------------------------------------------------------------

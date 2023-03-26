@@ -2,7 +2,6 @@ torch
 albumentations
 opencv-python
 tensorboard
-matplotlib
 onnxruntime
 onnx
 tqdm

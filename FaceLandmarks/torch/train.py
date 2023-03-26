@@ -11,7 +11,7 @@ from torch.utils.tensorboard import SummaryWriter
 writer = SummaryWriter()
 
 isize = (100, 100)
-batch_size = 256
+batch_size = 128
 
 # Device configuration
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -64,7 +64,7 @@ def update_metrics(mode, epoch, running_loss_angles, running_loss_landmarks):
     if not os.path.exists('./weights'):
         os.makedirs('./weights')
     writer.add_scalar(f"Loss/angles/{mode}", running_loss_angles, epoch)
-    writer.add_scalar(f"Loss/landmarks/{mode}", running_loss_angles, epoch)
+    writer.add_scalar(f"Loss/landmarks/{mode}", running_loss_landmarks, epoch)
     print(f" - landmarks loss:  {running_loss_landmarks:.5f}")
     print(f" - angles loss:  {running_loss_angles:.5f}")
     running_loss = (running_loss_angles + running_loss_landmarks) / 2
