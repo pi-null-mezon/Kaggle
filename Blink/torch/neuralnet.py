@@ -1,7 +1,5 @@
 import torch
 import torch.nn as nn
-import cv2
-from torchvision import transforms
 
 
 def conv3x3(in_planes, out_planes, stride=1, groups=1, dilation=1):
@@ -115,7 +113,7 @@ class Bottleneck(nn.Module):
 
 class ResNet(nn.Module):
 
-    def __init__(self, block, layers, num_classes, zero_init_residual=False,
+    def __init__(self, block, filters, layers, num_classes, zero_init_residual=False,
                  groups=1, width_per_group=64, replace_stride_with_dilation=None,
                  norm_layer=None):
         super(ResNet, self).__init__()
@@ -123,7 +121,7 @@ class ResNet(nn.Module):
             norm_layer = nn.BatchNorm2d
         self._norm_layer = norm_layer
 
-        self.inplanes = 4
+        self.inplanes = filters
         self.dilation = 1
         if replace_stride_with_dilation is None:
             # each element in the tuple indicates if we should replace
@@ -134,20 +132,19 @@ class ResNet(nn.Module):
                              "or a 3-element tuple, got {}".format(replace_stride_with_dilation))
         self.groups = groups
         self.base_width = width_per_group
-        self.conv1 = nn.Conv2d(3, self.inplanes, kernel_size=5, stride=2, padding=1,
-                               bias=False)
+        self.conv1 = nn.Conv2d(3, self.inplanes, kernel_size=5, stride=2, padding=1, bias=False)
         self.bn1 = norm_layer(self.inplanes)
         self.relu = nn.ReLU(inplace=True)
-
-        self.layer1 = self._make_layer(block, 8, layers[0])
-        self.layer2 = self._make_layer(block, 16, layers[1], stride=2,
+        self.layer1 = self._make_layer(block, filters, layers[0])
+        self.layer2 = self._make_layer(block, 2*filters, layers[1], stride=2,
                                        dilate=replace_stride_with_dilation[0])
-        self.layer3 = self._make_layer(block, 24, layers[2], stride=2,
+        self.layer3 = self._make_layer(block, 4*filters, layers[2], stride=2,
                                        dilate=replace_stride_with_dilation[1])
-        self.layer4 = self._make_layer(block, 32, layers[3], stride=2,
-                                       dilate=replace_stride_with_dilation[2])
+        #self.layer4 = self._make_layer(block, 8*filters, layers[3], stride=2,
+        #                               dilate=replace_stride_with_dilation[2])
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc1 = nn.Linear(32 * block.expansion, num_classes)
+        self.dropout = nn.Dropout(p=0.5, inplace=True)
+        self.fc1 = nn.Linear(4 * filters * block.expansion, num_classes)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -199,10 +196,11 @@ class ResNet(nn.Module):
         x = self.layer1(x)
         x = self.layer2(x)
         x = self.layer3(x)
-        x = self.layer4(x)
+        #x = self.layer4(x)
 
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
+        x = self.dropout(x)
         x = self.fc1(x)
 
         return x

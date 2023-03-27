@@ -1,9 +1,6 @@
-torch==1.11.0
-torchvision==0.12.0
-torcheval
-numpy
-tqdm
+torch
 albumentations
 opencv-python
-onnx
 onnxruntime
+onnx
+tqdm
